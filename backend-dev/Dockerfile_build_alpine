@@ -1,0 +1,16 @@
+FROM python:alpine3.18
+RUN apk add file
+RUN apk add binutils
+ADD . /home/app
+#ADD assets /home/dist/assets
+#ADD env.txt /home/dist
+WORKDIR /home/app
+RUN mv env.txt .env
+RUN pip install -r requirments_alpine.txt
+RUN pyinstaller main.py -y
+RUN adduser -u 1000 -h /bin/sh -D python
+RUN chown -R python:python /home/app/dist
+RUN chmod 755 /home/app/dist/main/main
+USER python
+#EXPOSE 3005
+#ENTRYPOINT ["/home/app/dist/main/main"]

@@ -1,0 +1,14 @@
+FROM alpine:3.18
+RUN apk add file
+RUN apk add binutils
+ADD dist_alpine /home/dist
+ADD assets /home/dist/assets
+ADD env.txt /home/dist
+WORKDIR /home/dist
+RUN mv env.txt .env
+RUN adduser -u 1000 -h /bin/sh -D  python
+RUN chown -R python:python /home/dist
+RUN chmod 755 /home/dist/main/main
+USER python
+EXPOSE 3005
+ENTRYPOINT ["/home/dist/main/main"]

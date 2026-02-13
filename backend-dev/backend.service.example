@@ -1,0 +1,14 @@
+[Unit]
+Description=Test Service
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/home/debian/vms/dist2/main/main // location execute file
+WorkingDirectory=/home/debian/vms/dist2/main // location folder execute file
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=%n
+
+[Install]
+WantedBy=multi-user.target

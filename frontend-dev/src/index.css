@@ -1,0 +1,229 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+  font-weight: 500;
+  color: #646cff;
+  text-decoration: inherit;
+}
+a:hover {
+  color: #535bf2;
+}
+
+body {
+  margin: 0;
+  display: flex;
+  place-items: center;
+  min-width: 320px;
+  min-height: 100vh;
+  background-color: #f6f6ff;
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
+
+h1 {
+  font-size: 3.2em;
+  line-height: 1.1;
+}
+
+button {
+  border-radius: 8px;
+  border: 0.5px solid transparent;
+  padding: 0.6em 1.2em;
+  font-size: 1em;
+  font-weight: 500;
+  font-family: inherit;
+  background-color: #1a1a1a;
+  cursor: pointer;
+  transition: border-color 0.25s;
+  font-family: Arial, sans-serif;
+}
+
+button:hover {
+  border-color: #2140ad;
+}
+
+.buttonMenu {
+  /* Gaya umum untuk tombol */
+  padding: 12px 16px;
+  background-color: transparent;
+  color: #333;
+  text-decoration: none;
+  transition: background-color 0.3s ease;
+}
+
+.activeButton {
+  /* Gaya untuk tombol yang aktif */
+  background-color: #ffffff;
+  color: #000;
+  box-shadow: #f0f0f0;
+}
+
+.inactiveButton {
+  /* Gaya untuk tombol yang tidak aktif */
+  background-color: transparent;
+  color: #333;
+}
+
+.buttonMenu:hover {
+  /* Gaya saat tombol dihover */
+  background-color: #f0f0f0;
+}
+
+button:focus,
+button:focus-visible {
+  background-color: #ffffff;
+  color: #2140ad;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    color: #213547;
+    background-color: #ffffff;
+  }
+  a:hover {
+    color: #747bff;
+  }
+  button {
+    background-color: #f9f9f9;
+  }
+}
+
+.module-title {
+  font-size: 18px;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 16px;
+}
+
+.module-title-white {
+  font-size: 18px;
+  font-weight: bold;
+  color: #ffffff;
+  margin-bottom: 16px;
+}
+
+/* Deskripsi Modul */
+.module-description {
+  font-size: 16px;
+  color: #555;
+  margin-bottom: 16px;
+}
+
+/* Daftar Parameter */
+.module-parameter li {
+  font-size: 14px;
+  color: #777;
+  margin-bottom: 8px;
+}
+
+/* Source Code (Java) */
+.source-code {
+  background-color: #f4f4f4;
+  font-size: 14px;
+  border-radius: 6px;
+  padding: 12px;
+  overflow-x: auto;
+}
+
+.card-container {
+  max-height: 33vh; /* Tinggi maksimal card */
+  overflow-y: auto; /* Aktifkan scrollbar jika konten melebihi tinggi maksimal */
+}
+
+.card {
+  border-radius: 4px; /* Sudut border */
+  box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1); /* Bayangan */
+  background-color: #fff; /* Warna latar belakang */
+  padding: 16px; /* Padding di dalam card */
+}
+
+.pass-card {
+  border-radius: 4px; /* Sudut border */
+  box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1); /* Bayangan */
+  padding: 16px; /* Padding di dalam card */
+}
+
+/* Gaya scrollbar untuk Chrome dan Safari */
+::-webkit-scrollbar {
+  width: 5px; /* Lebar scrollbar */
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1; /* Warna latar belakang scrollbar track */
+  border-radius: 6px; /* Sudut border untuk track */
+}
+
+::-webkit-scrollbar-thumb {
+  background: #888; /* Warna thumb scrollbar */
+  border-radius: 6px; /* Sudut border untuk thumb */
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #555; /* Warna thumb scrollbar saat dihover */
+}
+
+/* Gaya scrollbar untuk Firefox */
+.scrollbar {
+  scrollbar-width: thin; /* Lebar scrollbar */
+  scrollbar-color: #888 #f1f1f1; /* Warna thumb dan track scrollbar */
+}
+
+.scrollbar:hover {
+  scrollbar-color: #555 #f1f1f1; /* Warna thumb dan track scrollbar saat dihover */
+}
+
+.button-container-custom {
+  display: flex;
+  justify-content: right;
+  gap: 4px;
+}
+
+.button-container-custom .button-custom {
+  border-radius: 8px;
+  font-size: 10px;
+}
+
+.button-container-custom .button-custom:hover {
+  color: white;
+  border: 2px solid white;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 1s ease-in-out;
+}
+
+/* index.css */
+.sidebar-menu-item:last-child::after {
+  content: "";
+  display: block;
+  width: calc(100% - 2rem); /* Sesuaikan lebar garis dengan menu */
+  height: 1px;
+  background-color: rgba(255, 255, 255, 0.5); /* Warna dan opasitas garis */
+  margin-top: 0.5rem; /* Jarak antara garis dan teks */
+}
