@@ -28,7 +28,7 @@ Memahami secara menyeluruh bagaimana sistem **membentuk Control Flow Graph (CFG)
 ## 3. Alur Proses Pembuatan CFG (Secara Runtut)
 
 <div style="text-align: center;">
-  <img src="image.png" alt="Alur Proses Pembuatan CFG" width="600">
+  <img src="image.png" alt="Alur Proses Pembuatan CFG" width="300">
 </div>
 
 ### Langkah 1: User Upload Source Code Java
