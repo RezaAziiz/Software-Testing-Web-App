@@ -27,6 +27,10 @@ Memahami secara menyeluruh bagaimana sistem **membentuk Control Flow Graph (CFG)
 
 ## 3. Alur Proses Pembuatan CFG (Secara Runtut)
 
+<div style="text-align: center;">
+  <img src="image.png" alt="Alur Proses Pembuatan CFG">
+</div>
+
 ### Langkah 1: User Upload Source Code Java
 - **Fungsi:** `upload()` di `routes/modul.py` (baris 306–377)
 - **Endpoint:** `POST /modul/uploadSourceCode/{id_modul}`
