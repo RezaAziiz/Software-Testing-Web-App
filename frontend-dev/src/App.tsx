@@ -24,17 +24,24 @@ function App() {
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
+        {
+          <>
+            TOPIK MODUL: HALAMAN YANG TEST CASE NYA MASIH KOSONG DAN BARU DIBUKA
+            PASS: EKSEKUSI NYA SUDAH SELESAI DAN PASS DENGAN KONDISI LEBIH DARI
+            80 FAIL:KETIKA UDAH EKSEKUIS MASIH FAIL DAN KURANG DARI 60
+          </>
+        }
         <Route path="/topikModul" element={<CreateTestCasePage />} />
         <Route path="/pass" element={<ExecutionTestCasePassPage />} />
         <Route path="/fail" element={<ExecutionTestCaseFailPage />} />
-        <Route path="/test-result" element={<TestResultPage/>}/>
+        <Route path="/test-result" element={<TestResultPage />} />
         <Route path="/module" element={<ModuleTestPage />} />
         <Route path="/dashboard-teacher" element={<DashboardPage />} />
         <Route path="/dashboard-student" element={<DashboardStudentPage />} />
         <Route path="/error" element={<ErrorPage />} />
         <Route path="/list-topics" element={<ListTopicsPage />} />
         <Route path="/list-modules" element={<ListModulesPage />} />
-        <Route path="/list-challanges" element={<ListChallengesPage />}/>
+        <Route path="/list-challanges" element={<ListChallengesPage />} />
         <Route path="/challenge" element={<AccessTopicsPage />} />
         <Route path="/grade" element={<GradeStudentPage />} />
         <Route path="/progress" element={<ProgressStudentPage />} />

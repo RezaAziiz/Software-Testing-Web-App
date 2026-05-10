@@ -85,9 +85,9 @@ const EditTestCaseFormDialog = ({
   let apiKey = import.meta.env.VITE_API_KEY;
   // const modulId = import.meta.env.VITE_MODULE_ID;
   const sessionData = localStorage.getItem('session')
-  if (sessionData != null){
-      const session = JSON.parse(sessionData);
-      apiKey = session.token
+  if (sessionData != null) {
+    const session = JSON.parse(sessionData);
+    apiKey = session.token
   }
   const queryParameters = new URLSearchParams(window.location.search)
   const modulId = queryParameters.get("topikModulId")
@@ -125,42 +125,42 @@ const EditTestCaseFormDialog = ({
     }
   };
 
-  const fetchTestCaseData = async (id:string) => {
-   
-      try {
-        const response = await fetch(`${apiUrl}/modul/DetailTestCase/${id}`, {
-          method: "GET",
-          headers: {
-            Accept: "application/json",
-            Authorization: `Bearer ${apiKey}`,
-          },
-        });
-  
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-  
-        const responseData = await response.json();
-        const testCaseData = responseData.data
+  const fetchTestCaseData = async (id: string) => {
 
-        form.setValue("no", testCaseData.tr_no);
-        form.setValue("objective", testCaseData.tr_object_pengujian);
-        form.setValue("expected", testCaseData.tr_expected_result);
-  
-        const dataTestInputParsed = JSON.parse(testCaseData.tr_data_test_input);
-        console.log(dataTestInputParsed)
-        dataTestInputParsed.forEach((input: any) => {
-          const param = parameters.find((p) => p.ms_nama_parameter === input.param_name);
-          if (param) {
-            form.setValue(`param_${param.ms_id_parameter}`, input.param_value);
-          }
-        });
-  
-      } catch (error) {
-        console.error("Error fetching test case data:", error);
+    try {
+      const response = await fetch(`${apiUrl}/modul/DetailTestCase/${id}`, {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
+
+      const responseData = await response.json();
+      const testCaseData = responseData.data
+
+      form.setValue("no", testCaseData.tr_no);
+      form.setValue("objective", testCaseData.tr_object_pengujian);
+      form.setValue("expected", testCaseData.tr_expected_result);
+
+      const dataTestInputParsed = JSON.parse(testCaseData.tr_data_test_input);
+      console.log(dataTestInputParsed)
+      dataTestInputParsed.forEach((input: any) => {
+        const param = parameters.find((p) => p.ms_nama_parameter === input.param_name);
+        if (param) {
+          form.setValue(`param_${param.ms_id_parameter}`, input.param_value);
+        }
+      });
+
+    } catch (error) {
+      console.error("Error fetching test case data:", error);
+    }
   };
-  
+
 
   // const getValidationRule = (param: ParameterModul) => {
   //   let rules;
@@ -287,65 +287,65 @@ const EditTestCaseFormDialog = ({
 
 
   useEffect(() => {
-      fetchParameters();
-      fetchTestCaseData(editingTestId); 
+    fetchParameters();
+    fetchTestCaseData(editingTestId);
   }, [isEditFormDialogOpen, editingTestId]);
-  
+
 
   const handleSubmit: SubmitHandler<FormValues> = async (data) => {
     isSubmitted.current = true;
-      const formattedData = {
-        id_test_case: editingTestId,
-        id_topik_modul: modulId,
-        no: data.no,
-        object_pengujian: data.objective,
-        data_test_input: parameters.map((param) => ({
-          param_name: param.ms_nama_parameter,
-          param_type: param.ms_tipe_data,
-          param_value: data[`param_${param.ms_id_parameter}`],
-        })),
-        expected_result: data.expected,
-      };
+    const formattedData = {
+      id_test_case: editingTestId,
+      id_topik_modul: modulId,
+      no: data.no,
+      object_pengujian: data.objective,
+      data_test_input: parameters.map((param) => ({
+        param_name: param.ms_nama_parameter,
+        param_type: param.ms_tipe_data,
+        param_value: data[`param_${param.ms_id_parameter}`],
+      })),
+      expected_result: data.expected,
+    };
 
-      try {
-        //form.reset(); // Reset form
-        const response = await fetch(`${apiUrl}/modul/editTestCase`, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${apiKey}`,
-          },
-          body: JSON.stringify(formattedData),
-        });
+    try {
+      //form.reset(); // Reset form
+      const response = await fetch(`${apiUrl}/modul/editTestCase`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify(formattedData),
+      });
 
-        if (!response.ok) {
-          if (response.status === 403) {
-            throw new Error("Forbidden: Access is denied");
-          } else {
-            throw new Error(`HTTP error! status: ${response.status}`);
-          }
+      if (!response.ok) {
+        if (response.status === 403) {
+          throw new Error("Forbidden: Access is denied");
+        } else {
+          throw new Error(`HTTP error! status: ${response.status}`);
         }
-
-        const responseData: DataResponse = await response.json();
-        console.log(responseData);
-        setShowSuccessMessage(true);
-        setTimeout(() => {
-          setShowSuccessMessage(false);
-          setIsEditFormDialogOpen(false);
-          triggerRefresh();
-        }, 3000);
-      } catch (error) {
-        console.error("Error saving data:", error);
       }
+
+      const responseData: DataResponse = await response.json();
+      console.log(responseData);
+      setShowSuccessMessage(true);
+      setTimeout(() => {
+        setShowSuccessMessage(false);
+        setIsEditFormDialogOpen(false);
+        triggerRefresh();
+      }, 3000);
+    } catch (error) {
+      console.error("Error saving data:", error);
+    }
   };
-  
+
 
   return (
     <>
       <Dialog open={isEditFormDialogOpen} onOpenChange={setIsEditFormDialogOpen}>
         <DialogContent className="bg-white rounded-[20] overflow-y-auto max-h-[80vh] p-6">
           <DialogHeader>
-          <DialogTitle className="text-lg text-center font-bold mb-4">
+            <DialogTitle className="text-lg text-center font-bold mb-4">
               Pengisian Test Case
             </DialogTitle>
             <Form {...form}>
@@ -353,11 +353,12 @@ const EditTestCaseFormDialog = ({
                 <FormField
                   control={form.control}
                   name="objective"
-                  rules={{ required: "Objektif Pengujian harus terisi",
-                            pattern: {
-                              value: /^[a-zA-Z0-9\s]+$/,
-                              message: "Masukkan huruf atau angka",
-                            },
+                  rules={{
+                    required: "Objektif Pengujian harus terisi",
+                    pattern: {
+                      value: /^[a-zA-Z0-9\s]+$/,
+                      message: "Masukkan huruf atau angka",
+                    },
                   }}
                   render={({ field, fieldState: { error } }) => (
                     <FormItem>
@@ -417,7 +418,7 @@ const EditTestCaseFormDialog = ({
                 />
                 <div className="flex justify-end gap-4">
                   <Button
-                     onClick={(e) => {
+                    onClick={(e) => {
                       e.preventDefault();
                       setIsEditFormDialogOpen(false);
                       //form.reset(); // Reset form

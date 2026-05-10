@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import ReactFlow, { Controls, Background } from "reactflow";
 import PercentageCodeCoverage from "./PresentaseCodeCoverage";
 import "reactflow/dist/style.css";
+import dagre from "dagre";
 import {
   Card,
   CardContent,
@@ -37,6 +38,38 @@ type CFGCardProps = {
   codeCoveragePercentage?: number;
 };
 
+const NODE_WIDTH = 50;
+const NODE_HEIGHT = 50;
+
+const getLayoutedElements = (nodes: Node[], edges: Edge[]) => {
+  const dagreGraph = new dagre.graphlib.Graph();
+  dagreGraph.setDefaultEdgeLabel(() => ({}));
+  dagreGraph.setGraph({ rankdir: "TB", nodesep: 50, ranksep: 80 });
+
+  nodes.forEach((node) => {
+    dagreGraph.setNode(node.id, { width: NODE_WIDTH, height: NODE_HEIGHT });
+  });
+
+  edges.forEach((edge) => {
+    dagreGraph.setEdge(edge.source, edge.target);
+  });
+
+  dagre.layout(dagreGraph);
+
+  const layoutedNodes = nodes.map((node) => {
+    const nodeWithPosition = dagreGraph.node(node.id);
+    return {
+      ...node,
+      position: {
+        x: nodeWithPosition.x - NODE_WIDTH / 2,
+        y: nodeWithPosition.y - NODE_HEIGHT / 2,
+      },
+    };
+  });
+
+  return { nodes: layoutedNodes, edges };
+};
+
 const CFGCard: React.FC<CFGCardProps> = ({
   showCyclomaticComplexity = false,
   showCodeCoverage = false,
@@ -46,9 +79,9 @@ const CFGCard: React.FC<CFGCardProps> = ({
   let apiKey = import.meta.env.VITE_API_KEY;
   // const modulId = import.meta.env.VITE_MODULE_ID;
   const sessionData = localStorage.getItem('session')
-  if (sessionData != null){
-      const session = JSON.parse(sessionData);
-      apiKey = session.token
+  if (sessionData != null) {
+    const session = JSON.parse(sessionData);
+    apiKey = session.token
   }
   const queryParameters = new URLSearchParams(window.location.search)
   const modulId = queryParameters.get("topikModulId")
@@ -57,7 +90,7 @@ const CFGCard: React.FC<CFGCardProps> = ({
   const [edges, setEdges] = useState<Edge[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchCFG = async ()=>{
+  const fetchCFG = async () => {
     fetch(`${apiUrl}/modul/detailByIdTopikModul/${modulId}`, {
       method: "GET",
       headers: {
@@ -65,43 +98,46 @@ const CFGCard: React.FC<CFGCardProps> = ({
         Authorization: `Bearer ${apiKey}`,
       },
     })
-    .then((response) => response.json())
-    .then((data) => {
-      console.log("Data CFG:", data.data.data_cfg.nodes); // Cetak data CFG ke konsol
-      
-      const nodesData = data.data.data_cfg.nodes.map((node: any) => ({
-        id: node.ms_id_node,
-        data: { label: node.ms_line_number.toString() },
-        position: { x: 250+((node.ms_no%2)*50), y: 100 * node.ms_no },
-        type: "default",
-        style: {
-          width: 50,
-          height: 50,
-          borderRadius: "50%",
-          backgroundColor: "lightblue",
-        },
-      }));
-  
-      const edgesData = data.data.data_cfg.edges.map((edge: any) => ({
-        id: `${edge.id_node_start}-${edge.id_node_finish}`,
-        source: edge.id_node_start,
-        target: edge.id_node_finish,
-      }));
-  
-      setNodes(nodesData);
-      setEdges(edgesData);
-    })
-    .catch((error) => {
-      console.error("Failed to fetch data:", error);
-    })
-    .finally(() => {
-      setLoading(false);
-    });
+      .then((response) => response.json())
+      .then((data) => {
+        console.log("Data CFG:", data.data.data_cfg.nodes); // Cetak data CFG ke konsol
+
+        const rawNodes = data.data.data_cfg.nodes.map((node: any) => ({
+          id: node.ms_id_node,
+          data: { label: node.ms_line_number.toString() },
+          position: { x: 0, y: 0 }, // akan dihitung oleh dagre
+          type: "default",
+          style: {
+            width: NODE_WIDTH,
+            height: NODE_HEIGHT,
+            borderRadius: "50%",
+            backgroundColor: "lightblue",
+          },
+        }));
+
+        const rawEdges = data.data.data_cfg.edges.map((edge: any) => ({
+          id: `${edge.id_node_start}-${edge.id_node_finish}`,
+          source: edge.id_node_start,
+          target: edge.id_node_finish,
+        }));
+
+        // Gunakan Dagre untuk menghitung posisi node secara otomatis
+        const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(rawNodes, rawEdges);
+
+        setNodes(layoutedNodes);
+        setEdges(layoutedEdges);
+      })
+      .catch((error) => {
+        console.error("Failed to fetch data:", error);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   };
   useEffect(() => {
     fetchCFG();
   }, []);
-  
+
 
   if (loading) {
     return (
@@ -159,21 +195,21 @@ const CFGCard: React.FC<CFGCardProps> = ({
               )}
               {showCyclomaticComplexity && (
                 <>
-                <p className="text-sm font-medium mb-2">Nilai Cyclomatic Complexity</p>
-                <div className="text-sm flex items-start"> 
-                  <div className="mr-4"> 
-                    <div>V(G)</div>
-                  </div>
-                  <div>
-                    <div className="flex flex-col"> 
-                      <span>= E - N + 2</span>
-                      <span>= {edges.length} - {nodes.length} + 2</span>
-                      <span>= {cyclomaticComplexity}</span>
+                  <p className="text-sm font-medium mb-2">Nilai Cyclomatic Complexity</p>
+                  <div className="text-sm flex items-start">
+                    <div className="mr-4">
+                      <div>V(G)</div>
+                    </div>
+                    <div>
+                      <div className="flex flex-col">
+                        <span>= E - N + 2</span>
+                        <span>= {edges.length} - {nodes.length} + 2</span>
+                        <span>= {cyclomaticComplexity}</span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </>
-              
+                </>
+
               )}
             </div>
           </div>
