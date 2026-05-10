@@ -1,9 +1,14 @@
 from logging.config import fileConfig
+import sys
+import os
 
-from sqlalchemy import engine_from_config
+from sqlalchemy import engine_from_config, MetaData
 from sqlalchemy import pool
 
 from alembic import context
+
+# Tambahkan root project ke sys.path agar import models bisa dilakukan
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -13,11 +18,34 @@ config = context.config
 # This line sets up loggers basically.
 fileConfig(config.config_file_name)
 
-# add your model's MetaData object here
-# for 'autogenerate' support
-# from myapp import mymodel
-# target_metadata = mymodel.Base.metadata
-target_metadata = None
+# Import semua model agar tabel-nya terdaftar ke MetaData
+from models.node import Node, metadata as node_metadata
+from models.edge import Edge, metadata as edge_metadata
+from models.modul import Modul, metadata as modul_metadata
+from models.classes import Class, metadata as classes_metadata
+from models.student import Student, metadata as student_metadata
+from models.teacher import Teacher, metadata as teacher_metadata
+from models.system import System, metadata as system_metadata
+from models.topik import Topik, metadata as topik_metadata
+from models.topik_modul import TopikModul, metadata as topik_modul_metadata
+from models.param_modul import ParamModul, metadata as param_modul_metadata
+from models.test_case import TestCase, metadata as test_case_metadata
+from models.penyelesaian_modul import PenyelesaianModul, metadata as penyelesaian_metadata
+from models.tr_node import TrNode, metadata as tr_node_metadata
+from models.tr_edge import TrEdge, metadata as tr_edge_metadata
+
+# Gabungkan semua MetaData ke satu objek untuk autogenerate
+combined_metadata = MetaData()
+for m in [
+    node_metadata, edge_metadata, modul_metadata, classes_metadata,
+    student_metadata, teacher_metadata, system_metadata, topik_metadata,
+    topik_modul_metadata, param_modul_metadata, test_case_metadata,
+    penyelesaian_metadata, tr_node_metadata, tr_edge_metadata,
+]:
+    for table in m.tables.values():
+        table.tometadata(combined_metadata)
+
+target_metadata = combined_metadata
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
