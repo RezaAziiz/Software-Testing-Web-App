@@ -37,7 +37,7 @@ def cors_headers(app):
 
 app.include_router(auth)
 app.include_router(student)
-# app.include_router(teacher)
+app.include_router(teacher)
 
 # app.include_router(batch)
 app.include_router(modul)
