@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PromoBelanja.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">jacoco-engine</a> &gt; <a href="index.source.html" class="el_package">default</a> &gt; <span class="el_source">PromoBelanja.java</span></div><h1>PromoBelanja.java</h1><pre class="source lang-java linenums"><span class="nc" id="L1">public class PromoBelanja {</span>
+
+    public String tentukanPromo(int n) {
+<span class="nc" id="L4">        String daftarPromo = &quot;&quot;;</span>
+
+        // 1 Loop utama untuk membaca pesanan dari 1 sampai n
+<span class="nc bnc" id="L7" title="All 2 branches missed.">        for (int i = 1; i &lt;= n; i++) {</span>
+
+            // Branching Tingkat 1: Cek VIP (Genap) atau Reguler (Ganjil)
+<span class="nc bnc" id="L10" title="All 2 branches missed.">            if (i % 2 == 0) {</span>
+                // Nested Branching 1: Evaluasi promo VIP
+<span class="nc bnc" id="L12" title="All 2 branches missed.">                if (i % 4 == 0) {</span>
+<span class="nc" id="L13">                    daftarPromo += &quot;Order &quot; + i + &quot;: VIP - Diskon 50%\n&quot;;</span>
+                } else {
+<span class="nc" id="L15">                    daftarPromo += &quot;Order &quot; + i + &quot;: VIP - Diskon 20%\n&quot;;</span>
+                }
+            } else {
+                // Nested Branching 2: Evaluasi promo Reguler
+<span class="nc bnc" id="L19" title="All 2 branches missed.">                if (i % 3 == 0) {</span>
+<span class="nc" id="L20">                    daftarPromo += &quot;Order &quot; + i + &quot;: Reguler - Cashback 10%\n&quot;;</span>
+                } else {
+<span class="nc" id="L22">                    daftarPromo += &quot;Order &quot; + i + &quot;: Reguler - Tanpa Promo\n&quot;;</span>
+                }
+            }
+        }
+
+<span class="nc" id="L27">        return daftarPromo;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.8.202204050719</span></div></body></html>

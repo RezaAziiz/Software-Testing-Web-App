@@ -25,8 +25,12 @@ from xml.dom import minidom
 from sqlalchemy.sql import text
 import math
 from decouple import config
-    
 from datetime import date, datetime
+from services.cfg_service import CFGService
+import logging
+
+logger = logging.getLogger(__name__)
+cfg_service = CFGService()
 
 modul = APIRouter()
 
@@ -59,14 +63,14 @@ async def modul_detail(id_modul: str, response: Response):
     query_param = ParamModul.select().where(ParamModul.c.ms_id_modul == id_modul).order_by(ParamModul.c.no_urut.asc())
     data_param_modul = conn.execute(query_param).fetchall()
 
-    query_node = Node.select().where(Node.c.ms_id_modul == id_modul).order_by(Node.c.ms_no)
+    query_node = Node.select().where(Node.c.ms_id_modul == id_modul).order_by(Node.c.ms_execution_order)
     data_nodes = conn.execute(query_node).fetchall()
 
     query_base = " SELECT node_start.ms_id_node as id_node_start,"
     query_base += "       node_start.ms_line_number as line_number_start, "
     query_base += "       node_finish.ms_id_node as id_node_finish, "
     query_base += "       node_finish.ms_line_number as line_number_finish, "
-    query_base += "       edge.ms_label "
+    query_base += "       edge.ms_label, edge.ms_branch_type "
     query_base += "  FROM ms_cfg_edge as edge  "
     query_base += "       INNER JOIN ms_cfg_node as node_start ON edge.ms_id_start_node = node_start.ms_id_node "
     query_base += "		 INNER JOIN ms_cfg_node as node_finish ON edge.ms_id_finish_node = node_finish.ms_id_node "
@@ -269,7 +273,7 @@ async def cfg_modul(request: Request, id_modul:str):
             query = Node.insert().values(
                 ms_id_modul=id_modul,
                 ms_id_node=node['id_node'],
-                ms_no=counter,
+                ms_execution_order=counter,
                 ms_line_number=node['line_number'],
                 ms_source_code=node['code'],
                 updated=datetime.today(),
@@ -358,9 +362,33 @@ async def upload(request:Request, response:Response, id_modul:str, source_code: 
             copy_tree("engine-testing/"+id_modul+"/build/test-results/test", "modules/"+id_modul+"/test-results")
             copy_tree("engine-testing/"+id_modul+"/build/reports/jacoco/test", "modules/"+id_modul+"/jacoco_report_test")
 
-            #generate cfg
-            result = await cfg_modul(request, id_modul)
-            response = {"message": f"Successfully uploaded {source_code.filename}", "location file": f"{new_filename}"}
+            # Generate CFG from Java source code
+            try:
+                java_file_path = "modules/"+id_modul+"/"+new_filename
+                with open(java_file_path, 'r', encoding='utf-8') as f:
+                    java_code = f.read()
+                
+                # Delete existing CFG for this module (re-generation)
+                cfg_service.delete_cfg_for_modul(id_modul)
+                
+                # Generate new CFG
+                cfg_result = cfg_service.generate_cfg_from_java_code(java_code, method_name=None)
+                
+                # Save to database
+                current_user = getDataFromJwt(request)
+                cfg_service.save_cfg_to_database(
+                    modul_id=id_modul,
+                    cfg_result=cfg_result,
+                    source_code=java_code,
+                    created_by=current_user.get('email', 'system') if current_user else 'system'
+                )
+                
+                logger.info(f"Successfully generated CFG for module {id_modul}: {cfg_result.total_nodes} nodes, {cfg_result.total_edges} edges")
+                response = {"message": f"Successfully uploaded {source_code.filename}", "location file": f"{new_filename}", "cfg": {"status": "success", "nodes_count": cfg_result.total_nodes, "edges_count": cfg_result.total_edges}}
+            except Exception as cfg_error:
+                logger.error(f"Error generating CFG for module {id_modul}: {str(cfg_error)}")
+                # Still consider upload successful even if CFG generation fails
+                response = {"message": f"Successfully uploaded {source_code.filename}", "location file": f"{new_filename}", "cfg": {"status": "error", "error": str(cfg_error)}}
         else:
             response ={"message": "Source code have error, please upload correct source code"}
             os.remove('modules/'+id_modul+'/'+new_filename)
@@ -369,12 +397,144 @@ async def upload(request:Request, response:Response, id_modul:str, source_code: 
     except Exception as e:
         print(e)
         response.status_code = 500
-        response = {"message": "Error On Upload Data"}
+        response = {"message": "Error On Upload Data", "error": str(e)}
     finally:
         remove_tree("engine-testing/"+id_modul)
         source_code.file.close()
     
     return response
+
+@modul.get('/modul/cfg/{id_modul}', dependencies=[Depends(JWTBearer())],
+          description="Get CFG nodes and edges for a module")
+async def get_modul_cfg(id_modul: str, response: Response):
+    """Retrieve CFG data (nodes and edges) for a module"""
+    try:
+        nodes, edges = cfg_service.get_cfg_for_modul(id_modul)
+        
+        if not nodes and not edges:
+            response.status_code = status.HTTP_404_NOT_FOUND
+            return {
+                "status": "not_found",
+                "message": "No CFG data found for this module. Please upload source code first.",
+                "data": {"nodes": [], "edges": []}
+            }
+        
+        return {
+            "status": "success",
+            "message": f"Successfully retrieved CFG for module {id_modul}",
+            "data": {
+                "total_nodes": len(nodes),
+                "total_edges": len(edges),
+                "nodes": nodes,
+                "edges": edges
+            }
+        }
+    except Exception as e:
+        logger.error(f"Error retrieving CFG for module {id_modul}: {str(e)}")
+        response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+        return {"status": "error", "message": str(e)}
+
+
+@modul.post('/modul/generateCFG/{id_modul}', dependencies=[Depends(JWTBearer())],
+          description="Manually generate CFG for an existing module")
+async def manually_generate_cfg(request: Request, id_modul: str, response: Response):
+    """Manually regenerate CFG for a module (useful if source code was updated)"""
+    try:
+        # Get module data
+        query = Modul.select().where(Modul.c.ms_id_modul == id_modul)
+        data_modul = conn.execute(query).fetchone()
+        
+        if not data_modul:
+            response.status_code = status.HTTP_404_NOT_FOUND
+            return {"status": "error", "message": f"Module {id_modul} not found"}
+        
+        if not data_modul.ms_source_code:
+            response.status_code = status.HTTP_400_BAD_REQUEST
+            return {"status": "error", "message": "Module has no source code uploaded"}
+        
+        # Read Java source code
+        java_file_path = f"modules/{id_modul}/{data_modul.ms_source_code}"
+        if not os.path.exists(java_file_path):
+            response.status_code = status.HTTP_404_NOT_FOUND
+            return {"status": "error", "message": f"Source code file not found: {java_file_path}"}
+        
+        with open(java_file_path, 'r', encoding='utf-8') as f:
+            java_code = f.read()
+        
+        # Delete existing CFG
+        cfg_service.delete_cfg_for_modul(id_modul)
+        
+        # Generate new CFG
+        cfg_result = cfg_service.generate_cfg_from_java_code(java_code, method_name=None)
+        
+        # Save to database
+        current_user = getDataFromJwt(request)
+        cfg_service.save_cfg_to_database(
+            modul_id=id_modul,
+            cfg_result=cfg_result,
+            source_code=java_code,
+            created_by=current_user.get('email', 'system') if current_user else 'system'
+        )
+        
+        logger.info(f"Manually regenerated CFG for module {id_modul}: {cfg_result.total_nodes} nodes, {cfg_result.total_edges} edges")
+        
+        return {
+            "status": "success",
+            "message": f"Successfully generated CFG for module {id_modul}",
+            "data": cfg_result.to_dict()
+        }
+    
+    except Exception as e:
+        logger.error(f"Error generating CFG for module {id_modul}: {str(e)}")
+        response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+        return {"status": "error", "message": str(e)}
+
+@modul.post('/modul/extractMethods/{id_modul}', dependencies=[Depends(JWTBearer())],
+          description="Extract all method names from a module's source code")
+async def extract_methods(id_modul: str, response: Response):
+    """Extract all method names from a module's Java source code"""
+    try:
+        # Get module data
+        query = Modul.select().where(Modul.c.ms_id_modul == id_modul)
+        data_modul = conn.execute(query).fetchone()
+        
+        if not data_modul:
+            response.status_code = status.HTTP_404_NOT_FOUND
+            return {"status": "error", "message": f"Module {id_modul} not found"}
+        
+        if not data_modul.ms_source_code:
+            response.status_code = status.HTTP_400_BAD_REQUEST
+            return {"status": "error", "message": "Module has no source code uploaded"}
+        
+        # Read Java source code
+        java_file_path = f"modules/{id_modul}/{data_modul.ms_source_code}"
+        if not os.path.exists(java_file_path):
+            response.status_code = status.HTTP_404_NOT_FOUND
+            return {"status": "error", "message": f"Source code file not found: {java_file_path}"}
+        
+        with open(java_file_path, 'r', encoding='utf-8') as f:
+            java_code = f.read()
+        
+        # Extract method names
+        methods = cfg_service.extract_method_names(java_code)
+        
+        if not methods:
+            return {
+                "status": "success",
+                "message": "No methods found in source code",
+                "data": {"methods": []}
+            }
+        
+        return {
+            "status": "success",
+            "message": f"Found {len(methods)} methods in source code",
+            "data": {"methods": methods}
+        }
+    
+    except Exception as e:
+        logger.error(f"Error extracting methods from module {id_modul}: {str(e)}")
+        response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+        return {"status": "error", "message": str(e)}
 
 @modul.post("/modul/addModul", dependencies=[Depends(JWTBearer())])
 async def addModul(request: Request, data_modul: ModulSchema, response: Response):
@@ -472,7 +632,6 @@ async def editModul(request: Request, data_modul: ModulEditSchema, response: Res
     conn.execute(text("COMMIT;"))
     response = {"message": f"sukses mengupdate data test case baru", "id_modul":data_modul.id_modul}
     return response
-
 
 @modul.post("/modul/addTestCase", dependencies=[Depends(JWTBearer())])
 async def addTestcase(request: Request, data_test: TestCaseSchema, response: Response):
@@ -771,7 +930,6 @@ async def generateTestUnitClass(id_topik_modul: str, id_user:str, destinationFol
     file.write('}')
     file.close()
     return {"message":"File generated"}
-
 
 
 @modul.post('/modul/run/{id_topik_modul}', dependencies=[Depends(JWTBearer())], 
@@ -1079,7 +1237,7 @@ async def getDataResultTesting(request: Request, id_topik_modul: str, response:R
     queryCfgNode += "     INNER JOIN tr_cfg_node tn ON n.ms_id_node = tn.tr_id_node "
     queryCfgNode += " WHERE tn.tr_id_topik_modul = :idTopikModul "
     queryCfgNode += "  AND tn.tr_id_student = :idUser "
-    queryCfgNode += "ORDER BY n.ms_no; "
+    queryCfgNode += "ORDER BY n.ms_execution_order; "
     queryCfgNode = text(queryCfgNode)
     dataCfgNode = conn.execute(queryCfgNode, idTopikModul=id_topik_modul, idUser=id_user).fetchall()
     #query cfg

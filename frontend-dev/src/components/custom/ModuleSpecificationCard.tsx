@@ -50,14 +50,14 @@ const ModuleSpecificationCard = () => {
   let apiKey = import.meta.env.VITE_API_KEY;
   // const modulId = import.meta.env.VITE_MODULE_ID;
   const sessionData = localStorage.getItem('session')
-  if (sessionData != null){
-      const session = JSON.parse(sessionData);
-      apiKey = session.token
+  if (sessionData != null) {
+    const session = JSON.parse(sessionData);
+    apiKey = session.token
   }
 
   const queryParameters = new URLSearchParams(window.location.search)
   const modulId = queryParameters.get("topikModulId")
-  
+
   const [dataModule, setDataModule] = useState<Data | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sourceCode, setSourceCode] = useState<string | null>(null);
@@ -110,15 +110,19 @@ const ModuleSpecificationCard = () => {
       }
 
       const data = await response.json();
-      setSourceCode(data.data);
+      if (data.data) {
+        setSourceCode(data.data);
+      } else {
+        setSourceCode(null);
+      }
     } catch (error) {
       console.error('Error fetching source code text:', error);
-      setError((error as Error).message);
+      setSourceCode(null);
     } finally {
       setLoading(false);
     }
   };
-  
+
   useEffect(() => {
     fetchDataModule();
   }, []);
@@ -126,7 +130,7 @@ const ModuleSpecificationCard = () => {
   if (error) {
     return <div className="p-4 bg-white rounded-lg shadow-md h-screen">Error: {error}</div>;
   }
-  
+
   if (loading) {
     return (
       <div className="p-6 bg-white rounded-lg shadow-lg h-full space-y-6">
@@ -157,7 +161,7 @@ const ModuleSpecificationCard = () => {
     );
   }
 
-  
+
   return (
     <div className="p-6 bg-white rounded-lg shadow-lg h-full">
       <div className="overflow-y-auto">
@@ -168,7 +172,7 @@ const ModuleSpecificationCard = () => {
               <p className="mb-4 text-sm  text-gray-600">Modul : {dataModule.data_modul.ms_nama_modul}</p>
               <p className="mb-4 text-sm  text-gray-600">{dataModule.data_modul.ms_deskripsi_modul}</p>
             </div>
-            
+
             <div className="rounded-lg mb-6">
               <h4 className="text-base font-semibold mb-3 text-gray-700">Daftar Parameter</h4>
               <Table className="text-sm border-collapse border border-black">
@@ -192,12 +196,12 @@ const ModuleSpecificationCard = () => {
                 </TableBody>
               </Table>
             </div>
-            
+
             <h4 className="text-base font-bold mb-1 text-gray-800">Kode Program</h4>
             <div className="text-sm p-4 rounded-lg">
               <CopyBlock
                 language="java"
-                text={sourceCode || 'Loading source code...'}
+                text={sourceCode || 'Source code belum di-upload. Silahkan upload source code terlebih dahulu.'}
                 showLineNumbers={true}
                 theme={dracula}
                 codeBlock
