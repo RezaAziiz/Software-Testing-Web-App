@@ -16,12 +16,6 @@ import "../../index.css";
 // Daftarkan plugin dagre ke cytoscape
 cytoscape.use(dagre as any);
 
-// Helpers
-const calculateCyclomaticComplexity = (
-  edgesCount: number,
-  nodesCount: number,
-) => edgesCount - nodesCount + 2;
-
 // Types
 type CFGCardProps = {
   showCyclomaticComplexity?: boolean;
@@ -51,6 +45,9 @@ const CFGCard: React.FC<CFGCardProps> = ({
   const [elements, setElements] = useState<cytoscape.ElementDefinition[]>([]);
   const [rawEdges, setRawEdges] = useState<any[]>([]);
   const [rawNodes, setRawNodes] = useState<any[]>([]);
+  const [cyclomaticComplexity, setCyclomaticComplexity] = useState<
+    number | null
+  >(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -91,6 +88,12 @@ const CFGCard: React.FC<CFGCardProps> = ({
 
       setRawNodes(backendNodes);
       setRawEdges(backendEdges);
+      const backendCcRaw = data?.data?.data_modul?.ms_cc;
+      const backendCc =
+        backendCcRaw !== null && backendCcRaw !== undefined
+          ? Number(backendCcRaw)
+          : null;
+      setCyclomaticComplexity(Number.isFinite(backendCc) ? backendCc : null);
 
       // Konversi ke format Cytoscape
       const cyNodes: cytoscape.ElementDefinition[] = backendNodes.map(
@@ -117,7 +120,7 @@ const CFGCard: React.FC<CFGCardProps> = ({
           const branchType: string = e.ms_branch_type ?? "";
           const isTrue = branchType.toUpperCase() === "TRUE";
           const isFalse = branchType.toUpperCase() === "FALSE";
-          const label = isTrue ? "T" : isFalse ? "F" : "";
+          const label = isTrue ? "True" : isFalse ? "False" : "";
 
           return {
             data: {
@@ -259,11 +262,6 @@ const CFGCard: React.FC<CFGCardProps> = ({
     );
   }
 
-  const cyclomaticComplexity = calculateCyclomaticComplexity(
-    rawEdges.length,
-    rawNodes.length,
-  );
-
   return (
     <div className="h-full w-full">
       <Card>
@@ -401,7 +399,7 @@ const CFGCard: React.FC<CFGCardProps> = ({
                 </>
               )}
 
-              {showCyclomaticComplexity && rawNodes.length > 0 && (
+              {showCyclomaticComplexity && cyclomaticComplexity !== null ? (
                 <>
                   <p className="text-sm font-medium mb-2">
                     Nilai Cyclomatic Complexity
@@ -421,13 +419,12 @@ const CFGCard: React.FC<CFGCardProps> = ({
                     </div>
                   </div>
                 </>
-              )}
-
-              {showCyclomaticComplexity && rawNodes.length === 0 && (
+              ) : showCyclomaticComplexity ? (
                 <p className="text-sm text-gray-400">
-                  CC tidak tersedia (belum ada CFG).
+                  CC tidak tersedia (belum ada CFG atau belum dihitung oleh
+                  backend).
                 </p>
-              )}
+              ) : null}
             </div>
           </div>
         </CardContent>

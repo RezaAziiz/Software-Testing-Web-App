@@ -633,7 +633,6 @@ async def editModul(request: Request, data_modul: ModulEditSchema, response: Res
     response = {"message": f"sukses mengupdate data test case baru", "id_modul":data_modul.id_modul}
     return response
 
-# TAMBAH TEST CASE DISINI
 @modul.post("/modul/addTestCase", dependencies=[Depends(JWTBearer())])
 async def addTestcase(request: Request, data_test: TestCaseSchema, response: Response):
     currentUser = getDataFromJwt(request)
@@ -933,11 +932,6 @@ async def generateTestUnitClass(id_topik_modul: str, id_user:str, destinationFol
     return {"message":"File generated"}
 
 
-# BUAT EKSEKUSI TEST CASE
-# FOLDER STATIC: ID_USER, IDTOPIKMODL
-# BIKIN FOLDER DI ENGINE TESTING
-# STRUKTUR NYA: ID_USER, IDTOPIKMODUL 
-# DARI RUNNING TESTING APP -> BUAT FOLDER ENGINE TESTING -> BIKIN UNTI TEST DARI FUNGSI GENERATETESTUNITCLASS -> BIKIN FILE UNI TEST PAKE JUNIT HASILNYA DISIMPAN DI FOLDER ENGINE TESTING  
 @modul.post('/modul/run/{id_topik_modul}', dependencies=[Depends(JWTBearer())], 
           description="Running Unit Testing")
 async def running_testing_app(request: Request, id_topik_modul: str):
@@ -1030,15 +1024,6 @@ async def running_testing_app(request: Request, id_topik_modul: str):
                 "point":round(coverageScore*int(data_modul["ms_tingkat_kesulitan"]),0)}
     return response
 
-# NYIMPEN HASIL STATUSNYA TABEL TES CASE MODUL
-# NYIMPEN DI TABEL PENYELESAIAN MODUL: STUDENT, TGL_EKSEKUSI, RESULT REPORT -> NIMPEN PATH FILE HTML FOLDER REPORT TEST DARI FOLDER STATIC
-# NYIMPEN TGL EKSEKUSI, STATUS EKSEKUSI, Y/N DI FUNGSI RUNNING TESTING APP
-# UDAH ITU KE FUNGSI SAVEDATACOVERAGETEST BUAT NYIMPEN PRESENTASE COVERAGE SAMA NILAI PRESENTASE, SEBAGAI PERHITUNGAN NILAI NGEBACA DARI FOLDER STATIC FILE JACOCO REPORT.XML
-# TOTAL NODE BUAT SELURUH NODE YG ADA DICFGNYA DAN TOTAL COVERED BUAT NODE YG UDAH TEREKSEKUSI NGEBACA DARI METHOD KEAMBIL 2 METHOD TERUS DIFILTER LAGI UNTUK NGAMBIL YG METHOD_NAME, LALU NGEFOR LAGI CHILD NODE NYA UNTUK NGAMBIL INSTRUCTION, BRANCH, LINE SAMA COMPLEXITY
-# DI FE DIPANGGIL DI TOPIK MODUL PAGE(KALAU KOSONG BELUM ADA FAIL/PASS, KALAU PASS DI PAGE EXECUTIONTESTCASEPASSGE, KALAU FAIL DI EXECUTION TEST CASE FAIL PAGE)
-# KALAU KOMPONEN PASS CARD BUAT NAMPILIN PRESENTASI PASS, ADA JUGA FAIL CARD
-# KALAU HASIL PENGUJIAN ADA DI TEST RESULT PAGE, UNTUK MENAMPILKAN KODE BERWARNA DIA REQUEST KE BACKEND NGAMBIL PATH DI FOLDER STATIC/ID_USER/ID_TOPIKMODUL/JACOCOREPORTTEST/HTML/DEFAULT/+NAMAFILE.JAVA.HTML
-# KALAU CFGNYA DIA NGAMBIL DARI DATASBE TBEL NODE DAN EDGE DI FUNGSI MODUL DETAIL
 # @modul.post('/modul/saveDataResultTest/{id_modul}', 
 #           description="Save Data result test from xaml")
 def saveDataResultTest(pathFileResult: str, id_topik_modul: str, id_user:str, status_exsekusi:str):

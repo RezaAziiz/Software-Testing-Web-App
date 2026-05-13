@@ -13,6 +13,8 @@ from core.types import NodeType, BranchType
 from config.database import conn
 from models.node import Node
 from models.edge import Edge
+from models.modul import Modul
+from core.metrics import calculate_cyclomatic_complexity
 
 logger = logging.getLogger(__name__)
 
@@ -108,6 +110,7 @@ class CFGService:
             # Generate CFG
             generator = CFGGeneratorVisitor()
             nodes, edges = generator.build_cfg(method_node)
+            cc_score = calculate_cyclomatic_complexity(nodes, edges)
             
             self.logger.info(f"Generated CFG for method '{method_name}': {len(nodes)} nodes, {len(edges)} edges")
             
@@ -174,7 +177,16 @@ class CFGService:
                 )
                 conn.execute(insert_stmt)
             
-            self.logger.info(f"Saved CFG for modul {modul_id}: {len(cfg_result.nodes)} nodes, {len(cfg_result.edges)} edges")
+            # Calculate and update module cyclomatic complexity score
+            cc_score = calculate_cyclomatic_complexity(cfg_result.nodes, cfg_result.edges)
+            update_modul = Modul.update().values(
+                ms_cc=cc_score,
+                updatedby=created_by,
+                updated=now,
+            ).where(Modul.c.ms_id_modul == modul_id)
+            conn.execute(update_modul)
+            
+            self.logger.info(f"Saved CFG for modul {modul_id}: {len(cfg_result.nodes)} nodes, {len(cfg_result.edges)} edges, cc={cc_score}")
             return True
         
         except Exception as e:
