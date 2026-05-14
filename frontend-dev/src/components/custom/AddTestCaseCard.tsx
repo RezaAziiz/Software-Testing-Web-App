@@ -494,7 +494,7 @@ const AddTestCaseCard: React.FC = () => {
                 <TableCell className="py-2 border border-black w-52 whitespace-nowrap">
                   {test.tr_expected_result}
                 </TableCell>
-                <TableCell className="py-2 flex items-center justify-between px-2">
+                <TableCell className="py-2 flex items-center justify-center px-2">
                   <Button
                     onClick={() => handleEdit(test.tr_id_test_case)}
                     className="text-blue-500 text-base p-1"

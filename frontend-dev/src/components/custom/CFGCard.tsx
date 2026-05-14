@@ -198,7 +198,7 @@ const CFGCard: React.FC<CFGCardProps> = ({
       style: { label: "" },
     },
     {
-      // Node dipilih / hover → highlight
+      // Node dipilih / hover
       selector: "node:selected",
       style: {
         "border-width": 4,
@@ -261,7 +261,7 @@ const CFGCard: React.FC<CFGCardProps> = ({
   return (
     <div className="h-full w-full">
       <Card>
-        <CardHeader className="pt-6">
+        <CardHeader className="pt-6 pb-2">
           <CardTitle className="text-base module-title">Struktur Program</CardTitle>
         </CardHeader>
 
