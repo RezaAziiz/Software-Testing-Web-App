@@ -1,6 +1,5 @@
 
 from enum import Enum
-
 class BranchType(str, Enum):
     TRUE = "TRUE"
     FALSE = "FALSE"

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>KomputasiAritmatika.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">jacoco-engine</a> &gt; <a href="index.source.html" class="el_package">default</a> &gt; <span class="el_source">KomputasiAritmatika.java</span></div><h1>KomputasiAritmatika.java</h1><pre class="source lang-java linenums"><span class="nc" id="L1">public class KomputasiAritmatika {</span>
+
+    public int hitungNilaiEkspresi(int x, int y, int z) {
+        // 1. Deklarasi dan inisialisasi awal
+<span class="nc" id="L5">        int hasilAkhir = 0;</span>
+        
+        // 2. Ekspresi menggunakan +, -, *, dan kurung ()
+<span class="nc" id="L8">        int langkah1 = (x + y) * (z - x);</span>
+        
+        // 3. Ekspresi menggunakan modulus % dan pembagian /
+        // (Dalam integer arithmetic, hasil pembagian akan otomatis dibulatkan ke bawah)
+<span class="nc" id="L12">        int langkah2 = (langkah1 % 5) + (x / y);</span>
+        
+        // 4. Penggabungan operator kompleks dalam satu baris
+<span class="nc" id="L15">        int langkah3 = ((langkah1 - langkah2) * 2) / ((z % 3) + 1);</span>
+        
+        // 5. Finalisasi perhitungan
+<span class="nc" id="L18">        hasilAkhir = langkah3 + (x * 10) - (y % 2);</span>
+        
+<span class="nc" id="L20">        return hasilAkhir;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.8.202204050719</span></div></body></html>

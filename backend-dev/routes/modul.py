@@ -633,7 +633,6 @@ async def editModul(request: Request, data_modul: ModulEditSchema, response: Res
     response = {"message": f"sukses mengupdate data test case baru", "id_modul":data_modul.id_modul}
     return response
 
-
 @modul.post("/modul/addTestCase", dependencies=[Depends(JWTBearer())])
 async def addTestcase(request: Request, data_test: TestCaseSchema, response: Response):
     currentUser = getDataFromJwt(request)
@@ -931,7 +930,6 @@ async def generateTestUnitClass(id_topik_modul: str, id_user:str, destinationFol
     file.write('}')
     file.close()
     return {"message":"File generated"}
-
 
 
 @modul.post('/modul/run/{id_topik_modul}', dependencies=[Depends(JWTBearer())], 

@@ -1,3 +1,4 @@
+//KOMPONEN BUAT NAMBAH TEST CASE DIPANGGIL DI PASS FAIL DAN TOPIK MODUL
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
@@ -79,13 +80,13 @@ const TestCaseFormDialog = ({
   const apiUrl = import.meta.env.VITE_API_URL;
   let apiKey = import.meta.env.VITE_API_KEY;
   // const modulId = import.meta.env.VITE_MODULE_ID;
-  const sessionData = localStorage.getItem('session')
-  if (sessionData != null){
-      const session = JSON.parse(sessionData);
-      apiKey = session.token
+  const sessionData = localStorage.getItem("session");
+  if (sessionData != null) {
+    const session = JSON.parse(sessionData);
+    apiKey = session.token;
   }
-  const queryParameters = new URLSearchParams(window.location.search)
-  const modulId = queryParameters.get("topikModulId")
+  const queryParameters = new URLSearchParams(window.location.search);
+  const modulId = queryParameters.get("topikModulId");
   const [parameters, setParameters] = useState<ParameterModul[]>([]);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [existingObjectives, setExistingObjectives] = useState<string[]>([]);
@@ -107,9 +108,9 @@ const TestCaseFormDialog = ({
             Accept: "application/json",
             Authorization: `Bearer ${apiKey}`,
           },
-        }
+        },
       );
-  
+
       if (!response.ok) {
         if (response.status === 403) {
           throw new Error("Forbidden: Access is denied");
@@ -117,13 +118,13 @@ const TestCaseFormDialog = ({
           throw new Error(`HTTP error! status: ${response.status}`);
         }
       }
-  
+
       const responseData: DataResponse = await response.json();
       setParameters(responseData.data.data_parameter_modul);
       setReturnType(responseData.data.data_modul.ms_return_type);
       console.log(responseData);
       console.log(responseData.data.data_modul.ms_return_type);
-  
+
       // const lastNumber = responseData.data.data_modul.test_cases?.length
       //   ? Math.max(
       //       ...responseData.data.data_modul.test_cases.map(
@@ -133,7 +134,7 @@ const TestCaseFormDialog = ({
       //   : 0;
       // setLastTestCaseNumber(lastNumber);
       // console.log("Fetched lastTestCaseNumber:", lastNumber);
-  
+
       const objectivesResponse = await fetch(
         `${apiUrl}/modul/TestCase/${modulId}`,
         {
@@ -142,9 +143,9 @@ const TestCaseFormDialog = ({
             Accept: "application/json",
             Authorization: `Bearer ${apiKey}`,
           },
-        }
+        },
       );
-  
+
       if (!objectivesResponse.ok) {
         if (objectivesResponse.status === 403) {
           throw new Error("Forbidden: Access is denied");
@@ -153,27 +154,29 @@ const TestCaseFormDialog = ({
         }
       }
 
-      const objectivesData: { data: TestCase[] } = await objectivesResponse.json();
+      const objectivesData: { data: TestCase[] } =
+        await objectivesResponse.json();
       console.log(objectivesData);
-      const objectives = objectivesData.data.map((data) => data.tr_object_pengujian);
+      const objectives = objectivesData.data.map(
+        (data) => data.tr_object_pengujian,
+      );
       console.log("ini objectives:", objectives);
       setExistingObjectives(objectives);
 
       const lastNumber = objectivesData.data.length
-      ? Math.max(...objectivesData.data.map((testCase) => testCase.tr_no))
-      : 0;
-    setLastTestCaseNumber(lastNumber);
-    console.log("Fetched lastTestCaseNumber:", lastNumber)
-
+        ? Math.max(...objectivesData.data.map((testCase) => testCase.tr_no))
+        : 0;
+      setLastTestCaseNumber(lastNumber);
+      console.log("Fetched lastTestCaseNumber:", lastNumber);
     } catch (error) {
       console.error("Error fetching data:", error);
     }
   };
-  
+
   useEffect(() => {
     fetchParameters();
   }, []);
-  
+
   // const getValidationRule = (param: ParameterModul) => {
   //   let rules;
   //   try {
@@ -330,7 +333,6 @@ const TestCaseFormDialog = ({
         return {};
     }
   };
-  
 
   useEffect(() => {
     if (!isDialogOpen) {
@@ -356,7 +358,7 @@ const TestCaseFormDialog = ({
     }
 
     const formattedData = {
-      id_topik_modul: modulId, 
+      id_topik_modul: modulId,
       no: lastTestCaseNumber + 1,
       object_pengujian: data.objective,
       data_test_input: parameters.map((param) => ({
@@ -368,6 +370,7 @@ const TestCaseFormDialog = ({
     };
 
     try {
+      //MEREQUEST BACKEND KE FUNGSI ADDTESTCASE DI MODUL.PY
       form.reset();
       const response = await fetch(`${apiUrl}/modul/addTestCase`, {
         method: "POST",
@@ -384,8 +387,8 @@ const TestCaseFormDialog = ({
         } else if (response.status === 422) {
           const responseData = await response.json();
           setErrorMessage(responseData.message);
-          throw new Error( "422" );
-        }else {
+          throw new Error("422");
+        } else {
           setErrorMessage("Error Saving Data");
           throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -402,8 +405,7 @@ const TestCaseFormDialog = ({
       }, 3000);
 
       triggerRefresh();
-      fetchParameters(); 
-    
+      fetchParameters();
 
       setLastTestCaseNumber((prev) => {
         const newNumber = prev + 1;
@@ -411,7 +413,7 @@ const TestCaseFormDialog = ({
         return newNumber;
       });
     } catch (error) {
-      console.log(error)
+      console.log(error);
     }
   };
 
@@ -422,15 +424,13 @@ const TestCaseFormDialog = ({
         onOpenChange={(open) => {
           setIsDialogOpen(open);
           if (open) {
-            form.reset(); 
-            setErrorMessage(""); 
+            form.reset();
+            setErrorMessage("");
           }
         }}
       >
         <DialogTrigger asChild>
-          <Button
-            className="bg-blue-800 text-white border-2 border-blue-800 rounded-[20] pt-0 pb-0 font-medium"
-          >
+          <Button className="bg-blue-800 text-white border-2 border-blue-800 rounded-[20] pt-0 pb-0 font-medium">
             Tambah
           </Button>
         </DialogTrigger>
@@ -482,7 +482,7 @@ const TestCaseFormDialog = ({
                       name={`param_${param.ms_id_parameter}`}
                       rules={{
                         required: `${param.ms_nama_parameter} harus terisi`,
-                        ...getValidationDataType(param)
+                        ...getValidationDataType(param),
                         // ...getValidationRule(param),
                       }}
                       render={({ field, fieldState: { error } }) => (
@@ -506,9 +506,9 @@ const TestCaseFormDialog = ({
                 <FormField
                   control={form.control}
                   name="expected"
-                  rules={{ required: "Expected result harus terisi",
-                  ...getValidationDataTypeExpected(returnType)
-
+                  rules={{
+                    required: "Expected result harus terisi",
+                    ...getValidationDataTypeExpected(returnType),
                   }}
                   render={({ field, fieldState: { error } }) => (
                     <FormItem>

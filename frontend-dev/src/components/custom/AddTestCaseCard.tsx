@@ -1,3 +1,4 @@
+//PANGGIL ADD TESTCASE FORM DIALOG
 import React, { useState, useEffect } from "react";
 import TestCaseFormDialog from "./TestCaseFormDialog";
 import { useNavigate } from "react-router-dom";
@@ -121,7 +122,7 @@ const AddTestCaseCard: React.FC = () => {
   let apiKey = import.meta.env.VITE_API_KEY;
   // const modulId = import.meta.env.VITE_MODULE_ID;
   const sessionData = localStorage.getItem("session");
-  let session = null
+  let session = null;
   if (sessionData == null) {
     navigate("/login");
   } else {
@@ -141,7 +142,7 @@ const AddTestCaseCard: React.FC = () => {
             Accept: "application/json",
             Authorization: `Bearer ${apiKey}`,
           },
-        }
+        },
       );
 
       if (!response.ok) {
@@ -162,18 +163,19 @@ const AddTestCaseCard: React.FC = () => {
   };
 
   useEffect(() => {
-    if (session === null){
-       navigate("/login")
-    }else if (session.login_type != "student"){
-       navigate("/dashboard-teacher")
-    }else{
+    if (session === null) {
+      navigate("/login");
+    } else if (session.login_type != "student") {
+      navigate("/dashboard-teacher");
+    } else {
       fetchResultTest();
       fetchParameters();
       fetchTestCases();
-  
+
       // Load previouslyExecuted state from localStorage
-      const storedPreviouslyExecuted = localStorage.getItem('previouslyExecuted');
-      setPreviouslyExecuted(storedPreviouslyExecuted === 'true');
+      const storedPreviouslyExecuted =
+        localStorage.getItem("previouslyExecuted");
+      setPreviouslyExecuted(storedPreviouslyExecuted === "true");
     }
   }, []);
 
@@ -289,7 +291,7 @@ const AddTestCaseCard: React.FC = () => {
       }
 
       setTestCases((prevTestCases) =>
-        prevTestCases.filter((test) => test.tr_id_test_case !== deletingTestId)
+        prevTestCases.filter((test) => test.tr_id_test_case !== deletingTestId),
       );
       setHasUnexecutedChanges(true);
       setDeleteMessage("Test case deleted successfully.");
@@ -322,7 +324,7 @@ const AddTestCaseCard: React.FC = () => {
 
     setIsLoading(true); // Set loading state to true
 
-
+    //REQUEST KE BACKEND MEMANGGIL MODUL RUNNNING TESTING APP
     try {
       const response = await fetch(`${apiUrl}/modul/run/${modulId}`, {
         method: "POST",
@@ -337,20 +339,17 @@ const AddTestCaseCard: React.FC = () => {
           throw new Error("Forbidden: Access is denied");
         } else {
           setPreviouslyExecuted(true);
-          localStorage.setItem('previouslyExecuted', 'true');
-     
+          localStorage.setItem("previouslyExecuted", "true");
+
           throw new Error(`HTTP error! status: ${response.status}`);
         }
-        
       }
-
 
       const result = await response.json();
       console.log("Hasil eksekusi test case:", result);
 
       setPreviouslyExecuted(true);
-      localStorage.setItem('previouslyExecuted', 'true');
-
+      localStorage.setItem("previouslyExecuted", "true");
 
       // setPercentageCoverage(result.coverage_score);
       // setMinimumCoverage(result.minimum_coverage_score);
@@ -417,17 +416,17 @@ const AddTestCaseCard: React.FC = () => {
             triggerRefresh={fetchTestCases}
             onSuccess={() => {
               console.log(
-                "Test case added, setting hasUnexecutedChanges to true"
+                "Test case added, setting hasUnexecutedChanges to true",
               );
               setHasUnexecutedChanges(true);
             }}
           />
           <EditTestCaseFormDialog
-                      editingTestId={editingTestId}
-                      isEditFormDialogOpen={isEditFormDialogOpen}
-                      setIsEditFormDialogOpen={setIsEditFormDialogOpen}
-                      triggerRefresh={fetchTestCases}
-                    />
+            editingTestId={editingTestId}
+            isEditFormDialogOpen={isEditFormDialogOpen}
+            setIsEditFormDialogOpen={setIsEditFormDialogOpen}
+            triggerRefresh={fetchTestCases}
+          />
         </div>
       </CardHeader>
 
@@ -489,7 +488,7 @@ const AddTestCaseCard: React.FC = () => {
                         <span>{paramData.param_value}</span>
                       </div>
                     </TableCell>
-                  )
+                  ),
                 )}
                 <TableCell className="py-2 border border-black w-52 whitespace-nowrap">
                   {test.tr_expected_result}

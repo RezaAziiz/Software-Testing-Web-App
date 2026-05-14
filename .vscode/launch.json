@@ -2,19 +2,19 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Python: FastAPI (uvicorn)",
+      "name": "Python Debugger: FastAPI",
       "type": "python",
       "request": "launch",
       "module": "uvicorn",
-      "args": [
-        "main:app",
-        "--reload"
-      ],
+      "args": ["main:app", "--reload", "--host", "localhost", "--port", "3000"],
+      "jinja": true,
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}/backend-dev",
+      "envFile": "${workspaceFolder}/backend-dev/.env",
+      "subProcess": true,
       "env": {
         "ENVIRONMENT": "development"
-      },
-      "console": "integratedTerminal",
-      "cwd": "${workspaceFolder}/backend-dev"
+      }
     }
   ]
 }

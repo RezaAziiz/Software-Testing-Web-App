@@ -16,10 +16,6 @@ import "../../index.css";
 // Daftarkan plugin dagre ke cytoscape
 cytoscape.use(dagre as any);
 
-// Helpers
-const calculateCyclomaticComplexity = (edgesCount: number, nodesCount: number) =>
-  edgesCount - nodesCount + 2;
-
 // Types
 type CFGCardProps = {
   showCyclomaticComplexity?: boolean;
@@ -49,6 +45,9 @@ const CFGCard: React.FC<CFGCardProps> = ({
   const [elements, setElements] = useState<cytoscape.ElementDefinition[]>([]);
   const [rawEdges, setRawEdges] = useState<any[]>([]);
   const [rawNodes, setRawNodes] = useState<any[]>([]);
+  const [cyclomaticComplexity, setCyclomaticComplexity] = useState<
+    number | null
+  >(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -78,7 +77,7 @@ const CFGCard: React.FC<CFGCardProps> = ({
             Accept: "application/json",
             Authorization: `Bearer ${apiKey}`,
           },
-        }
+        },
       );
 
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -89,42 +88,52 @@ const CFGCard: React.FC<CFGCardProps> = ({
 
       setRawNodes(backendNodes);
       setRawEdges(backendEdges);
+      const backendCcRaw = data?.data?.data_modul?.ms_cc;
+      const backendCc =
+        backendCcRaw !== null && backendCcRaw !== undefined
+          ? Number(backendCcRaw)
+          : null;
+      setCyclomaticComplexity(Number.isFinite(backendCc) ? backendCc : null);
 
       // Konversi ke format Cytoscape
-      const cyNodes: cytoscape.ElementDefinition[] = backendNodes.map((n: any) => {
-        const nodeType: string = n.ms_node_type ?? "NORMAL";
-        const isMerge = nodeType.toUpperCase() === "MERGE";
-        const lineNumber: number = n.ms_line_number;
-        return {
-          data: {
-            id: n.ms_id_node,
-            label: isMerge ? "" : lineNumber,
-            nodeType,
-            isMerge,
-            tooltip: `Tipe: ${nodeType} \n\nIsi Kode:\n${n.ms_source_code ?? ""}`,
-            bgColor: "#FFFFFF",
-            // borderColor: nodeBorder(nodeType),
-          },
-        };
-      });
+      const cyNodes: cytoscape.ElementDefinition[] = backendNodes.map(
+        (n: any) => {
+          const nodeType: string = n.ms_node_type ?? "NORMAL";
+          const isMerge = nodeType.toUpperCase() === "MERGE";
+          const lineNumber: number = n.ms_line_number;
+          return {
+            data: {
+              id: n.ms_id_node,
+              label: isMerge ? "" : lineNumber,
+              nodeType,
+              isMerge,
+              tooltip: `Tipe: ${nodeType} \n\nIsi Kode:\n${n.ms_source_code ?? ""}`,
+              bgColor: "#FFFFFF",
+              // borderColor: nodeBorder(nodeType),
+            },
+          };
+        },
+      );
 
-      const cyEdges: cytoscape.ElementDefinition[] = backendEdges.map((e: any) => {
-        const branchType: string = e.ms_branch_type ?? "";
-        const isTrue  = branchType.toUpperCase() === "TRUE";
-        const isFalse = branchType.toUpperCase() === "FALSE";
-        const label   = isTrue ? "T" : isFalse ? "F" : "";
+      const cyEdges: cytoscape.ElementDefinition[] = backendEdges.map(
+        (e: any) => {
+          const branchType: string = e.ms_branch_type ?? "";
+          const isTrue = branchType.toUpperCase() === "TRUE";
+          const isFalse = branchType.toUpperCase() === "FALSE";
+          const label = isTrue ? "True" : isFalse ? "False" : "";
 
-        return {
-          data: {
-            id: e.ms_id_edge,
-            source: e.id_node_start ?? e.ms_id_start_node,
-            target: e.id_node_finish ?? e.ms_id_finish_node,
-            label,
-            lineColor: "black",
-            branchType,
-          },
-        };
-      });
+          return {
+            data: {
+              id: e.ms_id_edge,
+              source: e.id_node_start ?? e.ms_id_start_node,
+              target: e.id_node_finish ?? e.ms_id_finish_node,
+              label,
+              lineColor: "black",
+              branchType,
+            },
+          };
+        },
+      );
 
       setElements([...cyNodes, ...cyEdges]);
     } catch (err: any) {
@@ -155,11 +164,11 @@ const CFGCard: React.FC<CFGCardProps> = ({
 
     // Pasang event hover tooltip
     cy.off("mouseover", "node");
-    cy.off("mouseout",  "node");
+    cy.off("mouseout", "node");
 
     cy.on("mouseover", "node", (evt) => {
       const node = evt.target;
-      const pos  = evt.renderedPosition ?? { x: 0, y: 0 };
+      const pos = evt.renderedPosition ?? { x: 0, y: 0 };
       setTooltip({
         visible: true,
         x: pos.x + 10,
@@ -237,7 +246,7 @@ const CFGCard: React.FC<CFGCardProps> = ({
     padding: 30,
   };
 
-  // Loading skeleton 
+  // Loading skeleton
   if (loading) {
     return (
       <div className="p-6 bg-white rounded-lg shadow-lg h-full space-y-6">
@@ -253,21 +262,17 @@ const CFGCard: React.FC<CFGCardProps> = ({
     );
   }
 
-  const cyclomaticComplexity = calculateCyclomaticComplexity(
-    rawEdges.length,
-    rawNodes.length
-  );
-
   return (
     <div className="h-full w-full">
       <Card>
         <CardHeader className="pt-6 pb-2">
-          <CardTitle className="text-base module-title">Struktur Program</CardTitle>
+          <CardTitle className="text-base module-title">
+            Struktur Program
+          </CardTitle>
         </CardHeader>
 
         <CardContent className="flex flex-col">
           <div className="w-full flex flex-row gap-3">
-
             {/* CFG Canvas */}
             <div className="w-1/2 flex flex-col">
               <p className="text-sm font-medium mb-2">Control Flow Graph</p>
@@ -287,8 +292,15 @@ const CFGCard: React.FC<CFGCardProps> = ({
                     elements={elements}
                     layout={layout as any}
                     stylesheet={stylesheet}
-                    cy={(cy) => { cyRef.current = cy; }}
-                    style={{ width: "100%", height: "100%", background: "#f9fafb", borderRadius: 8 }}
+                    cy={(cy) => {
+                      cyRef.current = cy;
+                    }}
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      background: "#f9fafb",
+                      borderRadius: 8,
+                    }}
                     wheelSensitivity={0.5}
                   />
 
@@ -298,7 +310,7 @@ const CFGCard: React.FC<CFGCardProps> = ({
                       style={{
                         position: "absolute",
                         left: tooltip.x,
-                        top:  tooltip.y,
+                        top: tooltip.y,
                         background: "#1e293b",
                         color: "#f8fafc",
                         padding: "6px 10px",
@@ -317,24 +329,54 @@ const CFGCard: React.FC<CFGCardProps> = ({
                   )}
 
                   {/* Mini tombol kontrol */}
-                  <div style={{ position: "absolute", bottom: 8, right: 8, display: "flex", gap: 4 }}>
+                  <div
+                    style={{
+                      position: "absolute",
+                      bottom: 8,
+                      right: 8,
+                      display: "flex",
+                      gap: 4,
+                    }}
+                  >
                     {[
-                      { label: "+", title: "Zoom In",  action: () => { const cy = cyRef.current; if (cy) cy.zoom(cy.zoom() * 1.3); } },
-                      { label: "−", title: "Zoom Out", action: () => { const cy = cyRef.current; if (cy) cy.zoom(cy.zoom() * 0.75); } },
-                      { label: "⊞", title: "Fit",      action: () => cyRef.current?.fit(undefined, 20) },
+                      {
+                        label: "+",
+                        title: "Zoom In",
+                        action: () => {
+                          const cy = cyRef.current;
+                          if (cy) cy.zoom(cy.zoom() * 1.3);
+                        },
+                      },
+                      {
+                        label: "−",
+                        title: "Zoom Out",
+                        action: () => {
+                          const cy = cyRef.current;
+                          if (cy) cy.zoom(cy.zoom() * 0.75);
+                        },
+                      },
+                      {
+                        label: "⊞",
+                        title: "Fit",
+                        action: () => cyRef.current?.fit(undefined, 20),
+                      },
                     ].map(({ label, title, action }) => (
                       <button
                         key={label}
                         title={title}
                         onClick={action}
                         style={{
-                          width: 28, height: 28,
+                          width: 28,
+                          height: 28,
                           background: "#fff",
                           border: "1px solid #d1d5db",
                           borderRadius: 6,
-                          fontSize: 14, fontWeight: 700,
+                          fontSize: 14,
+                          fontWeight: 700,
                           cursor: "pointer",
-                          display: "flex", alignItems: "center", justifyContent: "center",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
                           boxShadow: "0 1px 4px rgba(0,0,0,0.10)",
                         }}
                       >
@@ -350,38 +392,44 @@ const CFGCard: React.FC<CFGCardProps> = ({
             <div className="w-1/2 flex flex-col items-center">
               {showCodeCoverage && codeCoveragePercentage !== undefined && (
                 <>
-                  <p className="text-sm font-medium mb-5">Presentase Code Coverage</p>
+                  <p className="text-sm font-medium mb-5">
+                    Presentase Code Coverage
+                  </p>
                   <PercentageCodeCoverage percentage={codeCoveragePercentage} />
                 </>
               )}
 
-              {showCyclomaticComplexity && rawNodes.length > 0 && (
+              {showCyclomaticComplexity && cyclomaticComplexity !== null ? (
                 <>
-                  <p className="text-sm font-medium mb-2">Nilai Cyclomatic Complexity</p>
+                  <p className="text-sm font-medium mb-2">
+                    Nilai Cyclomatic Complexity
+                  </p>
                   <div className="text-sm flex items-start">
                     <div className="mr-4">
                       <div>V(G)</div>
                     </div>
                     <div className="flex flex-col">
                       <span>= E − N + 2</span>
-                      <span>= {rawEdges.length} − {rawNodes.length} + 2</span>
-                      <span className="font-bold">= {cyclomaticComplexity}</span>
+                      <span>
+                        = {rawEdges.length} − {rawNodes.length} + 2
+                      </span>
+                      <span className="font-bold">
+                        = {cyclomaticComplexity}
+                      </span>
                     </div>
                   </div>
                 </>
-              )}
-
-              {showCyclomaticComplexity && rawNodes.length === 0 && (
-                <p className="text-sm text-gray-400">CC tidak tersedia (belum ada CFG).</p>
-              )}
+              ) : showCyclomaticComplexity ? (
+                <p className="text-sm text-gray-400">
+                  CC tidak tersedia (belum ada CFG atau belum dihitung oleh
+                  backend).
+                </p>
+              ) : null}
             </div>
-
           </div>
         </CardContent>
 
-        <CardFooter className="card-footer">
-          {/* footer kosong */}
-        </CardFooter>
+        <CardFooter className="card-footer">{/* footer kosong */}</CardFooter>
       </Card>
     </div>
   );
