@@ -1,16 +1,24 @@
 public class JenisKendaraan {
     public String jenisKendaraan(int nomorKendaraan) {
+        String kendaraan;
+
         switch (nomorKendaraan) {
             case 1:
-                return "Mobil";
+                kendaraan = "Mobil";
+                break;
             case 2:
-                return "Motor";
+                kendaraan = "Motor";
+                break;
             case 3:
-                return "Sepeda";
+                kendaraan = "Sepeda";
+                break;
             case 4:
-                return "Truk";
+                kendaraan = "Truk";
+                break;
             default:
-                return "Jenis kendaraan tidak valid";
+                kendaraan = "Jenis kendaraan tidak valid";
         }
+
+        return kendaraan;
     }
 }

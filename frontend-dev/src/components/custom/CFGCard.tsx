@@ -21,6 +21,23 @@ type CFGCardProps = {
   showCyclomaticComplexity?: boolean;
   showCodeCoverage?: boolean;
   codeCoveragePercentage?: number;
+  nodesWithStatus?: Array<any>;
+  edgesWithStatus?: Array<any>;
+};
+
+// Utility function to map tr_status to color
+const getStatusColor = (status: string | undefined): string => {
+  if (!status) return "#FFFFFF"; // Default white if no status
+  switch (status.toUpperCase()) {
+    case "Y": // Fully Executed
+      return "#22c55e"; // Green
+    case "S": // Partially Executed
+      return "#eab308"; // Yellow
+    case "N": // Not Executed
+      return "#ef4444"; // Red
+    default:
+      return "#FFFFFF"; // Default white
+  }
 };
 
 // Component
@@ -28,6 +45,8 @@ const CFGCard: React.FC<CFGCardProps> = ({
   showCyclomaticComplexity = false,
   showCodeCoverage = false,
   codeCoveragePercentage,
+  nodesWithStatus,
+  edgesWithStatus,
 }) => {
   const apiUrl = import.meta.env.VITE_API_URL;
   let apiKey = import.meta.env.VITE_API_KEY;
@@ -64,6 +83,69 @@ const CFGCard: React.FC<CFGCardProps> = ({
 
   // Fetch data CFG
   const fetchCFG = async () => {
+    // Use provided status data if available, otherwise fetch from API
+    if (nodesWithStatus && edgesWithStatus) {
+      setRawNodes(nodesWithStatus);
+      setRawEdges(edgesWithStatus);
+
+      // Konversi ke format Cytoscape dengan status colors
+      const cyNodes: cytoscape.ElementDefinition[] = nodesWithStatus.map(
+        (n: any) => {
+          const nodeType: string = n.ms_node_type ?? "NORMAL";
+          const isMerge = nodeType.toUpperCase() === "MERGE";
+          const lineNumber: number = n.ms_line_number;
+          const trStatus: string = n.tr_status ?? "N";
+          const bgColor = getStatusColor(trStatus);
+
+          return {
+            data: {
+              id: n.ms_id_node,
+              label: isMerge ? "" : lineNumber,
+              nodeType,
+              isMerge,
+              trStatus,
+              tooltip: `Tipe: ${nodeType}\nStatus: ${
+                trStatus === "Y"
+                  ? "Executed"
+                  : trStatus === "S"
+                    ? "Partially Executed"
+                    : "Not Executed"
+              }\n\nIsi Kode:\n${n.ms_source_code ?? ""}`,
+              bgColor,
+            },
+          };
+        },
+      );
+
+      const cyEdges: cytoscape.ElementDefinition[] = edgesWithStatus.map(
+        (e: any) => {
+          const branchType: string = e.ms_branch_type ?? "";
+          const isTrue = branchType.toUpperCase() === "TRUE";
+          const isFalse = branchType.toUpperCase() === "FALSE";
+          const label = isTrue ? "True" : isFalse ? "False" : "";
+          const trStatus: string = e.tr_status ?? "N";
+          const lineColor = getStatusColor(trStatus);
+
+          return {
+            data: {
+              id: e.ms_id_edge,
+              source: e.id_node_start ?? e.ms_id_start_node,
+              target: e.id_node_finish ?? e.ms_id_finish_node,
+              label,
+              lineColor,
+              trStatus,
+              branchType,
+            },
+          };
+        },
+      );
+
+      setElements([...cyNodes, ...cyEdges]);
+      setLoading(false);
+      return;
+    }
+
+    // Fallback: fetch from API (for generic CFG viewing without status)
     if (!modulId) {
       setLoading(false);
       return;
@@ -109,7 +191,6 @@ const CFGCard: React.FC<CFGCardProps> = ({
               isMerge,
               tooltip: `Tipe: ${nodeType} \n\nIsi Kode:\n${n.ms_source_code ?? ""}`,
               bgColor: "#FFFFFF",
-              // borderColor: nodeBorder(nodeType),
             },
           };
         },
@@ -146,7 +227,7 @@ const CFGCard: React.FC<CFGCardProps> = ({
 
   useEffect(() => {
     fetchCFG();
-  }, [modulId]);
+  }, [modulId, nodesWithStatus, edgesWithStatus]);
 
   // Re-layout & fit saat elements berubah
   useEffect(() => {
@@ -207,7 +288,7 @@ const CFGCard: React.FC<CFGCardProps> = ({
       style: { label: "" },
     },
     {
-      // Node dipilih / hover → highlight
+      // Node dipilih / hover
       selector: "node:selected",
       style: {
         "border-width": 4,
@@ -265,7 +346,7 @@ const CFGCard: React.FC<CFGCardProps> = ({
   return (
     <div className="h-full w-full">
       <Card>
-        <CardHeader className="pt-6">
+        <CardHeader className="pt-6 pb-2">
           <CardTitle className="text-base module-title">
             Struktur Program
           </CardTitle>
@@ -348,7 +429,7 @@ const CFGCard: React.FC<CFGCardProps> = ({
                         },
                       },
                       {
-                        label: "−",
+                        label: "-",
                         title: "Zoom Out",
                         action: () => {
                           const cy = cyRef.current;
@@ -420,10 +501,14 @@ const CFGCard: React.FC<CFGCardProps> = ({
                   </div>
                 </>
               ) : showCyclomaticComplexity ? (
-                <p className="text-sm text-gray-400">
-                  CC tidak tersedia (belum ada CFG atau belum dihitung oleh
-                  backend).
-                </p>
+                <>
+                  <p className="text-sm font-medium mb-2">
+                      Nilai Cyclomatic Complexity
+                  </p>
+                  <p className="text-sm text-gray-400">
+                    CC tidak tersedia
+                  </p>
+                </>
               ) : null}
             </div>
           </div>

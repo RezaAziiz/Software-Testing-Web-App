@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom"; // Import hooks
 import { Menu } from "@/components/custom/Menu";
 import ModuleSpecificationCard from "@/components/custom/ModuleSpecificationCard";
+import CodeProgramCard from "@/components/custom/CodeProgramCard";
 import AddTestCaseCard from "@/components/custom/AddTestCaseCard";
 import CFGCard from "@/components/custom/CFGCard";
 import { Button } from "@/components/ui/button";
@@ -72,21 +73,30 @@ const ExecutionTestCaseFailPage: React.FC = () => {
     <>
       <Layout>
         <Menu />
-        <div className="flex flex-col md:flex-row w-screen min-h-screen">
-          <div className="flex flex-col w-full md:w-1/2">
+        <div className="flex flex-col w-screen min-h-screen p-4 gap-6">
+          {/* Section 1: Spesifikasi Modul dan Daftar Parameter (Full Width) */}
+          <div className="w-full">
             <ModuleSpecificationCard />
           </div>
-          <div
-            className="flex flex-col w-full md:w-1/2 items-center md:pl-4 md:pr-4 md:gap-4"
-            style={{ overflowY: "auto" }}
-          >
-            <CFGCard
-              showCyclomaticComplexity={showCyclomaticComplexity}
-              showCodeCoverage={showCodeCoverage}
-              codeCoveragePercentage={codeCoveragePercentage}
-            />
+
+          {/* Section 2: Kode Program (Kiri) dan Struktur Program (Kanan) */}
+          <div className="flex flex-col md:flex-row gap-6 w-full">
+            <div className="w-full md:w-1/2 flex flex-col" style={{ maxHeight: "600px" }}>
+              <CodeProgramCard />
+            </div>
+            <div className="w-full md:w-1/2 flex flex-col" style={{ maxHeight: "600px" }}>
+              <CFGCard
+                showCyclomaticComplexity={showCyclomaticComplexity}
+                showCodeCoverage={showCodeCoverage}
+                codeCoveragePercentage={codeCoveragePercentage}
+              />
+            </div>
+          </div>
+
+          {/* Section 3: Test Case, Hasil Pengujian, dan Tombol (Full Width) */}
+          <div className="w-full flex flex-col gap-6 pb-6">
             <AddTestCaseCard />
-            <div className="mt-6 h-full w-full">
+            <div className="w-full">
               <FailCard
                 percentageCoverage={navigationData?.coverage_score || 0}
                 minimumCoverage={navigationData?.minimum_coverage_score || 0}
@@ -96,7 +106,7 @@ const ExecutionTestCaseFailPage: React.FC = () => {
               />
             </div>
             <Button
-              className="my-2 md:my-0 text-sm bg-white rounded-lg font-bold text-red-700 border border-red-700 hover:bg-red-700 hover:text-white button-custom"
+              className="text-sm bg-white rounded-lg font-bold text-red-700 border border-red-700 hover:bg-red-700 hover:text-white button-custom"
               onClick={handleNavigateToTestResult}
             >
               Laporan Pengujian

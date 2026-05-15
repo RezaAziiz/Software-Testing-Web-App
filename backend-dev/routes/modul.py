@@ -932,18 +932,18 @@ async def generateTestUnitClass(id_topik_modul: str, id_user:str, destinationFol
     return {"message":"File generated"}
 
 
-@modul.post('/modul/run/{id_topik_modul}', dependencies=[Depends(JWTBearer())], 
+@modul.post('/modul/run/{id_topik_modul}', dependencies=[Depends(JWTBearer())],
           description="Running Unit Testing")
-async def running_testing_app(request: Request, id_topik_modul: str):
+async def running_testing_app(request: Request, response: Response, id_topik_modul: str):
     currentUser = getDataFromJwt(request)
     # loginType = currentUser['login_type']
     id_user = currentUser['userid']
- 
+
     getModulQuery = TopikModul.select().where(TopikModul.c.ms_id_topik_modul == id_topik_modul)
     dataTopikModul = conn.execute(getModulQuery).fetchone()
-    if dataTopikModul is None :
+    if dataTopikModul is None:
         response.status_code = status.HTTP_404_NOT_FOUND
-        return {"message": "data tidak ditemukan", "status": response.status_code}
+        return {"message": "data tidak ditemukan", "status": 404}
     id_modul = dataTopikModul["ms_id_modul"] 
 
     query = Modul.select().where(Modul.c.ms_id_modul == id_modul)
@@ -953,8 +953,11 @@ async def running_testing_app(request: Request, id_topik_modul: str):
 
     file_name = data_modul['ms_source_code']
     target_file = "modules/"+id_modul+"/"+file_name
-    
-       #preparation folder
+
+    # Inisialisasi default — selalu terdefinisi walau ada exception di tengah jalan
+    status_exsekusi = "N"
+
+    #preparation folder
     if not os.path.exists("engine-testing"):
         os.makedirs("engine-testing")
     if not os.path.exists("engine-testing/"+id_user):
@@ -979,7 +982,6 @@ async def running_testing_app(request: Request, id_topik_modul: str):
         output = subprocess.check_output("cd engine-testing/"+id_user+"/"+id_topik_modul+" && "+gradle_command+" test", shell=True)
         output_string = output.decode("utf-8")
         if "BUILD SUCCESSFUL" in output_string:
-            data = "test success"
             status_exsekusi = "Y"
             if os.path.exists("static/"+id_user+"/"+id_topik_modul):
                 remove_tree("static/"+id_user+"/"+id_topik_modul)
@@ -991,42 +993,106 @@ async def running_testing_app(request: Request, id_topik_modul: str):
                 os.makedirs("static/"+id_user+"/"+id_topik_modul+"/report_test")
             if not os.path.exists("static/"+id_user+"/"+id_topik_modul+"/jacoco_report_test"):
                 os.makedirs("static/"+id_user+"/"+id_topik_modul+"/jacoco_report_test")
-                
             copy_tree("engine-testing/"+id_user+"/"+id_topik_modul+"/build/reports/tests/test", "static/"+id_user+"/"+id_topik_modul+"/report_test")
             copy_tree("engine-testing/"+id_user+"/"+id_topik_modul+"/build/test-results/test", "static/"+id_user+"/"+id_topik_modul+"/test-results")
             copy_tree("engine-testing/"+id_user+"/"+id_topik_modul+"/build/reports/jacoco/test", "static/"+id_user+"/"+id_topik_modul+"/jacoco_report_test")
-    except subprocess.CalledProcessError as e: #Handling if testing is failed
-            data = "Test failed"
-            status_exsekusi = "N"
-            if os.path.exists("static/"+id_user+"/"+id_topik_modul):
-                remove_tree("static/"+id_user+"/"+id_topik_modul)
-            if not os.path.exists("static/"+id_user):
-                os.makedirs("static/"+id_user)
-            if not os.path.exists("static/"+id_user+"/"+id_topik_modul):
-                os.makedirs("static/"+id_user+"/"+id_topik_modul)
-            if not os.path.exists("static/"+id_user+"/"+id_topik_modul+"/report_test"):
-                os.makedirs("static/"+id_user+"/"+id_topik_modul+"/report_test")
+    except subprocess.CalledProcessError as e:
+        # Test ada yang fail — masih bisa lanjut simpan hasil
+        logger.warning(f"Gradle test failed for {id_topik_modul}: {str(e)}")
+        status_exsekusi = "N"
+        if os.path.exists("static/"+id_user+"/"+id_topik_modul):
+            remove_tree("static/"+id_user+"/"+id_topik_modul)
+        if not os.path.exists("static/"+id_user):
+            os.makedirs("static/"+id_user)
+        if not os.path.exists("static/"+id_user+"/"+id_topik_modul):
+            os.makedirs("static/"+id_user+"/"+id_topik_modul)
+        if not os.path.exists("static/"+id_user+"/"+id_topik_modul+"/report_test"):
+            os.makedirs("static/"+id_user+"/"+id_topik_modul+"/report_test")
+        try:
             copy_tree("engine-testing/"+id_user+"/"+id_topik_modul+"/build/reports/tests/test", "static/"+id_user+"/"+id_topik_modul+"/report_test")
             copy_tree("engine-testing/"+id_user+"/"+id_topik_modul+"/build/test-results/test", "static/"+id_user+"/"+id_topik_modul+"/test-results")
+        except Exception as copy_err:
+            logger.warning(f"Could not copy test reports: {str(copy_err)}")
+    except Exception as e:
+        logger.error(f"Unexpected error during Gradle execution: {str(e)}")
+        response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+        return {"message": f"Unexpected error during test execution: {str(e)}"}
     finally:
-       remove_tree("engine-testing/"+id_user+"/"+id_topik_modul)
-    testResult = saveDataResultTest("static/"+id_user+"/"+id_topik_modul+"/test-results/TEST-"+data_modul['ms_class_name']+"Test.xml", id_topik_modul, id_user, status_exsekusi)
-    coverageScore = saveDataCoverageTest("static/"+id_user+"/"+id_topik_modul+"/jacoco_report_test/jacocoTestReport.xml", id_topik_modul, id_user, data_modul["ms_tingkat_kesulitan"], data_modul["ms_function_name"])
-    #get min coverage
-    query_min_coverage = System.select().where(System.c.ms_system_category=='common',System.c.ms_system_sub_category=='minimum_value', System.c.ms_system_cd == 'coverage')
+        try:
+            remove_tree("engine-testing/"+id_user+"/"+id_topik_modul)
+        except Exception as cleanup_err:
+            logger.warning(f"Cleanup engine-testing failed: {str(cleanup_err)}")
+    try:
+        testResult = saveDataResultTest(
+            "static/"+id_user+"/"+id_topik_modul+"/test-results/TEST-"+data_modul['ms_class_name']+"Test.xml",
+            id_topik_modul, id_user, status_exsekusi
+        )
+        coverageScore = saveDataCoverageTest(
+            "static/"+id_user+"/"+id_topik_modul+"/jacoco_report_test/jacocoTestReport.xml",
+            id_topik_modul, id_user, data_modul["ms_tingkat_kesulitan"], data_modul["ms_function_name"]
+        )
+    except Exception as e:
+        logger.error(f"Error saving test results for {id_topik_modul}: {str(e)}")
+        response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+        return {"message": f"Error saving test results: {str(e)}"}
+
+    query_min_coverage = System.select().where(
+        System.c.ms_system_category == 'common',
+        System.c.ms_system_sub_category == 'minimum_value',
+        System.c.ms_system_cd == 'coverage'
+    )
     dataMinCoverage = conn.execute(query_min_coverage).fetchone()
     conn.execute(text("COMMIT;"))
-    response = {"modul_id":id_modul, 
-                "topik_modul_id":id_topik_modul, 
-                "result_test": testResult, 
-                "coverage_score":coverageScore,
-                "minimum_coverage_score":float(dataMinCoverage['ms_system_value']),
-                "point":round(coverageScore*int(data_modul["ms_tingkat_kesulitan"]),0)}
-    return response
+    result_data = {
+        "modul_id": id_modul,
+        "topik_modul_id": id_topik_modul,
+        "result_test": testResult,
+        "coverage_score": coverageScore,
+        "minimum_coverage_score": float(dataMinCoverage['ms_system_value']),
+        "point": round(coverageScore * int(data_modul["ms_tingkat_kesulitan"]), 0)
+    }
+    return result_data
 
 # @modul.post('/modul/saveDataResultTest/{id_modul}', 
 #           description="Save Data result test from xaml")
 def saveDataResultTest(pathFileResult: str, id_topik_modul: str, id_user:str, status_exsekusi:str):
+    # Jika file tidak ada (misal Gradle gagal compile), return default result
+    if not os.path.exists(pathFileResult):
+        logger.warning(f"Test result XML not found: {pathFileResult}")
+        querySelesaiModul = PenyelesaianModul.select().where(
+            PenyelesaianModul.c.tr_id_topik_modul == id_topik_modul,
+            PenyelesaianModul.c.tr_student_id == id_user
+        )
+        data_selesai_modul = conn.execute(querySelesaiModul).fetchone()
+        tglEksekusi = datetime.today()
+        if data_selesai_modul is None:
+            queryInsert = PenyelesaianModul.insert().values(
+                tr_id_topik_modul=id_topik_modul,
+                tr_student_id=id_user,
+                tr_tgl_mulai=tglEksekusi,
+                tr_result_report="",
+                tr_tgl_eksekusi=tglEksekusi,
+                tr_status_eksekusi='N',
+                updated=datetime.today(),
+                created=datetime.today(),
+                updatedby=id_user,
+                createdby=id_user
+            )
+            conn.execute(queryInsert)
+        else:
+            queryUpdate = PenyelesaianModul.update().values(
+                tr_tgl_eksekusi=tglEksekusi,
+                tr_status_eksekusi='N',
+                updated=datetime.today(),
+                updatedby=id_user,
+            ).where(
+                PenyelesaianModul.c.tr_id_topik_modul == id_topik_modul,
+                PenyelesaianModul.c.tr_student_id == id_user
+            )
+            conn.execute(queryUpdate)
+        conn.execute(text("COMMIT;"))
+        return {"status_eksekusi": False, "tgl_eksekusi": tglEksekusi.strftime('%d %B %Y, %H:%M:%S')}
+
     dataResultTest = minidom.parse(pathFileResult)
     tagTestCase = dataResultTest.getElementsByTagName('testcase')
     isFailedCase = False
@@ -1088,6 +1154,189 @@ def saveDataResultTest(pathFileResult: str, id_topik_modul: str, id_user:str, st
 
     return {"status_eksekusi":(not isFailedCase), "tgl_eksekusi": tglEksekusi.strftime('%d %B %Y, %H:%M:%S')}
 
+def update_cfg_coverage_status(id_topik_modul: str, id_user: str, id_modul: str, pathFileResult: str):
+    """
+    Modul untuk menangani sinkronisasi status eksekusi node dan edge CFG berdasarkan JaCoCo.
+    """
+    #add/update data cfg
+    #delete data PreviousData
+    queryDeleteTrNode = TrNode.delete().where(TrNode.c.tr_id_topik_modul == id_topik_modul, TrNode.c.tr_id_student == id_user)
+    conn.execute(queryDeleteTrNode)
+
+    #get data node cfg based modul
+    queryNodeModul = Node.select().where(Node.c.ms_id_modul == id_modul)
+    dataNodes = conn.execute(queryNodeModul).fetchall()
+    for node in dataNodes:
+        queryInsertTrNode = TrNode.insert().values(
+            tr_id_node = node['ms_id_node'],
+            tr_id_topik_modul = id_topik_modul,
+            tr_id_student = id_user,
+            tr_status = 'N', 
+            updated=datetime.today(),
+            created=datetime.today(),
+            updatedby=id_user,
+            createdby=id_user
+        )
+        conn.execute(queryInsertTrNode)
+    #update data: match JaCoCo line numbers ke AST-based CFG nodes
+    dataCoverageTest = minidom.parse(pathFileResult)
+    tag_lines = dataCoverageTest.getElementsByTagName('line')
+
+    # Pre-load semua node untuk modul
+    queryAllNodes = Node.select().where(Node.c.ms_id_modul == id_modul)
+    allNodes = conn.execute(queryAllNodes).fetchall()
+
+    # Dict untuk melacak status per node (hindari overwrite Y dengan N)
+    updatedNodeIds = {}
+    status_priority = {'Y': 2, 'S': 1, 'N': 0}
+
+    for line in tag_lines:
+        lineNumber = int(line.getAttribute('nr'))
+        mi = int(line.getAttribute('mi'))
+        ci = int(line.getAttribute('ci'))
+        mb = int(line.getAttribute('mb'))
+        cb = int(line.getAttribute('cb'))
+
+        # Tentukan status eksekusi untuk baris ini
+        if ci == 0:               # tidak ada instruksi yang ter-cover sama sekali
+            status_executed = 'N'
+        elif mb > 0:              # ada branch miss (baik cb > 0 atau cb == 0) sebagian ter-cover
+            status_executed = 'S'
+        else:                     # ci > 0 dan mb == 0 fully executed
+            status_executed = 'Y'
+
+        # Cari node yang mencakup baris ini:
+        # Range match AST-based (ms_line_start <= lineNumber <= ms_line_end)
+        # Fallback exact match (ms_line_number == lineNumber) untuk data lama
+        matchedNodes = []
+        for node in allNodes:
+            line_start = node['ms_line_start']
+            line_end   = node['ms_line_end']
+            if line_start is not None and line_end is not None:
+                if int(line_start) <= lineNumber <= int(line_end):
+                    matchedNodes.append(node)
+            elif node['ms_line_number'] is not None:
+                if int(node['ms_line_number']) == lineNumber:
+                    matchedNodes.append(node)
+
+        for matchedNode in matchedNodes:
+            node_id = matchedNode['ms_id_node']
+            prev_status = updatedNodeIds.get(node_id)
+            # Hanya update jika status baru lebih tinggi prioritasnya
+            if prev_status is None or status_priority.get(status_executed, 0) > status_priority.get(prev_status, 0):
+                updatedNodeIds[node_id] = status_executed
+                queryTrNodeUpdate = TrNode.update().values(
+                    tr_status=status_executed,
+                    updated=datetime.today(),
+                    updatedby=id_user,
+                ).where(
+                    TrNode.c.tr_id_node == node_id,
+                    TrNode.c.tr_id_topik_modul == id_topik_modul,
+                    TrNode.c.tr_id_student == id_user
+                )
+                conn.execute(queryTrNodeUpdate)
+
+    #delete prev data Edge
+    queryDeleteTrEdge = TrEdge.delete().where(TrEdge.c.tr_id_topik_modul == id_topik_modul, TrEdge.c.tr_id_student == id_user)
+    conn.execute(queryDeleteTrEdge)
+
+    #get data node cfg based modul
+    queryNodeEdge = Edge.select().where(Edge.c.ms_id_modul == id_modul)
+    dataEdges = conn.execute(queryNodeEdge).fetchall()
+    for edge in dataEdges:
+        queryInsertTrEdge = TrEdge.insert().values(
+            tr_id_edge = edge['ms_id_edge'],
+            tr_id_topik_modul = id_topik_modul,
+            tr_id_student = id_user,
+            tr_status = 'N', 
+            updated=datetime.today(),
+            created=datetime.today(),
+            updatedby=id_user,
+            createdby=id_user
+        )
+        conn.execute(queryInsertTrEdge)
+
+    # Propagasi Status Node
+    # Untuk node struktural yang tidak terbaca oleh JaCoCo
+    queryEdgeList = Edge.select().where(Edge.c.ms_id_modul == id_modul)
+    dataEdgeList = conn.execute(queryEdgeList).fetchall()
+
+    preds_map = {}
+    succs_map = {}
+    for edge in dataEdgeList:
+        u = edge['ms_id_start_node']
+        v = edge['ms_id_finish_node']
+        preds_map.setdefault(v, []).append(u)
+        succs_map.setdefault(u, []).append(v)
+
+    queryNodeStatus = TrNode.select().where(
+        TrNode.c.tr_id_topik_modul == id_topik_modul,
+        TrNode.c.tr_id_student == id_user
+    )
+    dataNodeStatus = conn.execute(queryNodeStatus).fetchall()
+
+    status_map = {}
+    for ns in dataNodeStatus:
+        status_map[ns['tr_id_node']] = ns['tr_status']
+
+    changed = True
+    while changed:
+        changed = False
+        # Backward propagation
+        for v, status_v in list(status_map.items()):
+            if status_v in ['Y', 'S']:
+                p_list = preds_map.get(v, [])
+                if len(p_list) == 1:
+                    u = p_list[0]
+                    if status_map.get(u, 'N') == 'N':
+                        status_map[u] = 'Y'
+                        changed = True
+                        queryTrNodeUpdate = TrNode.update().values(tr_status='Y', updated=datetime.today(), updatedby=id_user).where(
+                            TrNode.c.tr_id_node == u, TrNode.c.tr_id_topik_modul == id_topik_modul, TrNode.c.tr_id_student == id_user)
+                        conn.execute(queryTrNodeUpdate)
+
+        # Forward propagation
+        for u, status_u in list(status_map.items()):
+            if status_u in ['Y', 'S']:
+                s_list = succs_map.get(u, [])
+                if len(s_list) == 1:
+                    v = s_list[0]
+                    if status_map.get(v, 'N') == 'N':
+                        status_map[v] = 'Y'
+                        changed = True
+                        queryTrNodeUpdate = TrNode.update().values(tr_status='Y', updated=datetime.today(), updatedby=id_user).where(
+                            TrNode.c.tr_id_node == v, TrNode.c.tr_id_topik_modul == id_topik_modul, TrNode.c.tr_id_student == id_user)
+                        conn.execute(queryTrNodeUpdate)
+
+    # Update edges based on source node status
+    # An edge is executed if its source node is executed
+    queryEdgeList = Edge.select().where(Edge.c.ms_id_modul == id_modul)
+    dataEdgeList = conn.execute(queryEdgeList).fetchall()
+    for edge in dataEdgeList:
+        sourceNodeId = edge['ms_id_start_node']
+        finishNodeId = edge['ms_id_finish_node']
+
+        sourceNodeStatus = status_map.get(sourceNodeId, 'N')
+        finishNodeStatus = status_map.get(finishNodeId, 'N')
+
+        if sourceNodeStatus in ['Y', 'S'] and finishNodeStatus in ['Y', 'S']:
+            edgeStatus = 'Y'
+        else:
+            edgeStatus = 'N'
+
+        # Update the transaction edge with the calculated execution status
+        queryTrEdgeUpdate = TrEdge.update().values(
+            tr_status=edgeStatus,
+            updated=datetime.today(),
+            updatedby=id_user,
+        ).where(
+            TrEdge.c.tr_id_edge == edge['ms_id_edge'],
+            TrEdge.c.tr_id_topik_modul == id_topik_modul,
+            TrEdge.c.tr_id_student == id_user
+        )
+        res = conn.execute(queryTrEdgeUpdate)
+
+
 def saveDataCoverageTest(pathFileResult: str, id_topik_modul: str, id_user:str, tingkatKesulitan:str, method_name: str):
     coveragePercent = 0
     getModulQuery = TopikModul.select().where(TopikModul.c.ms_id_topik_modul == id_topik_modul)
@@ -1137,76 +1386,10 @@ def saveDataCoverageTest(pathFileResult: str, id_topik_modul: str, id_user:str, 
             ).where(PenyelesaianModul.c.tr_id_topik_modul == id_topik_modul,
                     PenyelesaianModul.c.tr_student_id == id_user)
         conn.execute(queryUpdate)
-        #add/update data cfg
-        #delete data PreviousData
-        queryDeleteTrNode = TrNode.delete().where(TrNode.c.tr_id_topik_modul == id_topik_modul, TrNode.c.tr_id_student == id_user)
-        conn.execute(queryDeleteTrNode)
-    
-    
-        #get data node cfg based modul
-        queryNodeModul = Node.select().where(Node.c.ms_id_modul == id_modul)
-        dataNodes = conn.execute(queryNodeModul).fetchall()
-        for node in dataNodes:
-            queryInsertTrNode = TrNode.insert().values(
-                tr_id_node = node['ms_id_node'],
-                tr_id_topik_modul = id_topik_modul,
-                tr_id_student = id_user,
-                tr_status = 'N', 
-                updated=datetime.today(),
-                created=datetime.today(),
-                updatedby=id_user,
-                createdby=id_user
-            )
-            conn.execute(queryInsertTrNode)
-        #update data
-        dataCoverageTest = minidom.parse(pathFileResult)
-        tag_lines = dataCoverageTest.getElementsByTagName('line')
-        for line in tag_lines :
-            lineNumber = line.getAttribute('nr')
-            mi = int(line.getAttribute('mi'))
-            ci = int(line.getAttribute('ci'))
-            mb = int(line.getAttribute('mb'))
-            cb = int(line.getAttribute('cb'))
-            queryGetNode = Node.select().where(Node.c.ms_id_modul == id_modul, Node.c.ms_line_number == lineNumber)
-            dataNode = conn.execute(queryGetNode).fetchone()
-            if dataNode is not None :
-                if mb == 0: #executed
-                    status_executed = 'Y'
-                elif cb > 0 and mb > 0 :
-                    status_executed = 'S'
-                elif cb > 0:
-                    status_executed = 'Y'
-                else:
-                    status_executed = 'N'
-                queryTrNodeUpdate = TrNode.update().values(
-                    tr_status = status_executed,
-                    updated=datetime.today(),
-                    updatedby=id_user,
-                ).where(TrNode.c.tr_id_node == dataNode['ms_id_node'], TrNode.c.tr_id_topik_modul == id_topik_modul, TrNode.c.tr_id_student == id_user)
-                conn.execute(queryTrNodeUpdate)
+        # Panggil modul pembaruan CFG secara terpisah
+        update_cfg_coverage_status(id_topik_modul, id_user, id_modul, pathFileResult)
         
-        #delete prev data Edge
-        queryDeleteTrEdge = TrEdge.delete().where(TrEdge.c.tr_id_topik_modul == id_topik_modul, TrEdge.c.tr_id_student == id_user)
-        conn.execute(queryDeleteTrEdge)
-        
-        #get data node cfg based modul
-        queryNodeEdge = Edge.select().where(Edge.c.ms_id_modul == id_modul)
-        dataEdges = conn.execute(queryNodeEdge).fetchall()
-        for edge in dataEdges:
-            queryInsertTrEdge = TrEdge.insert().values(
-                tr_id_edge = edge['ms_id_edge'],
-                tr_id_topik_modul = id_topik_modul,
-                tr_id_student = id_user,
-                tr_status = 'N', 
-                updated=datetime.today(),
-                created=datetime.today(),
-                updatedby=id_user,
-                createdby=id_user
-            )
-            conn.execute(queryInsertTrEdge)
-        # update edge based node
-        # TODO
-
+        conn.execute(text("COMMIT;"))
 
     return coveragePercent
 
@@ -1244,8 +1427,10 @@ async def getDataResultTesting(request: Request, id_topik_modul: str, response:R
     queryCfgEdge = " SELECT e.*, te.tr_status "
     queryCfgEdge += "  FROM ms_cfg_edge e "
     queryCfgEdge += "     INNER JOIN tr_cfg_edge te ON e.ms_id_edge = te.tr_id_edge "
+    queryCfgEdge += "     INNER JOIN ms_cfg_node n ON e.ms_id_start_node = n.ms_id_node "
     queryCfgEdge += " WHERE te.tr_id_topik_modul = :idTopikModul "
     queryCfgEdge += "  AND te.tr_id_student = :idUser "
+    queryCfgEdge += " ORDER BY n.ms_line_number "
     queryCfgEdge = text(queryCfgEdge)
     dataCfgEdge = conn.execute(queryCfgEdge, idTopikModul=id_topik_modul, idUser=id_user).fetchall()
     #query statistic testcase

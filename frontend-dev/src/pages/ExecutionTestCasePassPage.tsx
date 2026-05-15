@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Menu } from "@/components/custom/Menu";
 import ModuleSpecificationCard from "@/components/custom/ModuleSpecificationCard";
+import CodeProgramCard from "@/components/custom/CodeProgramCard";
 import AddTestCaseCard from "@/components/custom/AddTestCaseCard";
 import CFGCard from "@/components/custom/CFGCard";
 // import {
@@ -140,49 +141,57 @@ const ExecutionTestCasePassPage: React.FC = () => {
   return (
     <Layout>
       <Menu />
-        <div className="flex flex-col md:flex-row w-screen min-h-screen">
-          <div className="flex flex-col w-full md:w-1/2">
-            <ModuleSpecificationCard />
+      <div className="flex flex-col w-screen min-h-screen p-4 gap-6">
+        {/* Section 1: Spesifikasi Modul dan Daftar Parameter (Full Width) */}
+        <div className="w-full">
+          <ModuleSpecificationCard />
+        </div>
+
+        {/* Section 2: Kode Program (Kiri) dan Struktur Program (Kanan) */}
+        <div className="flex flex-col md:flex-row gap-6 w-full">
+          <div className="w-full md:w-1/2 flex flex-col" style={{ maxHeight: "600px" }}>
+            <CodeProgramCard />
           </div>
-          <div
-            className="flex flex-col w-full md:w-1/2 items-center md:pl-4 md:pr-4 md:gap-4"
-            style={{ overflowY: "auto" }}
-          >
+          <div className="w-full md:w-1/2 flex flex-col" style={{ maxHeight: "600px" }}>
             <CFGCard 
               showCyclomaticComplexity={showCyclomaticComplexity}
               showCodeCoverage={showCodeCoverage}
               codeCoveragePercentage={codeCoveragePercentage}
             />
-              <AddTestCaseCard />
-              <div className="mt-6 h-full w-full">
-                <PassCard
-                  percentageCoverage={navigationData?.coverage_score || 0}
-                  minimumCoverage={navigationData?.minimum_coverage_score || 0}
-                  statusEksekusi={navigationData?.status_eksekusi || false}
-                  tanggalEksekusi={navigationData?.tgl_eksekusi || ""}
-                  modulId={navigationData?.modul_id||""}
-                  poin={navigationData?.points||0}
-
-                />
-              </div>
-              {/* Penanda untuk scroll ke bagian paling bawah */}
-              <div ref={bottomRef}></div>
-              <div className="space-x-2 items-center p-4 justify-end">
-                <Button
-                  variant="outline"
-                  className="bg-white text-sm text-blue-800 border-2 border-blue-800 rounded-[10] hover:bg-blue-800 hover:text-white"
-                   onClick={handleNavigateToTestResult}
-                >
-                Hasil Pengujian 
-                </Button>
-                <Button
-                  className="bg-blue-800 text-sm text-white border-2 border-blue-800 rounded-[20] pt-0 pb-0"
-                  onClick={handleNavigateNextChallenge}
-                  >
-                  Kasus Selanjutnya
-                  </Button>
-              </div>
           </div>
+        </div>
+
+        {/* Section 3: Test Case, Hasil Pengujian, dan Tombol (Full Width) */}
+        <div className="w-full flex flex-col gap-6">
+          <AddTestCaseCard />
+          <div className="w-full">
+            <PassCard
+              percentageCoverage={navigationData?.coverage_score || 0}
+              minimumCoverage={navigationData?.minimum_coverage_score || 0}
+              statusEksekusi={navigationData?.status_eksekusi || false}
+              tanggalEksekusi={navigationData?.tgl_eksekusi || ""}
+              modulId={navigationData?.modul_id||""}
+              poin={navigationData?.points||0}
+            />
+          </div>
+          {/* Penanda untuk scroll ke bagian paling bawah */}
+          <div ref={bottomRef}></div>
+          <div className="flex space-x-2 items-center p-4 justify-center">
+            <Button
+              variant="outline"
+              className="bg-white text-sm text-blue-800 border-2 border-blue-800 rounded-[10] hover:bg-blue-800 hover:text-white"
+               onClick={handleNavigateToTestResult}
+            >
+              Hasil Pengujian 
+            </Button>
+            <Button
+              className="bg-blue-800 text-sm text-white border-2 border-blue-800 rounded-[20] pt-0 pb-0"
+              onClick={handleNavigateNextChallenge}
+              >
+              Kasus Selanjutnya
+            </Button>
+          </div>
+        </div>
       </div>
     </Layout>
   );

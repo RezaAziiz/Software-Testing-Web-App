@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import "../../index.css";
-import { CopyBlock, dracula } from 'react-code-blocks';
 import {
   Table,
   TableBody,
@@ -60,7 +59,6 @@ const ModuleSpecificationCard = () => {
 
   const [dataModule, setDataModule] = useState<Data | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [sourceCode, setSourceCode] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchDataModule = async () => {
@@ -85,40 +83,10 @@ const ModuleSpecificationCard = () => {
       const data = await response.json();
       console.log(data);
       setDataModule(data.data || null);
-
-      if (data.data) {
-        fetchSourceCodeText(data.data.data_modul.ms_id_modul);
-      }
+      setLoading(false);
     } catch (error) {
       console.error('Error fetching data:', error);
       setError((error as Error).message);
-    }
-  };
-
-  const fetchSourceCodeText = async (modulId: string) => {
-    try {
-      const response = await fetch(`${apiUrl}/modul/getSourceCodeText/${modulId}`, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      if (data.data) {
-        setSourceCode(data.data);
-      } else {
-        setSourceCode(null);
-      }
-    } catch (error) {
-      console.error('Error fetching source code text:', error);
-      setSourceCode(null);
-    } finally {
       setLoading(false);
     }
   };
@@ -169,8 +137,8 @@ const ModuleSpecificationCard = () => {
           <>
             <h3 className="text-base font-bold mb-4 text-gray-800">Spesifikasi Modul</h3>
             <div className='border border-black p-2 mb-6 bg-slate-50'>
-              <p className="mb-4 text-sm  text-gray-600">Modul : {dataModule.data_modul.ms_nama_modul}</p>
-              <p className="mb-4 text-sm  text-gray-600">{dataModule.data_modul.ms_deskripsi_modul}</p>
+              <p className="mb-4 text-sm text-gray-600">Modul : {dataModule.data_modul.ms_nama_modul}</p>
+              <p className="mb-4 text-sm text-gray-600">{dataModule.data_modul.ms_deskripsi_modul}</p>
             </div>
 
             <div className="rounded-lg mb-6">
@@ -196,17 +164,6 @@ const ModuleSpecificationCard = () => {
                 </TableBody>
               </Table>
             </div>
-
-            <h4 className="text-base font-bold mb-1 text-gray-800">Kode Program</h4>
-            <div className="text-sm p-4 rounded-lg">
-              <CopyBlock
-                language="java"
-                text={sourceCode || 'Source code belum di-upload. Silahkan upload source code terlebih dahulu.'}
-                showLineNumbers={true}
-                theme={dracula}
-                codeBlock
-              />
-            </div>
           </>
         )}
       </div>
@@ -215,3 +172,4 @@ const ModuleSpecificationCard = () => {
 };
 
 export default ModuleSpecificationCard;
+          
