@@ -93,6 +93,7 @@ const EditTestCaseFormDialog = ({
   const modulId = queryParameters.get("topikModulId")
   const [parameters, setParameters] = useState<ParameterModul[]>([]);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
   const isSubmitted = useRef(false);
 
   const form = useForm<FormValues>({
@@ -292,12 +293,12 @@ const EditTestCaseFormDialog = ({
   }, [isEditFormDialogOpen, editingTestId]);
 
 
-  const handleSubmit: SubmitHandler<FormValues> = async (data) => {
+    const handleSubmit: SubmitHandler<FormValues> = async (data) => {
     isSubmitted.current = true;
     const formattedData = {
       id_test_case: editingTestId,
       id_topik_modul: modulId,
-      no: data.no,
+      no: String(data.no || form.getValues("no")),
       object_pengujian: data.objective,
       data_test_input: parameters.map((param) => ({
         param_name: param.ms_nama_parameter,
@@ -321,11 +322,16 @@ const EditTestCaseFormDialog = ({
       if (!response.ok) {
         if (response.status === 403) {
           throw new Error("Forbidden: Access is denied");
+        } else if (response.status === 422) {
+          const responseData = await response.json();
+          setErrorMessage(responseData.message || "Validasi gagal");
+          throw new Error("422");
         } else {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
       }
 
+      setErrorMessage("");
       const responseData: DataResponse = await response.json();
       console.log(responseData);
       setShowSuccessMessage(true);
@@ -350,6 +356,7 @@ const EditTestCaseFormDialog = ({
             </DialogTitle>
             <Form {...form}>
               <form className="space-y-6" onSubmit={form.handleSubmit(handleSubmit)}>
+                <input type="hidden" {...form.register("no")} />
                 <FormField
                   control={form.control}
                   name="objective"
@@ -416,6 +423,11 @@ const EditTestCaseFormDialog = ({
                     </FormItem>
                   )}
                 />
+                {/* {errorMessage && (
+                  <div className="bg-red-100 text-red-700 p-2 mb-4 text-sm">
+                    {errorMessage}
+                  </div>
+                )} */}
                 <div className="flex justify-end gap-4">
                   <Button
                     onClick={(e) => {

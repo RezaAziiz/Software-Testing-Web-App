@@ -23,7 +23,7 @@ interface DataResultTest {
     linkReportTesting: string;
     linkReportCoverage: string;
     linkSourceCoverage: string;
-    data_cfg: {
+    cfg: {
       nodes: any[];
       edges: any[];
     };
@@ -53,7 +53,7 @@ const TestResultPage = () => {
         linkReportTesting: "",
         linkReportCoverage: "",
         linkSourceCoverage: "",
-        data_cfg: {
+        cfg: {
           nodes: [],
           edges: []
         }
@@ -129,6 +129,8 @@ const TestResultPage = () => {
                 showCyclomaticComplexity={showCyclomaticComplexity}
                 showCodeCoverage={showCodeCoverage}
                 codeCoveragePercentage={dataTestResult.coverageScore}
+                nodesWithStatus={dataTestResult.cfg?.nodes}
+                edgesWithStatus={dataTestResult.cfg?.edges}
               />
               <TestResultCard dataResultTest = {dataTestResult}/>
                   <div className="flex justify-end space-x-2 items-center p-4">
