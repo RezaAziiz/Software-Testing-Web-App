@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>HariTerakhirPadaBulan.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">jacoco-engine</a> &gt; <a href="index.source.html" class="el_package">default</a> &gt; <span class="el_source">HariTerakhirPadaBulan.java</span></div><h1>HariTerakhirPadaBulan.java</h1><pre class="source lang-java linenums">/* Program: Hari Terakhir Dari Sebuah bulan
+ * Deskripsi: Menentukan hari terakhir pada bulan dan tahun tertentu
+ * Author: Najib Alimudin Fajri/221524053
+ * Tanggal/versi: 21 Juni 2024/v.0
+ */
+
+<span class="nc" id="L7"> public class HariTerakhirPadaBulan {</span>
+    public int hariTerakhirPadaBulan(int bulan, int tahun) {
+<span class="nc bnc" id="L9" title="All 14 branches missed.">        if (bulan == 1 || bulan == 3 || bulan == 5 || bulan == 7 || bulan == 8 || bulan == 10 || bulan == 12) {</span>
+<span class="nc" id="L10">            return 31;</span>
+<span class="nc bnc" id="L11" title="All 8 branches missed.">        } else if (bulan == 4 || bulan == 6 || bulan == 9 || bulan == 11) {</span>
+<span class="nc" id="L12">            return 30;</span>
+<span class="nc bnc" id="L13" title="All 2 branches missed.">        } else if (bulan == 2) {</span>
+<span class="nc bnc" id="L14" title="All 6 branches missed.">            if ((tahun % 4 == 0 &amp;&amp; tahun % 100 != 0) || tahun % 400 == 0) {</span>
+<span class="nc" id="L15">                return 29;</span>
+            } else {
+<span class="nc" id="L17">                return 28;</span>
+            }
+        }
+<span class="nc" id="L20">        return 0;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.8.202204050719</span></div></body></html>

@@ -180,16 +180,16 @@ const CFGCard: React.FC<CFGCardProps> = ({
       // Konversi ke format Cytoscape
       const cyNodes: cytoscape.ElementDefinition[] = backendNodes.map(
         (n: any) => {
-          const nodeType: string = n.ms_node_type ?? "NORMAL";
+          const nodeType: string = n.ms_node_type ?? n.node_type ?? "NORMAL";
           const isMerge = nodeType.toUpperCase() === "MERGE";
-          const lineNumber: number = n.ms_line_number;
+          const lineNumber: number = n.ms_line_number ?? n.line_start;
           return {
             data: {
-              id: n.ms_id_node,
+              id: n.ms_id_node ?? n.id_node,
               label: isMerge ? "" : lineNumber,
               nodeType,
               isMerge,
-              tooltip: `Tipe: ${nodeType} \n\nIsi Kode:\n${n.ms_source_code ?? ""}`,
+              tooltip: `Tipe: ${nodeType} \n\nIsi Kode:\n${n.ms_source_code ?? n.code_fragment ?? ""}`,
               bgColor: "#FFFFFF",
             },
           };
@@ -198,16 +198,17 @@ const CFGCard: React.FC<CFGCardProps> = ({
 
       const cyEdges: cytoscape.ElementDefinition[] = backendEdges.map(
         (e: any) => {
-          const branchType: string = e.ms_branch_type ?? "";
+          const branchType: string = e.ms_branch_type ?? e.branch_type ?? "";
           const isTrue = branchType.toUpperCase() === "TRUE";
           const isFalse = branchType.toUpperCase() === "FALSE";
           const label = isTrue ? "True" : isFalse ? "False" : "";
 
           return {
             data: {
-              id: e.ms_id_edge,
-              source: e.id_node_start ?? e.ms_id_start_node,
-              target: e.id_node_finish ?? e.ms_id_finish_node,
+              id: e.ms_id_edge ?? e.id_edge,
+              source: e.id_node_start ?? e.ms_id_start_node ?? e.id_start_node,
+              target:
+                e.id_node_finish ?? e.ms_id_finish_node ?? e.id_finish_node,
               label,
               lineColor: "black",
               branchType,
@@ -229,19 +230,32 @@ const CFGCard: React.FC<CFGCardProps> = ({
     fetchCFG();
   }, [modulId, nodesWithStatus, edgesWithStatus]);
 
+  // Dagre layout config (Pastikan config ini konsisten)
+  const layout = {
+    name: "dagre",
+    rankDir: "TB",
+    nodeSep: 80,
+    rankSep: 60,
+    nodeDimensionsIncludeLabels: true, // Tambahan vital agar label tidak tertimpa
+    ranker: "network-simplex", // Tambahan algoritma pencabangan optimal
+    animate: false,
+    fit: true,
+    padding: 30,
+  };
+
   // Re-layout & fit saat elements berubah
   useEffect(() => {
     if (!cyRef.current || elements.length === 0) return;
     const cy = cyRef.current;
-    cy.layout({
-      name: "dagre",
-      rankDir: "TB",
-      nodeSep: 70,
-      rankSep: 60,
-      animate: false,
-      fit: true,
-      padding: 30,
-    } as any).run();
+
+    // Tunda render sedikit agar nodes tergambar di DOM & ukurannya bisa dibaca Dagre
+    setTimeout(() => {
+      cy.layout({
+        ...layout,
+        animate: true, // Saat dirender ulang, jalankan dengan animasi
+        animationDuration: 500,
+      } as any).run();
+    }, 50);
 
     // Pasang event hover tooltip
     cy.off("mouseover", "node");
@@ -303,29 +317,18 @@ const CFGCard: React.FC<CFGCardProps> = ({
         "line-color": "data(lineColor)",
         "target-arrow-color": "data(lineColor)",
         "target-arrow-shape": "triangle",
-        "curve-style": "bezier",
+        "curve-style": "straight", // Diubah menjadi straight agar lebih rapi
         label: "data(label)",
         "font-size": "13px",
         "font-weight": "bold",
         "text-background-color": "#f9fafb",
         "text-background-opacity": 1,
         "text-background-padding": "3px",
-        "text-margin-y": -10,
+        // Hapus text-margin-y agar text label berada tepat di atas garis
         color: "data(lineColor)",
       },
     },
   ];
-
-  // Dagre layout config
-  const layout = {
-    name: "dagre",
-    rankDir: "TB",
-    nodeSep: 70,
-    rankSep: 60,
-    animate: false,
-    fit: true,
-    padding: 30,
-  };
 
   // Loading skeleton
   if (loading) {
@@ -503,11 +506,9 @@ const CFGCard: React.FC<CFGCardProps> = ({
               ) : showCyclomaticComplexity ? (
                 <>
                   <p className="text-sm font-medium mb-2">
-                      Nilai Cyclomatic Complexity
+                    Nilai Cyclomatic Complexity
                   </p>
-                  <p className="text-sm text-gray-400">
-                    CC tidak tersedia
-                  </p>
+                  <p className="text-sm text-gray-400">CC tidak tersedia</p>
                 </>
               ) : null}
             </div>

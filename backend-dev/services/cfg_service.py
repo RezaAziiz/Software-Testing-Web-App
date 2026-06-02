@@ -1,24 +1,13 @@
-"""
-CFGService - Orchestrates CFG generation from Java source code
-Handles parsing, generation, optimization, and database persistence
-"""
 import logging
 from datetime import datetime
 from typing import Optional, List, Dict, Any
-from uuid import uuid4
-
 from core.parser import JavaParser
 from core.cfg_generator import CFGGeneratorVisitor
 from core.types import NodeType, BranchType
-from config.database import conn
-from models.node import Node
-from models.edge import Edge
-from models.modul import Modul
 from core.metrics import calculate_cyclomatic_complexity
+from repositories.cfg_repository import CfgRepository
 
 logger = logging.getLogger(__name__)
-
-
 class CFGResult:
     """Data class for CFG generation result"""
     def __init__(self, nodes: List[Any], edges: List[Dict], method_name: str = ""):
@@ -59,33 +48,18 @@ class CFGResult:
             "nodes": nodes_data,
             "edges": edges_data,
         }
-
-
 class CFGService:
-    """Service for generating and managing Control Flow Graphs from Java code"""
     
-    def __init__(self):
+    def __init__(self, cfg_repo: CfgRepository):
         self.parser = JavaParser()
         self.logger = logger
+        self.cfg_repo = cfg_repo
     
     def generate_cfg_from_java_code(
         self, 
         java_code: str, 
         method_name: Optional[str] = None
     ) -> CFGResult:
-        """
-        Generate CFG from Java source code
-        
-        Args:
-            java_code: Java source code as string
-            method_name: Optional specific method name to analyze. If not provided, uses first method found
-        
-        Returns:
-            CFGResult: Generated nodes and edges
-        
-        Raises:
-            ValueError: If code cannot be parsed or no methods found
-        """
         try:
             # Parse Java code to AST
             tree = self.parser.parse_source_code(java_code)
@@ -110,7 +84,6 @@ class CFGService:
             # Generate CFG
             generator = CFGGeneratorVisitor()
             nodes, edges = generator.build_cfg(method_node)
-            cc_score = calculate_cyclomatic_complexity(nodes, edges)
             
             self.logger.info(f"Generated CFG for method '{method_name}': {len(nodes)} nodes, {len(edges)} edges")
             
@@ -128,65 +101,55 @@ class CFGService:
         created_by: str = "system"
     ) -> bool:
         """
-        Save generated CFG nodes and edges to database
-        
-        Args:
-            modul_id: Module ID for which CFG is being saved
-            cfg_result: CFGResult object with nodes and edges
-            source_code: Original Java source code
-            created_by: User/system creating the record
-        
-        Returns:
-            bool: True if save successful, False otherwise
+        Save generated CFG nodes and edges to database via Repository
         """
         try:
             now = datetime.now()
             
-            # Insert nodes
+            # Format nodes for bulk insert
+            nodes_data = []
             for node in cfg_result.nodes:
-                insert_stmt = Node.insert().values(
-                    ms_id_node=node.id_node,
-                    ms_id_modul=modul_id,
-                    ms_execution_order=node.execution_order,
-                    ms_line_number=node.line_start,
-                    ms_line_start=node.line_start,
-                    ms_line_end=node.line_end,
-                    ms_source_code=node.source_code,
-                    ms_ast_node_type=node.ast_node_type,
-                    ms_node_type=node.node_type.value if isinstance(node.node_type, NodeType) else str(node.node_type),
-                    createdby=created_by,
-                    created=now,
-                    updatedby=created_by,
-                    updated=now,
-                )
-                conn.execute(insert_stmt)
+                nodes_data.append({
+                    "ms_id_node": node.id_node,
+                    "ms_id_modul": modul_id,
+                    "ms_execution_order": node.execution_order,
+                    "ms_line_number": node.line_start,
+                    "ms_line_start": node.line_start,
+                    "ms_line_end": node.line_end,
+                    "ms_source_code": node.source_code,
+                    "ms_ast_node_type": node.ast_node_type,
+                    "ms_node_type": node.node_type.value if isinstance(node.node_type, NodeType) else str(node.node_type),
+                    "createdby": created_by,
+                    "created": now,
+                    "updatedby": created_by,
+                    "updated": now
+                })
             
-            # Insert edges
+            # Format edges for bulk insert
+            edges_data = []
             for edge in cfg_result.edges:
-                insert_stmt = Edge.insert().values(
-                    ms_id_edge=edge["id_edge"],
-                    ms_id_modul=modul_id,
-                    ms_id_start_node=edge["id_start_node"],
-                    ms_id_finish_node=edge["id_finish_node"],
-                    ms_branch_type=edge["branch_type"].value if isinstance(edge["branch_type"], BranchType) else str(edge["branch_type"]),
-                    ms_label=edge.get("label"),
-                    createdby=created_by,
-                    created=now,
-                    updatedby=created_by,
-                    updated=now,
-                )
-                conn.execute(insert_stmt)
+                edges_data.append({
+                    "ms_id_edge": edge["id_edge"],
+                    "ms_id_modul": modul_id,
+                    "ms_id_start_node": edge["id_start_node"],
+                    "ms_id_finish_node": edge["id_finish_node"],
+                    "ms_branch_type": edge["branch_type"].value if isinstance(edge["branch_type"], BranchType) else str(edge["branch_type"]),
+                    "ms_label": edge.get("label"),
+                    "createdby": created_by,
+                    "created": now,
+                    "updatedby": created_by,
+                    "updated": now
+                })
+            
+            # Execute database operations via repository
+            self.cfg_repo.insert_nodes(nodes_data)
+            self.cfg_repo.insert_edges(edges_data)
             
             # Calculate and update module cyclomatic complexity score
             cc_score = calculate_cyclomatic_complexity(cfg_result.nodes, cfg_result.edges)
-            update_modul = Modul.update().values(
-                ms_cc=cc_score,
-                updatedby=created_by,
-                updated=now,
-            ).where(Modul.c.ms_id_modul == modul_id)
-            conn.execute(update_modul)
+            self.cfg_repo.update_modul_cc(modul_id, cc_score, created_by)
             
-            self.logger.info(f"Saved CFG for modul {modul_id}: {len(cfg_result.nodes)} nodes, {len(cfg_result.edges)} edges, cc={cc_score}")
+            self.logger.info(f"Saved CFG for modul {modul_id}: {len(nodes_data)} nodes, {len(edges_data)} edges, cc={cc_score}")
             return True
         
         except Exception as e:
@@ -195,23 +158,10 @@ class CFGService:
     
     def delete_cfg_for_modul(self, modul_id: str) -> bool:
         """
-        Delete existing CFG data for a module (for re-generation)
-        
-        Args:
-            modul_id: Module ID
-        
-        Returns:
-            bool: True if successful
+        Delete existing CFG data for a module via Repository
         """
         try:
-            # Delete edges first (foreign key constraint)
-            delete_edges = Edge.delete().where(Edge.c.ms_id_modul == modul_id)
-            conn.execute(delete_edges)
-            
-            # Delete nodes
-            delete_nodes = Node.delete().where(Node.c.ms_id_modul == modul_id)
-            conn.execute(delete_nodes)
-            
+            self.cfg_repo.delete_master_cfg(modul_id)
             self.logger.info(f"Deleted CFG for modul {modul_id}")
             return True
         
@@ -221,18 +171,11 @@ class CFGService:
     
     def get_cfg_for_modul(self, modul_id: str) -> tuple[List, List]:
         """
-        Retrieve CFG nodes and edges for a module from database
-        
-        Args:
-            modul_id: Module ID
-        
-        Returns:
-            tuple: (nodes_list, edges_list)
+        Retrieve CFG nodes and edges for a module via Repository
         """
         try:
-            # Get nodes
-            select_nodes = Node.select().where(Node.c.ms_id_modul == modul_id).order_by(Node.c.ms_execution_order)
-            nodes_result = conn.execute(select_nodes).fetchall()
+            nodes_result = self.cfg_repo.get_master_nodes(modul_id)
+            edges_result = self.cfg_repo.get_master_edges(modul_id)
             
             nodes_data = []
             for row in nodes_result:
@@ -245,10 +188,6 @@ class CFGService:
                     "line_start": row.ms_line_start,
                     "line_end": row.ms_line_end,
                 })
-            
-            # Get edges
-            select_edges = Edge.select().where(Edge.c.ms_id_modul == modul_id)
-            edges_result = conn.execute(select_edges).fetchall()
             
             edges_data = []
             for row in edges_result:
@@ -270,12 +209,6 @@ class CFGService:
     def extract_method_names(self, java_code: str) -> List[str]:
         """
         Extract all method names from Java source code
-        
-        Args:
-            java_code: Java source code
-        
-        Returns:
-            List of method names found
         """
         try:
             tree = self.parser.parse_source_code(java_code)

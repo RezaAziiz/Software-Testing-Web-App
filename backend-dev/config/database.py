@@ -1,20 +1,29 @@
-# config/database.py
 import os
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-import configparser
 from decouple import config
 
-#config = configparser.ConfigParser()
-#config.read('alembic.ini')
+SQLALCHEMY_DATABASE_URL = (
+    f"mysql+pymysql://{config('DATABASE_USER')}:{config('DATABASE_PASSWORD')}"
+    f"@{config('DATABASE_URL')}"
+)
 
-#SQLALCHEMY_DATABASE_URL = config.get('alembic', 'sqlalchemy.url')
-#SQLALCHEMY_DATABASE_URL = 'mysql+pymysql://vms_user:abc123!!@192.168.0.102:3306/vms_db'
-SQLALCHEMY_DATABASE_URL = 'mysql+pymysql://'+config('DATABASE_USER')+':'+ config('DATABASE_PASSWORD') +'@'+ config('DATABASE_URL')
-engine = create_engine(SQLALCHEMY_DATABASE_URL)
+# Pool pre_ping memastikan koneksi yang mati akan direstart otomatis
+engine = create_engine(SQLALCHEMY_DATABASE_URL, pool_pre_ping=True)
 SessionLocal = sessionmaker(autocommit=True, autoflush=True, bind=engine)
-
 Base = declarative_base()
-
 conn = engine.connect().execution_options(autocommit=True)
+
+def get_connection():
+    """FastAPI dependency: satu koneksi mandiri per request, dengan auto-transaksi."""
+    connection = engine.connect()
+    trans = connection.begin()
+    try:
+        yield connection
+        trans.commit()
+    except Exception:
+        trans.rollback()
+        raise
+    finally:
+        connection.close()
