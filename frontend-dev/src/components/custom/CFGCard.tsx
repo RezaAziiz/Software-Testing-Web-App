@@ -25,19 +25,15 @@ type CFGCardProps = {
   edgesWithStatus?: Array<any>;
 };
 
-// Utility function to map tr_status to color
-const getStatusColor = (status: string | undefined): string => {
-  if (!status) return "#FFFFFF"; // Default white if no status
-  switch (status.toUpperCase()) {
-    case "Y": // Fully Executed
-      return "#22c55e"; // Green
-    case "S": // Partially Executed
-      return "#eab308"; // Yellow
-    case "N": // Not Executed
-      return "#ef4444"; // Red
-    default:
-      return "#FFFFFF"; // Default white
+const getStatusColor = (status: string | undefined, type: "node" | "edge"): string => {
+  const defaultColor = type === "node" ? "#FFFFFF" : "black";
+  if (!status) return defaultColor;
+  
+  if (status.toUpperCase() === "N") {
+    return "#ef4444"; // Red
   }
+  
+  return defaultColor; // Y and S are no longer colored
 };
 
 // Component
@@ -95,7 +91,27 @@ const CFGCard: React.FC<CFGCardProps> = ({
           const isMerge = nodeType.toUpperCase() === "MERGE";
           const executionOrder = n.ms_execution_order;
           const trStatus: string = n.tr_status ?? "N";
-          const bgColor = getStatusColor(trStatus);
+          const bgColor = getStatusColor(trStatus, "node");
+
+          const statusText = trStatus === "Y"
+            ? "Executed"
+            : trStatus === "S"
+              ? "Partially Executed"
+              : "Not Executed";
+          
+          let tooltipText = `Status: ${statusText}\n\nTipe: ${nodeType}`;
+          
+          const lineStart = n.line_start ?? n.ms_line_start ?? n.line_number ?? n.ms_line_number;
+          if (lineStart !== undefined && lineStart !== null && nodeType.toUpperCase() !== "MERGE") {
+            let lineInfo = `Baris Kode: ${lineStart}`;
+            if (nodeType.toUpperCase() === "NORMAL") {
+              const lineEnd = n.line_end ?? n.ms_line_end ?? lineStart;
+              if (lineStart !== lineEnd) {
+                lineInfo = `Baris Kode: ${lineStart} - ${lineEnd}`;
+              }
+            }
+            tooltipText = `${lineInfo}\n${tooltipText}`;
+          }
 
           return {
             data: {
@@ -104,12 +120,7 @@ const CFGCard: React.FC<CFGCardProps> = ({
               nodeType,
               isMerge,
               trStatus,
-              tooltip: `Tipe: ${nodeType}\nStatus: ${trStatus === "Y"
-                  ? "Executed"
-                  : trStatus === "S"
-                    ? "Partially Executed"
-                    : "Not Executed"
-                }\n\nIsi Kode:\n${n.ms_source_code ?? ""}`,
+              tooltip: tooltipText,
               bgColor,
             },
           };
@@ -123,7 +134,7 @@ const CFGCard: React.FC<CFGCardProps> = ({
           const isFalse = branchType.toUpperCase() === "FALSE";
           const label = isTrue ? "True" : isFalse ? "False" : "";
           const trStatus: string = e.tr_status ?? "N";
-          const lineColor = getStatusColor(trStatus);
+          const lineColor = getStatusColor(trStatus, "edge");
 
           return {
             data: {
@@ -182,13 +193,27 @@ const CFGCard: React.FC<CFGCardProps> = ({
           const nodeType: string = n.ms_node_type ?? n.node_type ?? "NORMAL";
           const isMerge = nodeType.toUpperCase() === "MERGE";
           const executionOrder = n.ms_execution_order ?? n.execution_order;
+          let tooltipText = `Tipe: ${nodeType} \n`;
+          
+          const lineStart = n.line_start ?? n.ms_line_start ?? n.line_number ?? n.ms_line_number;
+          if (lineStart !== undefined && lineStart !== null && nodeType.toUpperCase() !== "MERGE") {
+            let lineInfo = `Baris Kode: ${lineStart}`;
+            if (nodeType.toUpperCase() === "NORMAL") {
+              const lineEnd = n.line_end ?? n.ms_line_end ?? lineStart;
+              if (lineStart !== lineEnd) {
+                lineInfo = `Baris Kode: ${lineStart} - ${lineEnd}`;
+              }
+            }
+            tooltipText = `${lineInfo}\n\n${tooltipText}`;
+          }
+
           return {
             data: {
               id: n.ms_id_node ?? n.id_node,
               label: isMerge || !executionOrder ? "" : executionOrder,
               nodeType,
               isMerge,
-              tooltip: `Tipe: ${nodeType} \n\nIsi Kode:\n${n.ms_source_code ?? n.code_fragment ?? ""}`,
+              tooltip: tooltipText,
               bgColor: "#FFFFFF",
             },
           };
@@ -215,6 +240,15 @@ const CFGCard: React.FC<CFGCardProps> = ({
           };
         },
       );
+
+      // Sort edges so that TRUE branches are processed first.  
+      cyEdges.sort((a, b) => {
+        const typeA = a.data.branchType?.toUpperCase() || "";
+        const typeB = b.data.branchType?.toUpperCase() || "";
+        if (typeA === "TRUE" && typeB !== "TRUE") return -1;
+        if (typeA !== "TRUE" && typeB === "TRUE") return 1;
+        return 0;
+      });
 
       setElements([...cyNodes, ...cyEdges]);
     } catch (err: any) {
@@ -337,7 +371,7 @@ const CFGCard: React.FC<CFGCardProps> = ({
         "line-color": "data(lineColor)",
         "target-arrow-color": "data(lineColor)",
         "target-arrow-shape": "triangle",
-        "curve-style": "straight", // Diubah menjadi straight agar lebih rapi
+        "curve-style": "bezier",
         label: "data(label)",
         "font-size": "13px",
         "font-weight": "bold",

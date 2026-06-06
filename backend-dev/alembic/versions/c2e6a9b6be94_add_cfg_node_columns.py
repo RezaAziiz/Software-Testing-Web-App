@@ -283,7 +283,7 @@ def upgrade():
                nullable=False)
     op.alter_column('tr_cfg_edge', 'tr_id_student',
                existing_type=mysql.VARCHAR(length=255),
-               nullable=True)
+               nullable=False)
     op.alter_column('tr_cfg_edge', 'tr_status',
                existing_type=mysql.ENUM('Y', 'N'),
                nullable=True,
@@ -312,7 +312,7 @@ def upgrade():
                )
     op.alter_column('tr_cfg_node', 'tr_id_student',
                existing_type=mysql.VARCHAR(length=255),
-               nullable=True)
+               nullable=False)
     op.alter_column('tr_cfg_node', 'tr_status',
                existing_type=mysql.ENUM('Y', 'N', 'S'),
                nullable=True,

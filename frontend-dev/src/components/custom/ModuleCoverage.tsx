@@ -73,8 +73,9 @@ const ModuleCoverage: React.FC<ModuleCoverageProps> = ({
   const [dataModule, setDataModule] = useState<Data | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  //const [sourceCode, setSourceCode] = useState<string | null>(null);
-  const linkReportSourceCoverage = apiUrl + "/" + dataResultTest.linkSourceCoverage
+
+  const timestamp = new Date().getTime();
+  const linkReportSourceCoverage = `${apiUrl}/${dataResultTest.linkSourceCoverage}?t=${timestamp}`;
 
   useEffect(() => {
     const fetchDataModule = async () => {

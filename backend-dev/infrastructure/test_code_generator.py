@@ -63,8 +63,10 @@ class TestCodeGenerator:
                 expected = test_case['tr_expected_result']
                 file.write('\t\tAssert.assertEquals(')
                 
-                if return_type in ['char', 'String']: 
+                if return_type == 'String': 
                     file.write(f'"{expected}"')
+                elif return_type == 'char':
+                    file.write(f"'{expected}'")
                 else:
                     file.write(str(expected))
                     

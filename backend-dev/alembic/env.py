@@ -14,6 +14,18 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # access to the values within the .ini file in use.
 config = context.config
 
+# Override sqlalchemy.url dynamically from .env
+from decouple import config as env_config
+import urllib.parse
+
+db_user = env_config("DATABASE_USER", default="root")
+db_password = env_config("DATABASE_PASSWORD", default="")
+db_url = env_config("DATABASE_URL", default="localhost:3306/flow_kit_db")
+
+password_encoded = urllib.parse.quote_plus(db_password) if db_password else ""
+sqlalchemy_url = f"mysql+pymysql://{db_user}:{password_encoded}@{db_url}" if password_encoded else f"mysql+pymysql://{db_user}@{db_url}"
+config.set_main_option("sqlalchemy.url", sqlalchemy_url)
+
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
 fileConfig(config.config_file_name)

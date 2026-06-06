@@ -59,7 +59,7 @@ class CfgCoverageSync:
             preds_map.setdefault(v, []).append(u)
             succs_map.setdefault(u, []).append(v)
 
-        # Algoritma Fixed-Point Propagation (Berjalan 100% di memori)
+        # Algoritma Fixed-Point Propagation
         changed = True
         while changed:
             changed = False
