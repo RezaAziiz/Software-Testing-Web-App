@@ -93,24 +93,23 @@ const CFGCard: React.FC<CFGCardProps> = ({
         (n: any) => {
           const nodeType: string = n.ms_node_type ?? "NORMAL";
           const isMerge = nodeType.toUpperCase() === "MERGE";
-          const lineNumber: number = n.ms_line_number;
+          const executionOrder = n.ms_execution_order;
           const trStatus: string = n.tr_status ?? "N";
           const bgColor = getStatusColor(trStatus);
 
           return {
             data: {
               id: n.ms_id_node,
-              label: isMerge ? "" : lineNumber,
+              label: isMerge || !executionOrder ? "" : executionOrder,
               nodeType,
               isMerge,
               trStatus,
-              tooltip: `Tipe: ${nodeType}\nStatus: ${
-                trStatus === "Y"
+              tooltip: `Tipe: ${nodeType}\nStatus: ${trStatus === "Y"
                   ? "Executed"
                   : trStatus === "S"
                     ? "Partially Executed"
                     : "Not Executed"
-              }\n\nIsi Kode:\n${n.ms_source_code ?? ""}`,
+                }\n\nIsi Kode:\n${n.ms_source_code ?? ""}`,
               bgColor,
             },
           };
@@ -182,11 +181,11 @@ const CFGCard: React.FC<CFGCardProps> = ({
         (n: any) => {
           const nodeType: string = n.ms_node_type ?? n.node_type ?? "NORMAL";
           const isMerge = nodeType.toUpperCase() === "MERGE";
-          const lineNumber: number = n.ms_line_number ?? n.line_start;
+          const executionOrder = n.ms_execution_order ?? n.execution_order;
           return {
             data: {
               id: n.ms_id_node ?? n.id_node,
-              label: isMerge ? "" : lineNumber,
+              label: isMerge || !executionOrder ? "" : executionOrder,
               nodeType,
               isMerge,
               tooltip: `Tipe: ${nodeType} \n\nIsi Kode:\n${n.ms_source_code ?? n.code_fragment ?? ""}`,
@@ -260,16 +259,37 @@ const CFGCard: React.FC<CFGCardProps> = ({
     // Pasang event hover tooltip
     cy.off("mouseover", "node");
     cy.off("mouseout", "node");
+    cy.off("mousemove", "node");
 
     cy.on("mouseover", "node", (evt) => {
       const node = evt.target;
-      const pos = evt.renderedPosition ?? { x: 0, y: 0 };
+      const container = cy.container();
+      if (!container) return;
+      const rect = container.getBoundingClientRect();
+      const renderedPos = node.renderedPosition();
       setTooltip({
         visible: true,
-        x: pos.x + 10,
-        y: pos.y - 10,
+        x: renderedPos.x + 30,
+        y: renderedPos.y - 10,
         content: node.data("tooltip") ?? "",
       });
+    });
+    cy.on("mousemove", "node", (evt) => {
+      const node = evt.target;
+      const cy = cyRef.current;
+      if (!cy) return;
+      const container = cy.container();
+      if (!container) return;
+      const rect = container.getBoundingClientRect();
+      // Use the original mouse event position relative to the container
+      const originalEvt = evt.originalEvent;
+      if (originalEvt) {
+        setTooltip((t) => ({
+          ...t,
+          x: (originalEvt as MouseEvent).clientX - rect.left + 15,
+          y: (originalEvt as MouseEvent).clientY - rect.top - 10,
+        }));
+      }
     });
     cy.on("mouseout", "node", () => {
       setTooltip((t) => ({ ...t, visible: false }));
@@ -370,7 +390,7 @@ const CFGCard: React.FC<CFGCardProps> = ({
                   <span>Data CFG tidak tersedia.</span>
                 </div>
               ) : (
-                <div className="relative" style={{ height: "24rem" }}>
+                <div className="relative" style={{ height: "24rem", overflow: "visible" }}>
                   {/* Cytoscape canvas */}
                   <CytoscapeComponent
                     elements={elements}
@@ -397,11 +417,13 @@ const CFGCard: React.FC<CFGCardProps> = ({
                         top: tooltip.y,
                         background: "#1e293b",
                         color: "#f8fafc",
-                        padding: "6px 10px",
+                        padding: "8px 12px",
                         borderRadius: 6,
                         fontSize: 11,
                         whiteSpace: "pre-wrap",
-                        maxWidth: 220,
+                        maxWidth: 320,
+                        maxHeight: 250,
+                        overflowY: "auto",
                         pointerEvents: "none",
                         zIndex: 100,
                         boxShadow: "0 4px 12px rgba(0,0,0,0.25)",

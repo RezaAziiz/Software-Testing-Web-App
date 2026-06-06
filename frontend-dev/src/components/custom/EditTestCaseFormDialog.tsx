@@ -293,7 +293,7 @@ const EditTestCaseFormDialog = ({
   }, [isEditFormDialogOpen, editingTestId]);
 
 
-    const handleSubmit: SubmitHandler<FormValues> = async (data) => {
+  const handleSubmit: SubmitHandler<FormValues> = async (data) => {
     isSubmitted.current = true;
     const formattedData = {
       id_test_case: editingTestId,

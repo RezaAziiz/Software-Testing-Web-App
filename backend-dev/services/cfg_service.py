@@ -23,7 +23,7 @@ class CFGResult:
         for node in self.nodes:
             nodes_data.append({
                 "id_node": node.id_node,
-                "execution_order": node.execution_order,
+                "execution_order": None if node.node_type == NodeType.MERGE else str(node.execution_order),
                 "code_fragment": node.source_code,
                 "node_type": node.node_type.value if isinstance(node.node_type, NodeType) else str(node.node_type),
                 "ast_node_type": node.ast_node_type,
@@ -112,7 +112,7 @@ class CFGService:
                 nodes_data.append({
                     "ms_id_node": node.id_node,
                     "ms_id_modul": modul_id,
-                    "ms_execution_order": node.execution_order,
+                    "ms_execution_order": None if node.node_type == NodeType.MERGE else str(node.execution_order),
                     "ms_line_number": node.line_start,
                     "ms_line_start": node.line_start,
                     "ms_line_end": node.line_end,

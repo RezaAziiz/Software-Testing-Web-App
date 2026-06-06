@@ -63,9 +63,9 @@ const ModuleCoverage: React.FC<ModuleCoverageProps> = ({
   let apiKey = import.meta.env.VITE_API_KEY;
   // const modulId = import.meta.env.VITE_MODULE_ID;
   const sessionData = localStorage.getItem('session')
-  if (sessionData != null){
-      const session = JSON.parse(sessionData);
-      apiKey = session.token
+  if (sessionData != null) {
+    const session = JSON.parse(sessionData);
+    apiKey = session.token
   }
   // const modulId = import.meta.env.VITE_MODULE_ID;
   const queryParameters = new URLSearchParams(window.location.search)
@@ -74,8 +74,8 @@ const ModuleCoverage: React.FC<ModuleCoverageProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   //const [sourceCode, setSourceCode] = useState<string | null>(null);
-  const linkReportSourceCoverage = apiUrl+"/"+dataResultTest.linkSourceCoverage
-  
+  const linkReportSourceCoverage = apiUrl + "/" + dataResultTest.linkSourceCoverage
+
   useEffect(() => {
     const fetchDataModule = async () => {
       try {
@@ -100,7 +100,7 @@ const ModuleCoverage: React.FC<ModuleCoverageProps> = ({
         setDataModule(data.data || null);
 
         // if (data.data) {
-          // fetchSourceCodeText(data.data.data_modul.ms_id_modul);
+        // fetchSourceCodeText(data.data.data_modul.ms_id_modul);
         // }
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -161,7 +161,7 @@ const ModuleCoverage: React.FC<ModuleCoverageProps> = ({
     );
   }
 
-  if (dataResultTest.totalTestCase == 0){
+  if (dataResultTest.totalTestCase == 0) {
     return (
       <div className="p-6 bg-white rounded-lg shadow-lg h-full">
         <div className="overflow-y-auto">
@@ -188,7 +188,7 @@ const ModuleCoverage: React.FC<ModuleCoverageProps> = ({
         </div>
       </div>
     );
-  }else if (dataResultTest.totalTestCase == dataResultTest.totalPassTestCase){
+  } else if (dataResultTest.totalTestCase == dataResultTest.totalPassTestCase) {
     return (
       <div className="p-6 bg-white rounded-lg shadow-lg h-full">
         <div className="overflow-y-auto">
@@ -208,23 +208,23 @@ const ModuleCoverage: React.FC<ModuleCoverageProps> = ({
           )}
         </div>
         <div className="mt-2">
-              <h4 className="text-base font-bold mb-2 text-gray-800">Legend</h4>
-              <div className="flex items-center mb-2">
-                <span className="inline-block w-4 h-4 bg-green-500 mr-2"></span>
-                <span className="text-sm text-gray-600">: Statement program telah dieksekusi</span>
-              </div>
-              <div className="flex items-center mb-2">
-                <span className="inline-block w-4 h-4 bg-yellow-500 mr-2"></span>
-                <span className="text-sm text-gray-600">: Statement program dieksekusi sebagian</span>
-              </div>
-              <div className="flex items-center">
-                <span className="inline-block w-4 h-4 bg-red-500 mr-2"></span>
-                <span className="text-sm text-gray-600">: Statement program belum dieksekusi</span>
-              </div>
+          <h4 className="text-base font-bold mb-2 text-gray-800">Legend</h4>
+          <div className="flex items-center mb-2">
+            <span className="inline-block w-4 h-4 bg-green-500 mr-2"></span>
+            <span className="text-sm text-gray-600">: Statement program telah dieksekusi</span>
+          </div>
+          <div className="flex items-center mb-2">
+            <span className="inline-block w-4 h-4 bg-yellow-500 mr-2"></span>
+            <span className="text-sm text-gray-600">: Statement program dieksekusi sebagian</span>
+          </div>
+          <div className="flex items-center">
+            <span className="inline-block w-4 h-4 bg-red-500 mr-2"></span>
+            <span className="text-sm text-gray-600">: Statement program belum dieksekusi</span>
+          </div>
         </div>
       </div>
     );
-  }else{
+  } else {
     return (
       <div className="p-6 bg-white rounded-lg shadow-lg h-full">
         <div className="overflow-y-auto">
@@ -252,7 +252,7 @@ const ModuleCoverage: React.FC<ModuleCoverageProps> = ({
       </div>
     );
   }
-  
+
 };
 
 export default ModuleCoverage;
