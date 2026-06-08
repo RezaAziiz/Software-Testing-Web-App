@@ -145,10 +145,24 @@ const CFGCard: React.FC<CFGCardProps> = ({
               lineColor,
               trStatus,
               branchType,
+              targetExecutionOrder: (() => {
+                const targetId = e.id_node_finish ?? e.ms_id_finish_node;
+                const targetNode = nodesWithStatus.find((n: any) => (n.ms_id_node ?? n.id_node) === targetId);
+                return targetNode ? (targetNode.ms_execution_order ?? targetNode.execution_order ?? 999) : 999;
+              })()
             },
           };
         },
       );
+
+      // Sort edges by TRUE branch and then by target execution order
+      cyEdges.sort((a, b) => {
+        const typeA = a.data.branchType?.toUpperCase() || "";
+        const typeB = b.data.branchType?.toUpperCase() || "";
+        if (typeA === "TRUE" && typeB !== "TRUE") return -1;
+        if (typeA !== "TRUE" && typeB === "TRUE") return 1;
+        return (a.data.targetExecutionOrder || 999) - (b.data.targetExecutionOrder || 999);
+      });
 
       setElements([...cyNodes, ...cyEdges]);
       setLoading(false);
@@ -236,18 +250,23 @@ const CFGCard: React.FC<CFGCardProps> = ({
               label,
               lineColor: "black",
               branchType,
+              targetExecutionOrder: (() => {
+                const targetId = e.id_node_finish ?? e.ms_id_finish_node ?? e.id_finish_node;
+                const targetNode = backendNodes.find((n: any) => (n.ms_id_node ?? n.id_node) === targetId);
+                return targetNode ? (targetNode.ms_execution_order ?? targetNode.execution_order ?? 999) : 999;
+              })()
             },
           };
         },
       );
 
-      // Sort edges so that TRUE branches are processed first.  
+      // Sort edges so that TRUE branches are processed first, and then by target execution order
       cyEdges.sort((a, b) => {
         const typeA = a.data.branchType?.toUpperCase() || "";
         const typeB = b.data.branchType?.toUpperCase() || "";
         if (typeA === "TRUE" && typeB !== "TRUE") return -1;
         if (typeA !== "TRUE" && typeB === "TRUE") return 1;
-        return 0;
+        return (a.data.targetExecutionOrder || 999) - (b.data.targetExecutionOrder || 999);
       });
 
       setElements([...cyNodes, ...cyEdges]);
