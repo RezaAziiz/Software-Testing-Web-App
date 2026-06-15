@@ -21,8 +21,8 @@ export function Navbar() {
   const navigate = useNavigate();
   const apiUrl = import.meta.env.VITE_API_URL;
   let apiKey = import.meta.env.VITE_API_KEY;
-  const sessionData = localStorage.getItem('session');
-  
+  const sessionData = localStorage.getItem("session");
+
   if (sessionData != null) {
     const session = JSON.parse(sessionData);
     apiKey = session.token;
@@ -30,21 +30,29 @@ export function Navbar() {
 
   const queryParameters = new URLSearchParams(window.location.search);
   const modulId = queryParameters.get("topikModulId");
+  const idTopikParam = queryParameters.get("idTopik");
   const [moduleName, setModuleName] = useState("");
-  const [idTopik, setIdTopik] = useState("");
+  const [idTopik, setIdTopik] = useState(idTopikParam ?? "");
   const [topicName, setTopicName] = useState("");
-  const linkTopikModul = "/topikModul?topikModulId=" + modulId;
-  const linkChallanges = "/list-challanges?idTopik=" + idTopik;
+  const linkTopikModul = modulId
+    ? "/topikModul?topikModulId=" + modulId
+    : "/topikModul";
+  const linkChallanges = idTopik
+    ? "/list-challanges?idTopik=" + idTopik
+    : "/challenge";
 
   const fetchModuleName = async () => {
     try {
-      const response = await fetch(`${apiUrl}/modul/detailByIdTopikModul/${modulId}`, {
-        method: "GET",
-        headers: {
-          Accept: "application/json",
-          Authorization: `Bearer ${apiKey}`,
+      const response = await fetch(
+        `${apiUrl}/modul/detailByIdTopikModul/${modulId}`,
+        {
+          method: "GET",
+          headers: {
+            Accept: "application/json",
+            Authorization: `Bearer ${apiKey}`,
+          },
         },
-      });
+      );
 
       if (!response.ok) {
         if (response.status === 403) {
@@ -56,7 +64,7 @@ export function Navbar() {
 
       const data = await response.json();
       setModuleName(data.data.data_modul.ms_nama_modul);
-      setIdTopik(data.id_topik);
+      setIdTopik(data.data.data_modul.id_topik ?? "");
     } catch (error) {
       console.error("Error fetching module name:", error);
     }
@@ -64,13 +72,16 @@ export function Navbar() {
 
   const fetchTopicName = async () => {
     try {
-      const response = await fetch(`${apiUrl}/topik/getDetailData?id_topik=${idTopik}`, {
-        method: "GET",
-        headers: {
-          Accept: "application/json",
-          Authorization: `Bearer ${apiKey}`,
+      const response = await fetch(
+        `${apiUrl}/topik/getDetailData?id_topik=${idTopik}`,
+        {
+          method: "GET",
+          headers: {
+            Accept: "application/json",
+            Authorization: `Bearer ${apiKey}`,
+          },
         },
-      });
+      );
 
       if (!response.ok) {
         if (response.status === 403) {
@@ -88,7 +99,9 @@ export function Navbar() {
   };
 
   useEffect(() => {
-    fetchModuleName();
+    if (modulId) {
+      fetchModuleName();
+    }
   }, [apiUrl, apiKey, modulId]);
 
   useEffect(() => {
@@ -108,16 +121,8 @@ export function Navbar() {
     >
       <div className="flex items-center">
         {/* Logo */}
-        <img
-          src={logo_polban}
-          alt="Polban Logo"
-          className="w-12 h-12 mr-2"
-        />
-        <img
-          src={logo_default}
-          alt="App Logo"
-          className="w-12 h-12"
-        />
+        <img src={logo_polban} alt="Polban Logo" className="w-12 h-12 mr-2" />
+        <img src={logo_default} alt="App Logo" className="w-12 h-12" />
         <NavigationMenu>
           <NavigationMenuList>
             <NavigationMenuItem>
@@ -134,7 +139,14 @@ export function Navbar() {
               </BreadcrumbSeparator>
               <BreadcrumbList>
                 <BreadcrumbItem>
-                  <BreadcrumbLink href={linkChallanges}>
+                  <BreadcrumbLink
+                    onClick={(e) => {
+                      e.preventDefault();
+                      navigate(linkChallanges);
+                    }}
+                    href={linkChallanges}
+                    style={{ cursor: "pointer" }}
+                  >
                     <span className="text-white text-l hover:text-gray-300">
                       {topicName || "Topik Pengujian"}
                     </span>
@@ -144,7 +156,14 @@ export function Navbar() {
                   <FaAngleRight />
                 </BreadcrumbSeparator>
                 <BreadcrumbItem>
-                  <BreadcrumbLink href={linkTopikModul}>
+                  <BreadcrumbLink
+                    onClick={(e) => {
+                      e.preventDefault();
+                      navigate(linkTopikModul);
+                    }}
+                    href={linkTopikModul}
+                    style={{ cursor: "pointer" }}
+                  >
                     <span className="text-white hover:text-gray-300">
                       {moduleName || "Modul Program"}
                     </span>

@@ -9,5 +9,5 @@ class CfgNode:
         self.source_code = ast_node.text.decode('utf8') if ast_node else ""
         self.line_start = ast_node.start_point[0] + 1 if ast_node else 0
         self.line_end = ast_node.end_point[0] + 1 if ast_node else 0
-        self.execution_order = 0
+        self.execution_order = None
         self.node_type = NodeType.UNKNOWN

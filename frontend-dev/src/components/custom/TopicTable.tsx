@@ -93,10 +93,8 @@ const TopicTable: React.FC<TopicTableProps> = ({ topics, orderBy, order, onSort,
               <FaTrash className={`cursor-pointer ${topic.status === 'P' ? 'text-gray-300 cursor-not-allowed' : 'text-red-500'}`} onClick={() => topic.status !== 'P' && onDelete(topic.id)} />
               {topic.status === 'D' ? (
                 <FaCloudUploadAlt className="cursor-pointer text-green-500" onClick={() => onTogglePublish(topic.id)} />
-              ) : topic.status === 'P' && topic.studentAccess === 0 ? (
-                <FaCloudDownloadAlt className="cursor-pointer text-gray-500" onClick={() => onTogglePublish(topic.id)} />
               ) : (
-                <FaCloudDownloadAlt className="cursor-not-allowed text-gray-300" />
+                <FaCloudDownloadAlt className="cursor-pointer text-gray-500" onClick={() => onTogglePublish(topic.id)} />
               )}
             </td>
           </tr>

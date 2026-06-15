@@ -355,17 +355,24 @@ const AddTestCaseCard: React.FC = () => {
       // setMinimumCoverage(result.minimum_coverage_score);
 
       const dataToPass: NavigationData = {
-        status_eksekusi: result.result_test.status_eksekusi,
-        tgl_eksekusi: result.result_test.tgl_eksekusi,
-        coverage_score: result.coverage_score,
-        minimum_coverage_score: result.minimum_coverage_score,
-        points: result.point,
-        modul_id: result.modul,
+        status_eksekusi: result.status_eksekusi,
+        tgl_eksekusi: result.tgl_eksekusi,
+        coverage_score: result.coverage_score ?? 0,
+        minimum_coverage_score: result.minimum_coverage_score ?? 0,
+        points: result.point ?? 0,
+        modul_id: result.modul_id,
       };
 
       // setNavigationData(dataToPass);
       setHasUnexecutedChanges(false);
       console.log("sebelumnya false");
+
+      if (result.status_eksekusi === false) {
+        // Jika build gagal (status_eksekusi = false dari backend)
+        setPreviouslyExecuted(true);
+        navigate("/fail?topikModulId=" + modulId, { state: dataToPass });
+        return;
+      }
 
       if (result.coverage_score < result.minimum_coverage_score) {
         setPreviouslyExecuted(true);

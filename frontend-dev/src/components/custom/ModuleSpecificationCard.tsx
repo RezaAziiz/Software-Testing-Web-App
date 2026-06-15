@@ -172,4 +172,3 @@ const ModuleSpecificationCard = () => {
 };
 
 export default ModuleSpecificationCard;
-          

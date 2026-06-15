@@ -19,19 +19,19 @@ const ExecutionTestCasePassPage: React.FC = () => {
   const apiUrl = import.meta.env.VITE_API_URL;
   let apiKey = import.meta.env.VITE_API_KEY;
   // const modulId = import.meta.env.VITE_MODULE_ID;
-  const sessionData = localStorage.getItem('session')
-  let session = null
-  if (sessionData != null){
-      session = JSON.parse(sessionData);
-      apiKey = session.token
+  const sessionData = localStorage.getItem("session");
+  let session = null;
+  if (sessionData != null) {
+    session = JSON.parse(sessionData);
+    apiKey = session.token;
   }
   useEffect(() => {
-    if (session != null){
-        if (session.login_type != "student"){
-            navigate("/dashboard-teacher")
-        }
-    }else{
-      navigate("/login")
+    if (session != null) {
+      if (session.login_type != "student") {
+        navigate("/dashboard-teacher");
+      }
+    } else {
+      navigate("/login");
     }
   }, []);
 
@@ -53,11 +53,11 @@ const ExecutionTestCasePassPage: React.FC = () => {
   // const [dataIdModul, SetDataIdModul] = useState<NavigationDataModul | null>(
   //   null
   // );
-  const queryParameters = new URLSearchParams(window.location.search)
-  const modulId = queryParameters.get("topikModulId")
+  const queryParameters = new URLSearchParams(window.location.search);
+  const modulId = queryParameters.get("topikModulId");
 
-  const navigate = useNavigate(); 
-  
+  const navigate = useNavigate();
+
   // const [failCardData, setFailCardData] = useState<{
   //   percentageCoverage: number;
   //   minimumCoverage: number;
@@ -79,51 +79,59 @@ const ExecutionTestCasePassPage: React.FC = () => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, []);
 
-    // Fungsi untuk menavigasi ke halaman /test-result dengan ID modul sebagai parameter
-    const handleNavigateToTestResult = () => {
-      const dataToPass: NavigationDataModul = {
-        modul_id: navigationData?.modul_id,
-      };
-  
-      // SetDataIdModul(dataToPass);
-      navigate("/test-result?topikModulId="+modulId, { state: dataToPass });
-    } 
-    
-    const handleNavigateNextChallenge = async() => {
-      try {
-        const response = await fetch(`${apiUrl}/topik/nextChallenge?idTopikModul=${modulId}`, {
-          method: 'GET',
+  // Fungsi untuk menavigasi ke halaman /test-result dengan ID modul sebagai parameter
+  const handleNavigateToTestResult = () => {
+    const dataToPass: NavigationDataModul = {
+      modul_id: navigationData?.modul_id,
+    };
+
+    // SetDataIdModul(dataToPass);
+    navigate("/test-result?topikModulId=" + modulId, { state: dataToPass });
+  };
+
+  const handleNavigateNextChallenge = async () => {
+    try {
+      const response = await fetch(
+        `${apiUrl}/topik/nextChallenge?idTopikModul=${modulId}`,
+        {
+          method: "GET",
           headers: {
-            'Accept': 'application/json',
-            'Authorization': `Bearer ${apiKey}`
-          }
-        });
-  
-        if (!response.ok) {
-          if (response.status === 403) {
-            // throw new Error('Forbidden: Access is denied');
-            navigate('/error');
-          } else {
-            throw new Error(`HTTP error! status: ${response.status}`);
-          }
+            Accept: "application/json",
+            Authorization: `Bearer ${apiKey}`,
+          },
+        },
+      );
+
+      if (!response.ok) {
+        if (response.status === 403) {
+          // throw new Error('Forbidden: Access is denied');
+          navigate("/error");
+        } else {
+          throw new Error(`HTTP error! status: ${response.status}`);
         }
-        
-        const data = await response.json();
-        if (data.data){
-          navigate({
-            pathname: '/topikModul',
-            search: '?topikModulId='+data.data.ms_id_topik_modul,
-          });
-        } else{
-          navigate({
-            pathname: '/list-challanges',
-            search: '?idTopik='+data.data_current.ms_id_topik,
-          });
-        }
-      } catch (error) {
-        console.error('Error fetching data:', error);
       }
-     } 
+
+      const data = await response.json();
+      const nextTopikModulId = data?.data?.ms_id_topik_modul;
+      const currentTopikId = data?.data_current?.ms_id_topik;
+
+      if (nextTopikModulId) {
+        navigate({
+          pathname: "/topikModul",
+          search: "?topikModulId=" + nextTopikModulId,
+        });
+      } else if (currentTopikId) {
+        navigate({
+          pathname: "/list-challanges",
+          search: "?idTopik=" + currentTopikId,
+        });
+      } else {
+        navigate("/list-topics");
+      }
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    }
+  };
 
   useEffect(() => {
     // Mendapatkan nilai percentageCoverage, minimumCoverage, dan points dari URL query params
@@ -131,7 +139,6 @@ const ExecutionTestCasePassPage: React.FC = () => {
     // const percentage = Number(searchParams.get("percentageCoverage"));
     // const minimum = Number(searchParams.get("minimumCoverage"));
     // const pointsValue = Number(searchParams.get("points"));
-
     // Set nilai percentageCoverage, minimumCoverage, dan points
     // setPercentageCoverage(percentage);
     // setMinimumCoverage(minimum);
@@ -149,11 +156,17 @@ const ExecutionTestCasePassPage: React.FC = () => {
 
         {/* Section 2: Kode Program (Kiri) dan Struktur Program (Kanan) */}
         <div className="flex flex-col md:flex-row gap-6 w-full">
-          <div className="w-full md:w-1/2 flex flex-col" style={{ maxHeight: "600px" }}>
+          <div
+            className="w-full md:w-1/2 flex flex-col"
+            style={{ maxHeight: "600px" }}
+          >
             <CodeProgramCard />
           </div>
-          <div className="w-full md:w-1/2 flex flex-col" style={{ maxHeight: "600px" }}>
-            <CFGCard 
+          <div
+            className="w-full md:w-1/2 flex flex-col"
+            style={{ maxHeight: "600px" }}
+          >
+            <CFGCard
               showCyclomaticComplexity={showCyclomaticComplexity}
               showCodeCoverage={showCodeCoverage}
               codeCoveragePercentage={codeCoveragePercentage}
@@ -170,8 +183,8 @@ const ExecutionTestCasePassPage: React.FC = () => {
               minimumCoverage={navigationData?.minimum_coverage_score || 0}
               statusEksekusi={navigationData?.status_eksekusi || false}
               tanggalEksekusi={navigationData?.tgl_eksekusi || ""}
-              modulId={navigationData?.modul_id||""}
-              poin={navigationData?.points||0}
+              modulId={navigationData?.modul_id || ""}
+              poin={navigationData?.points || 0}
             />
           </div>
           {/* Penanda untuk scroll ke bagian paling bawah */}
@@ -180,14 +193,14 @@ const ExecutionTestCasePassPage: React.FC = () => {
             <Button
               variant="outline"
               className="bg-white text-sm text-blue-800 border-2 border-blue-800 rounded-[10] hover:bg-blue-800 hover:text-white"
-               onClick={handleNavigateToTestResult}
+              onClick={handleNavigateToTestResult}
             >
-              Hasil Pengujian 
+              Hasil Pengujian
             </Button>
             <Button
               className="bg-blue-800 text-sm text-white border-2 border-blue-800 rounded-[20] pt-0 pb-0"
               onClick={handleNavigateNextChallenge}
-              >
+            >
               Kasus Selanjutnya
             </Button>
           </div>

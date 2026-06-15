@@ -11,6 +11,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import UnexecutedPathsViewer from "./UnexecutedPathsViewer";
 import "../../index.css";
 
 // Daftarkan plugin dagre ke cytoscape
@@ -23,22 +24,21 @@ type CFGCardProps = {
   codeCoveragePercentage?: number;
   nodesWithStatus?: Array<any>;
   edgesWithStatus?: Array<any>;
+  unexecutedPaths?: Array<string>;
 };
 
-// Utility function to map tr_status to color
-const getStatusColor = (status: string | undefined): string => {
-  if (!status) return "#FFFFFF"; // Default white if no status
-  switch (status.toUpperCase()) {
-    case "Y": // Fully Executed
-      return "#22c55e"; // Green
-    case "S": // Partially Executed
-      return "#eab308"; // Yellow
-    case "N": // Not Executed
-      return "#ef4444"; // Red
-    default:
-      return "#FFFFFF"; // Default white
+const getStatusColor = (status: string | undefined, type: "node" | "edge"): string => {
+  const defaultColor = type === "node" ? "#FFFFFF" : "black";
+  if (!status) return defaultColor;
+  
+  if (status.toUpperCase() === "N") {
+    return "#ef4444"; // Red
   }
+  
+  return defaultColor; // Y and S are no longer colored
 };
+
+
 
 // Component
 const CFGCard: React.FC<CFGCardProps> = ({
@@ -47,6 +47,7 @@ const CFGCard: React.FC<CFGCardProps> = ({
   codeCoveragePercentage,
   nodesWithStatus,
   edgesWithStatus,
+  unexecutedPaths = [],
 }) => {
   const apiUrl = import.meta.env.VITE_API_URL;
   let apiKey = import.meta.env.VITE_API_KEY;
@@ -93,24 +94,38 @@ const CFGCard: React.FC<CFGCardProps> = ({
         (n: any) => {
           const nodeType: string = n.ms_node_type ?? "NORMAL";
           const isMerge = nodeType.toUpperCase() === "MERGE";
-          const lineNumber: number = n.ms_line_number;
+          const executionOrder = n.ms_execution_order;
           const trStatus: string = n.tr_status ?? "N";
-          const bgColor = getStatusColor(trStatus);
+          const bgColor = getStatusColor(trStatus, "node");
+
+          const statusText = trStatus === "Y"
+            ? "Executed"
+            : trStatus === "S"
+              ? "Partially Executed"
+              : "Not Executed";
+          
+          let tooltipText = `Status: ${statusText}\n\nTipe: ${nodeType}`;
+          
+          const lineStart = n.line_start ?? n.ms_line_start ?? n.line_number ?? n.ms_line_number;
+          if (lineStart !== undefined && lineStart !== null && nodeType.toUpperCase() !== "MERGE") {
+            let lineInfo = `Baris Kode: ${lineStart}`;
+            if (nodeType.toUpperCase() === "NORMAL") {
+              const lineEnd = n.line_end ?? n.ms_line_end ?? lineStart;
+              if (lineStart !== lineEnd) {
+                lineInfo = `Baris Kode: ${lineStart} - ${lineEnd}`;
+              }
+            }
+            tooltipText = `${lineInfo}\n${tooltipText}`;
+          }
 
           return {
             data: {
               id: n.ms_id_node,
-              label: isMerge ? "" : lineNumber,
+              label: isMerge || !executionOrder ? "" : executionOrder,
               nodeType,
               isMerge,
               trStatus,
-              tooltip: `Tipe: ${nodeType}\nStatus: ${
-                trStatus === "Y"
-                  ? "Executed"
-                  : trStatus === "S"
-                    ? "Partially Executed"
-                    : "Not Executed"
-              }\n\nIsi Kode:\n${n.ms_source_code ?? ""}`,
+              tooltip: tooltipText,
               bgColor,
             },
           };
@@ -124,7 +139,7 @@ const CFGCard: React.FC<CFGCardProps> = ({
           const isFalse = branchType.toUpperCase() === "FALSE";
           const label = isTrue ? "True" : isFalse ? "False" : "";
           const trStatus: string = e.tr_status ?? "N";
-          const lineColor = getStatusColor(trStatus);
+          const lineColor = getStatusColor(trStatus, "edge");
 
           return {
             data: {
@@ -135,10 +150,24 @@ const CFGCard: React.FC<CFGCardProps> = ({
               lineColor,
               trStatus,
               branchType,
+              targetExecutionOrder: (() => {
+                const targetId = e.id_node_finish ?? e.ms_id_finish_node;
+                const targetNode = nodesWithStatus.find((n: any) => (n.ms_id_node ?? n.id_node) === targetId);
+                return targetNode ? (targetNode.ms_execution_order ?? targetNode.execution_order ?? 999) : 999;
+              })()
             },
           };
         },
       );
+
+      // Sort edges by TRUE branch and then by target execution order
+      cyEdges.sort((a, b) => {
+        const typeA = a.data.branchType?.toUpperCase() || "";
+        const typeB = b.data.branchType?.toUpperCase() || "";
+        if (typeA === "TRUE" && typeB !== "TRUE") return -1;
+        if (typeA !== "TRUE" && typeB === "TRUE") return 1;
+        return (a.data.targetExecutionOrder || 999) - (b.data.targetExecutionOrder || 999);
+      });
 
       setElements([...cyNodes, ...cyEdges]);
       setLoading(false);
@@ -180,16 +209,30 @@ const CFGCard: React.FC<CFGCardProps> = ({
       // Konversi ke format Cytoscape
       const cyNodes: cytoscape.ElementDefinition[] = backendNodes.map(
         (n: any) => {
-          const nodeType: string = n.ms_node_type ?? "NORMAL";
+          const nodeType: string = n.ms_node_type ?? n.node_type ?? "NORMAL";
           const isMerge = nodeType.toUpperCase() === "MERGE";
-          const lineNumber: number = n.ms_line_number;
+          const executionOrder = n.ms_execution_order ?? n.execution_order;
+          let tooltipText = `Tipe: ${nodeType} \n`;
+          
+          const lineStart = n.line_start ?? n.ms_line_start ?? n.line_number ?? n.ms_line_number;
+          if (lineStart !== undefined && lineStart !== null && nodeType.toUpperCase() !== "MERGE") {
+            let lineInfo = `Baris Kode: ${lineStart}`;
+            if (nodeType.toUpperCase() === "NORMAL") {
+              const lineEnd = n.line_end ?? n.ms_line_end ?? lineStart;
+              if (lineStart !== lineEnd) {
+                lineInfo = `Baris Kode: ${lineStart} - ${lineEnd}`;
+              }
+            }
+            tooltipText = `${lineInfo}\n\n${tooltipText}`;
+          }
+
           return {
             data: {
-              id: n.ms_id_node,
-              label: isMerge ? "" : lineNumber,
+              id: n.ms_id_node ?? n.id_node,
+              label: isMerge || !executionOrder ? "" : executionOrder,
               nodeType,
               isMerge,
-              tooltip: `Tipe: ${nodeType} \n\nIsi Kode:\n${n.ms_source_code ?? ""}`,
+              tooltip: tooltipText,
               bgColor: "#FFFFFF",
             },
           };
@@ -198,23 +241,38 @@ const CFGCard: React.FC<CFGCardProps> = ({
 
       const cyEdges: cytoscape.ElementDefinition[] = backendEdges.map(
         (e: any) => {
-          const branchType: string = e.ms_branch_type ?? "";
+          const branchType: string = e.ms_branch_type ?? e.branch_type ?? "";
           const isTrue = branchType.toUpperCase() === "TRUE";
           const isFalse = branchType.toUpperCase() === "FALSE";
           const label = isTrue ? "True" : isFalse ? "False" : "";
 
           return {
             data: {
-              id: e.ms_id_edge,
-              source: e.id_node_start ?? e.ms_id_start_node,
-              target: e.id_node_finish ?? e.ms_id_finish_node,
+              id: e.ms_id_edge ?? e.id_edge,
+              source: e.id_node_start ?? e.ms_id_start_node ?? e.id_start_node,
+              target:
+                e.id_node_finish ?? e.ms_id_finish_node ?? e.id_finish_node,
               label,
               lineColor: "black",
               branchType,
+              targetExecutionOrder: (() => {
+                const targetId = e.id_node_finish ?? e.ms_id_finish_node ?? e.id_finish_node;
+                const targetNode = backendNodes.find((n: any) => (n.ms_id_node ?? n.id_node) === targetId);
+                return targetNode ? (targetNode.ms_execution_order ?? targetNode.execution_order ?? 999) : 999;
+              })()
             },
           };
         },
       );
+
+      // Sort edges so that TRUE branches are processed first, and then by target execution order
+      cyEdges.sort((a, b) => {
+        const typeA = a.data.branchType?.toUpperCase() || "";
+        const typeB = b.data.branchType?.toUpperCase() || "";
+        if (typeA === "TRUE" && typeB !== "TRUE") return -1;
+        if (typeA !== "TRUE" && typeB === "TRUE") return 1;
+        return (a.data.targetExecutionOrder || 999) - (b.data.targetExecutionOrder || 999);
+      });
 
       setElements([...cyNodes, ...cyEdges]);
     } catch (err: any) {
@@ -229,33 +287,65 @@ const CFGCard: React.FC<CFGCardProps> = ({
     fetchCFG();
   }, [modulId, nodesWithStatus, edgesWithStatus]);
 
+  // Dagre layout config (Pastikan config ini konsisten)
+  const layout = {
+    name: "dagre",
+    rankDir: "TB",
+    nodeSep: 80,
+    rankSep: 60,
+    nodeDimensionsIncludeLabels: true, // Tambahan vital agar label tidak tertimpa
+    ranker: "network-simplex", // Tambahan algoritma pencabangan optimal
+    animate: false,
+    fit: true,
+    padding: 30,
+  };
+
   // Re-layout & fit saat elements berubah
   useEffect(() => {
     if (!cyRef.current || elements.length === 0) return;
     const cy = cyRef.current;
-    cy.layout({
-      name: "dagre",
-      rankDir: "TB",
-      nodeSep: 70,
-      rankSep: 60,
-      animate: false,
-      fit: true,
-      padding: 30,
-    } as any).run();
+
+    // Tunda render sedikit agar nodes tergambar di DOM & ukurannya bisa dibaca Dagre
+    setTimeout(() => {
+      cy.layout({
+        ...layout,
+        animate: true, // Saat dirender ulang, jalankan dengan animasi
+        animationDuration: 500,
+      } as any).run();
+    }, 50);
 
     // Pasang event hover tooltip
     cy.off("mouseover", "node");
     cy.off("mouseout", "node");
+    cy.off("mousemove", "node");
 
     cy.on("mouseover", "node", (evt) => {
       const node = evt.target;
-      const pos = evt.renderedPosition ?? { x: 0, y: 0 };
+      const container = cy.container();
+      if (!container) return;
+      const renderedPos = node.renderedPosition();
       setTooltip({
         visible: true,
-        x: pos.x + 10,
-        y: pos.y - 10,
+        x: renderedPos.x + 30,
+        y: renderedPos.y - 10,
         content: node.data("tooltip") ?? "",
       });
+    });
+    cy.on("mousemove", "node", (evt) => {
+      const cy = cyRef.current;
+      if (!cy) return;
+      const container = cy.container();
+      if (!container) return;
+      const rect = container.getBoundingClientRect();
+      // Use the original mouse event position relative to the container
+      const originalEvt = evt.originalEvent;
+      if (originalEvt) {
+        setTooltip((t) => ({
+          ...t,
+          x: (originalEvt as MouseEvent).clientX - rect.left + 15,
+          y: (originalEvt as MouseEvent).clientY - rect.top - 10,
+        }));
+      }
     });
     cy.on("mouseout", "node", () => {
       setTooltip((t) => ({ ...t, visible: false }));
@@ -276,7 +366,7 @@ const CFGCard: React.FC<CFGCardProps> = ({
         label: "data(label)",
         "text-valign": "center",
         "text-halign": "center",
-        "font-size": "14px",
+        "font-size": "20px",
         "font-weight": "bold",
         color: "#111827",
         "text-wrap": "none",
@@ -305,27 +395,16 @@ const CFGCard: React.FC<CFGCardProps> = ({
         "target-arrow-shape": "triangle",
         "curve-style": "bezier",
         label: "data(label)",
-        "font-size": "13px",
+        "font-size": "16px",
         "font-weight": "bold",
         "text-background-color": "#f9fafb",
         "text-background-opacity": 1,
         "text-background-padding": "3px",
-        "text-margin-y": -10,
+        // Hapus text-margin-y agar text label berada tepat di atas garis
         color: "data(lineColor)",
       },
     },
-  ];
-
-  // Dagre layout config
-  const layout = {
-    name: "dagre",
-    rankDir: "TB",
-    nodeSep: 70,
-    rankSep: 60,
-    animate: false,
-    fit: true,
-    padding: 30,
-  };
+  ] as any;
 
   // Loading skeleton
   if (loading) {
@@ -367,7 +446,7 @@ const CFGCard: React.FC<CFGCardProps> = ({
                   <span>Data CFG tidak tersedia.</span>
                 </div>
               ) : (
-                <div className="relative" style={{ height: "24rem" }}>
+                <div className="relative" style={{ height: "24rem", overflow: "visible" }}>
                   {/* Cytoscape canvas */}
                   <CytoscapeComponent
                     elements={elements}
@@ -394,11 +473,13 @@ const CFGCard: React.FC<CFGCardProps> = ({
                         top: tooltip.y,
                         background: "#1e293b",
                         color: "#f8fafc",
-                        padding: "6px 10px",
+                        padding: "8px 12px",
                         borderRadius: 6,
                         fontSize: 11,
                         whiteSpace: "pre-wrap",
-                        maxWidth: 220,
+                        maxWidth: 320,
+                        maxHeight: 250,
+                        overflowY: "auto",
                         pointerEvents: "none",
                         zIndex: 100,
                         boxShadow: "0 4px 12px rgba(0,0,0,0.25)",
@@ -477,6 +558,7 @@ const CFGCard: React.FC<CFGCardProps> = ({
                     Presentase Code Coverage
                   </p>
                   <PercentageCodeCoverage percentage={codeCoveragePercentage} />
+                  <UnexecutedPathsViewer paths={unexecutedPaths} />
                 </>
               )}
 
@@ -503,11 +585,9 @@ const CFGCard: React.FC<CFGCardProps> = ({
               ) : showCyclomaticComplexity ? (
                 <>
                   <p className="text-sm font-medium mb-2">
-                      Nilai Cyclomatic Complexity
+                    Nilai Cyclomatic Complexity
                   </p>
-                  <p className="text-sm text-gray-400">
-                    CC tidak tersedia
-                  </p>
+                  <p className="text-sm text-gray-400">CC tidak tersedia</p>
                 </>
               ) : null}
             </div>

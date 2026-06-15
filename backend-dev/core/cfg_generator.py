@@ -10,7 +10,6 @@ class ExitNode:
     """Dataclass untuk standarisasi tipe data keluaran"""
     node: CfgNode
     branch_type: BranchType = BranchType.SEQUENTIAL
-
 class CFGGeneratorVisitor:
     def __init__(self):
         self.nodes = []
@@ -20,8 +19,11 @@ class CFGGeneratorVisitor:
     # HELPER METHODS
     def _register_node(self, node):
         """Helper untuk meregistrasikan node ke dalam array dan menambah sequence."""
-        node.execution_order = self.current_execution_order
-        self.current_execution_order += 1
+        if node.node_type != NodeType.MERGE:
+            node.execution_order = self.current_execution_order
+            self.current_execution_order += 1
+        else:
+            node.execution_order = None
         self.nodes.append(node)
         return node
 
@@ -67,8 +69,21 @@ class CFGGeneratorVisitor:
         self.visit_block(body_block, incoming_nodes=[])
         
         self.nodes, self.edges = optimize_merge_nodes(self.nodes, self.edges)
+        self._reassign_execution_orders()
         
         return self.nodes, self.edges
+
+    def _reassign_execution_orders(self):
+        """Reassign sequential execution order only for non-merge nodes.
+        Merge nodes keep a null execution order to stay unlabeled.
+        """
+        order = 1
+        for node in self.nodes:
+            if node.node_type == NodeType.MERGE:
+                node.execution_order = None
+            else:
+                node.execution_order = order
+                order += 1
 
     # VISITOR METHODS
     def visit_block(self, ast_block, incoming_nodes):

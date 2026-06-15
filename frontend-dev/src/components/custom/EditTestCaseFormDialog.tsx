@@ -293,7 +293,7 @@ const EditTestCaseFormDialog = ({
   }, [isEditFormDialogOpen, editingTestId]);
 
 
-    const handleSubmit: SubmitHandler<FormValues> = async (data) => {
+  const handleSubmit: SubmitHandler<FormValues> = async (data) => {
     isSubmitted.current = true;
     const formattedData = {
       id_test_case: editingTestId,
@@ -423,11 +423,11 @@ const EditTestCaseFormDialog = ({
                     </FormItem>
                   )}
                 />
-                {/* {errorMessage && (
+                {errorMessage && (
                   <div className="bg-red-100 text-red-700 p-2 mb-4 text-sm">
                     {errorMessage}
                   </div>
-                )} */}
+                )}
                 <div className="flex justify-end gap-4">
                   <Button
                     onClick={(e) => {
