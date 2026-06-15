@@ -93,7 +93,7 @@ const EditTestCaseFormDialog = ({
   const modulId = queryParameters.get("topikModulId")
   const [parameters, setParameters] = useState<ParameterModul[]>([]);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
+  const [, setErrorMessage] = useState("");
   const isSubmitted = useRef(false);
 
   const form = useForm<FormValues>({

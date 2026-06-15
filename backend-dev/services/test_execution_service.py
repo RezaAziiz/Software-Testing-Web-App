@@ -180,7 +180,7 @@ class TestExecutionService:
             "linkReportTesting": data_result['tr_result_report'],
             "linkReportCoverage": data_result['tr_coverage_report'],
             "linkSourceCoverage": f"static/{student_id}/{id_topik_modul}/jacoco_report_test/html/default/{modul_data['ms_class_name']}.java.html",
-            "cfg": {
+            "data_cfg": {
                 "nodes": [dict(n) for n in nodes],
                 "edges": [dict(e) for e in edges],
             }

@@ -199,12 +199,10 @@ class ModulService:
         if not data_modul or not data_modul['ms_source_code']:
             raise ValueError("Data source code tidak ada")
             
-        file_path = os.path.join("modules", id_modul, data_modul['ms_source_code'])
-        if os.path.exists(file_path): 
-            with open(file_path, 'r', encoding='utf-8') as f:
-                return f.read()
-        
-        raise ValueError("File fisik tidak ditemukan pada direktori.")
+        try:
+            return self.file_manager.read_source_code_text(id_modul, data_modul['ms_source_code'])
+        except FileNotFoundError:
+            raise ValueError("File fisik tidak ditemukan pada direktori.")
 
     def get_detail_by_topik(self, id_topik_modul: str) -> dict:
         """Mengambil detail modul berdasarkan topik dan merakit (assembly) data CFG"""

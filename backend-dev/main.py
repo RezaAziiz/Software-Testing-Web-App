@@ -1,6 +1,6 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from routes.auth import auth
 from routes.cfg import cfg
 from routes.student import student
@@ -11,6 +11,7 @@ from routes.topik import topik
 from routes.combo import combo
 from routes.grade import grade
 from routes.progress import progress
+from infrastructure.file_storage import FileStorageManager
 
 from jobs.schedule import schedule_init, schedule_run_uncomplete, schedule_run_alpha
 from jobs.train_model import run_train_model
@@ -19,14 +20,20 @@ from apscheduler.schedulers.background import BackgroundScheduler
 import uvicorn
 import locale
 import os
-locale.setlocale(locale.LC_ALL, 'id_ID.utf8')
+try:
+    locale.setlocale(locale.LC_ALL, 'id_ID.utf8')
+except locale.Error:
+    try:
+        locale.setlocale(locale.LC_ALL, 'id_ID.UTF-8')
+    except locale.Error:
+        locale.setlocale(locale.LC_ALL, '')
 
 app = FastAPI(docs_url="/doc")
 
 def cors_headers(app):
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://localhost:5173"],
+        allow_origins=[config('API_FR', default='http://localhost:5173')],
         allow_methods=["*"],
         allow_headers=["*"],
         allow_credentials=True,
@@ -52,7 +59,22 @@ app = cors_headers(app)
 if not os.path.exists("static"):
         os.makedirs("static")
 
-app.mount("/static", StaticFiles(directory="static"), name="static")
+file_manager = FileStorageManager()
+
+@app.get("/static/{file_path:path}")
+async def serve_static(file_path: str):
+    local_path = os.path.join("static", file_path)
+    blob_path = f"static/{file_path}"
+
+    if not os.path.exists(local_path):
+        if not file_manager._ensure_local_file(local_path, blob_path):
+            raise HTTPException(status_code=404, detail="Not Found")
+
+    if os.path.isdir(local_path):
+        raise HTTPException(status_code=404, detail="Not Found")
+
+    return FileResponse(local_path)
+
 @app.get("/")
 async def root():
     return {"message": "SAS API version 1.1"}
@@ -72,4 +94,4 @@ async def root():
 #     scheduler.start()
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=config('PORT_APP'))
+    uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get('PORT', config('PORT_APP', default='8080'))))

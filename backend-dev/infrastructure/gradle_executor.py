@@ -1,3 +1,4 @@
+import os
 import subprocess
 import logging
 
@@ -16,7 +17,11 @@ class GradleExecutor:
         """
         try:
             # Gunakan stderr=subprocess.STDOUT agar error gradle tetap tertangkap di output_string
-            command = f"cd {workspace_path} && {self.gradle_command} test"
+            gradle_cmd = self.gradle_command
+            if not gradle_cmd.startswith("./") and not os.path.isabs(gradle_cmd):
+                gradle_cmd = f"./{gradle_cmd}"
+
+            command = f"cd {workspace_path} && {gradle_cmd} test"
             output = subprocess.check_output(command, shell=True, stderr=subprocess.STDOUT)
             output_string = output.decode("utf-8")
             
@@ -27,7 +32,7 @@ class GradleExecutor:
         except subprocess.CalledProcessError as e:
             # Test ada yang failed, code tidak error tapi assert ada yang salah
             error_output = e.output.decode("utf-8", errors="ignore") if e.output else "No output"
-            logger.warning(f"Gradle test failed in {workspace_path}. Check JaCoCo logs.")
+            logger.warning(f"Gradle test failed in {workspace_path}. Exit code: {e.returncode}. Output:\n{error_output}")
             return False
             
         except Exception as e:

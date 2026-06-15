@@ -82,12 +82,10 @@ def refresh_jwt(access_token: str, refresh_token: str) -> (str, str):
         return (new_access_token, new_refresh_token)
 
 def getDataFromJwt(request: Request):
-    # for attribute, value in request.__dict__.items():
-    #     print(attribute, value)
-    #     print('------------------------------')
-    # print(dir(request))
-    token = request.headers["Authorization"]
-    return decode_jwt(token[7:])
+    authorization = request.headers.get("Authorization", "")
+    if not authorization.startswith("Bearer "):
+        raise ValueError("Missing or invalid Authorization header")
+    return decode_jwt(authorization[7:])
 
 
 def check_folder(foldername: str):

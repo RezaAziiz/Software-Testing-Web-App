@@ -1,4 +1,3 @@
-# routes/auth.py
 from schemas.auth import LoginSchema, ChangePasswordSchema, ForgotPasswordSchema, UpdatePasswordSchema, ResetPasswordSchema, VerifyTokenSchema, VerifyTokenJWTSchema
 from models.teacher import Teacher
 from models.student import Student
@@ -73,6 +72,8 @@ async def login(pgw: LoginSchema, response: Response):
         query = Teacher.update().values(
             ms_teacher_current_token = token
         ).where(Teacher.c.ms_teacher_id == cek_teacher.ms_teacher_id)
+
+    conn.execute(query)
     
     if loginAsStudent:
         data = {
@@ -91,7 +92,7 @@ async def login(pgw: LoginSchema, response: Response):
             "token": token,
             "login_type": "teacher"
         }
-    response = {"message": f"Login successful", "data": data}
+    response = {"status": status.HTTP_200_OK, "message": "Login successful", "data": data}
     return response
 
 
