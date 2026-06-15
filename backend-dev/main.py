@@ -26,7 +26,10 @@ app = FastAPI(docs_url="/doc")
 def cors_headers(app):
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://localhost:5173"],
+        allow_origins=[
+             "http://localhost:5173",
+             "http://192.168.1.10:5173",
+        ],
         allow_methods=["*"],
         allow_headers=["*"],
         allow_credentials=True,

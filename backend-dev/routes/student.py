@@ -211,7 +211,7 @@ async def find_student(id: str, response: Response):
     return response
 
 
-@student.post('/student/', dependencies=[Depends(JWTBearer())],
+@student.post('/student', dependencies=[Depends(JWTBearer())],
            description="Menambah data siswa")
 async def insert_student(request: Request, pgw: StudentSchema, response: Response):
     currentUser = getDataFromJwt(request)

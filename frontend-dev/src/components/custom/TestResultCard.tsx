@@ -54,7 +54,11 @@ interface DataResultTest {
   linkReportTesting: string;
   linkReportCoverage: string;
   linkSourceCoverage: string;
-  data_cfg: {
+  data_cfg?: {
+    nodes: any[];
+    edges: any[];
+  };
+  cfg?: {
     nodes: any[];
     edges: any[];
   };

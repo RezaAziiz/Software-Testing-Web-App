@@ -26,6 +26,7 @@ interface DataResultTest {
     cfg: {
       nodes: any[];
       edges: any[];
+      unexecutedPaths?: string[];
     };
   }
 
@@ -55,7 +56,8 @@ const TestResultPage = () => {
         linkSourceCoverage: "",
         cfg: {
           nodes: [],
-          edges: []
+          edges: [],
+          unexecutedPaths: []
         }
     };
     const [showCyclomaticComplexity] = useState(false);
@@ -131,6 +133,7 @@ const TestResultPage = () => {
                 codeCoveragePercentage={dataTestResult.coverageScore}
                 nodesWithStatus={dataTestResult.cfg?.nodes}
                 edgesWithStatus={dataTestResult.cfg?.edges}
+                unexecutedPaths={dataTestResult.cfg?.unexecutedPaths}
               />
               <TestResultCard dataResultTest = {dataTestResult}/>
                   <div className="flex justify-end space-x-2 items-center p-4">

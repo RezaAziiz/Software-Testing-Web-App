@@ -11,6 +11,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import UnexecutedPathsViewer from "./UnexecutedPathsViewer";
 import "../../index.css";
 
 // Daftarkan plugin dagre ke cytoscape
@@ -23,6 +24,7 @@ type CFGCardProps = {
   codeCoveragePercentage?: number;
   nodesWithStatus?: Array<any>;
   edgesWithStatus?: Array<any>;
+  unexecutedPaths?: Array<string>;
 };
 
 const getStatusColor = (status: string | undefined, type: "node" | "edge"): string => {
@@ -36,6 +38,8 @@ const getStatusColor = (status: string | undefined, type: "node" | "edge"): stri
   return defaultColor; // Y and S are no longer colored
 };
 
+
+
 // Component
 const CFGCard: React.FC<CFGCardProps> = ({
   showCyclomaticComplexity = false,
@@ -43,6 +47,7 @@ const CFGCard: React.FC<CFGCardProps> = ({
   codeCoveragePercentage,
   nodesWithStatus,
   edgesWithStatus,
+  unexecutedPaths = [],
 }) => {
   const apiUrl = import.meta.env.VITE_API_URL;
   let apiKey = import.meta.env.VITE_API_KEY;
@@ -318,7 +323,6 @@ const CFGCard: React.FC<CFGCardProps> = ({
       const node = evt.target;
       const container = cy.container();
       if (!container) return;
-      const rect = container.getBoundingClientRect();
       const renderedPos = node.renderedPosition();
       setTooltip({
         visible: true,
@@ -328,7 +332,6 @@ const CFGCard: React.FC<CFGCardProps> = ({
       });
     });
     cy.on("mousemove", "node", (evt) => {
-      const node = evt.target;
       const cy = cyRef.current;
       if (!cy) return;
       const container = cy.container();
@@ -363,7 +366,7 @@ const CFGCard: React.FC<CFGCardProps> = ({
         label: "data(label)",
         "text-valign": "center",
         "text-halign": "center",
-        "font-size": "14px",
+        "font-size": "20px",
         "font-weight": "bold",
         color: "#111827",
         "text-wrap": "none",
@@ -392,7 +395,7 @@ const CFGCard: React.FC<CFGCardProps> = ({
         "target-arrow-shape": "triangle",
         "curve-style": "bezier",
         label: "data(label)",
-        "font-size": "13px",
+        "font-size": "16px",
         "font-weight": "bold",
         "text-background-color": "#f9fafb",
         "text-background-opacity": 1,
@@ -401,7 +404,7 @@ const CFGCard: React.FC<CFGCardProps> = ({
         color: "data(lineColor)",
       },
     },
-  ];
+  ] as any;
 
   // Loading skeleton
   if (loading) {
@@ -555,6 +558,7 @@ const CFGCard: React.FC<CFGCardProps> = ({
                     Presentase Code Coverage
                   </p>
                   <PercentageCodeCoverage percentage={codeCoveragePercentage} />
+                  <UnexecutedPathsViewer paths={unexecutedPaths} />
                 </>
               )}
 
