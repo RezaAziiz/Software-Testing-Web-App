@@ -11,6 +11,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import UnexecutedPathsViewer from "./UnexecutedPathsViewer";
 import "../../index.css";
 
 // Daftarkan plugin dagre ke cytoscape
@@ -23,6 +24,7 @@ type CFGCardProps = {
   codeCoveragePercentage?: number;
   nodesWithStatus?: Array<any>;
   edgesWithStatus?: Array<any>;
+  unexecutedPaths?: Array<string>;
 };
 
 const getStatusColor = (
@@ -46,6 +48,7 @@ const CFGCard: React.FC<CFGCardProps> = ({
   codeCoveragePercentage,
   nodesWithStatus,
   edgesWithStatus,
+  unexecutedPaths = [],
 }) => {
   const apiUrl = import.meta.env.VITE_API_URL;
   let apiKey = import.meta.env.VITE_API_KEY;
@@ -163,7 +166,7 @@ const CFGCard: React.FC<CFGCardProps> = ({
               targetExecutionOrder: (() => {
                 const targetId = e.id_node_finish ?? e.ms_id_finish_node;
                 const targetNode = nodesWithStatus.find(
-                  (n: any) => (n.ms_id_node ?? n.id_node) === targetId,
+                  (n: any) => (n.ms_id_node ?? n.id_node) === targetId
                 );
                 return targetNode
                   ? (targetNode.ms_execution_order ??
@@ -290,7 +293,7 @@ const CFGCard: React.FC<CFGCardProps> = ({
                 const targetId =
                   e.id_node_finish ?? e.ms_id_finish_node ?? e.id_finish_node;
                 const targetNode = backendNodes.find(
-                  (n: any) => (n.ms_id_node ?? n.id_node) === targetId,
+                  (n: any) => (n.ms_id_node ?? n.id_node) === targetId
                 );
                 return targetNode
                   ? (targetNode.ms_execution_order ??
@@ -331,8 +334,8 @@ const CFGCard: React.FC<CFGCardProps> = ({
   const layout = {
     name: "dagre",
     rankDir: "TB",
-    nodeSep: 150,
-    rankSep: 130,
+    nodeSep: 80,
+    rankSep: 60,
     nodeDimensionsIncludeLabels: true,
     ranker: "network-simplex",
     animate: false,
@@ -404,7 +407,7 @@ const CFGCard: React.FC<CFGCardProps> = ({
         label: "data(label)",
         "text-valign": "center",
         "text-halign": "center",
-        "font-size": "14px",
+        "font-size": "20px",
         "font-weight": "bold",
         color: "#111827",
         "text-wrap": "none",
@@ -432,7 +435,7 @@ const CFGCard: React.FC<CFGCardProps> = ({
         "curve-style": "bezier",
         "control-point-step-size": 60,
         label: "data(label)",
-        "font-size": "12px",
+        "font-size": "16px",
         "font-weight": "bold",
         "text-background-color": "#f9fafb",
         "text-background-opacity": 1,
@@ -596,6 +599,7 @@ const CFGCard: React.FC<CFGCardProps> = ({
                     Presentase Code Coverage
                   </p>
                   <PercentageCodeCoverage percentage={codeCoveragePercentage} />
+                  <UnexecutedPathsViewer paths={unexecutedPaths} />
                 </>
               )}
 

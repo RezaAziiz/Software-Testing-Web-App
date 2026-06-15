@@ -18,8 +18,8 @@ class GradleExecutor:
         try:
             # Gunakan stderr=subprocess.STDOUT agar error gradle tetap tertangkap di output_string
             gradle_cmd = self.gradle_command
-            if not gradle_cmd.startswith("./") and not os.path.isabs(gradle_cmd):
-                gradle_cmd = f"./{gradle_cmd}"
+            # if not gradle_cmd.startswith("./") and not os.path.isabs(gradle_cmd):
+            #     gradle_cmd = f"./{gradle_cmd}"
 
             command = f"cd {workspace_path} && {gradle_cmd} test"
             output = subprocess.check_output(command, shell=True, stderr=subprocess.STDOUT)

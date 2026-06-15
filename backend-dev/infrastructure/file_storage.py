@@ -3,25 +3,42 @@ import shutil
 from distutils.dir_util import copy_tree, remove_tree
 from fastapi import UploadFile
 from decouple import config
-from google.cloud import storage
 from io import BytesIO
 import logging
 
 logger = logging.getLogger(__name__)
 
 class FileStorageManager:
-    """Menangani seluruh operasi filesystem (Create, Copy, Remove folder/file) dan sinkronisasi GCS."""
+    """Menangani seluruh operasi filesystem (Create, Copy, Remove folder/file) dan sinkronisasi GCS.
+    
+    Mode ditentukan oleh env var USE_GCS:
+    - USE_GCS=true  → init Google Cloud Storage, upload/download ke bucket (Cloud)
+    - USE_GCS=false → pakai local filesystem saja (Local Development)
+    """
 
     def __init__(self):
-        self.bucket_name = config('GCS_BUCKET_NAME', default='software-testing-uat-db-init')
-        self.storage_client = storage.Client()
-        self.bucket = self.storage_client.bucket(self.bucket_name)
+        self.use_gcs = config('USE_GCS', default='false').lower() == 'true'
+        
+        if self.use_gcs:
+            from google.cloud import storage
+            self.bucket_name = config('GCS_BUCKET_NAME', default='software-testing-uat-db-init')
+            self.storage_client = storage.Client()
+            self.bucket = self.storage_client.bucket(self.bucket_name)
+        else:
+            self.storage_client = None
+            self.bucket = None
+
+    # ─── GCS Helper Methods (only active when USE_GCS=true) ───
 
     def _upload_file_to_gcs(self, local_path: str, blob_path: str) -> None:
+        if not self.use_gcs:
+            return
         blob = self.bucket.blob(blob_path)
         blob.upload_from_filename(local_path)
 
     def _upload_directory_to_gcs(self, local_dir: str, blob_root: str) -> None:
+        if not self.use_gcs:
+            return
         if not os.path.exists(local_dir):
             return
         for root, _, files in os.walk(local_dir):
@@ -32,6 +49,8 @@ class FileStorageManager:
                 self._upload_file_to_gcs(local_file, blob_path)
 
     def _download_blob_to_file(self, blob_path: str, local_path: str) -> bool:
+        if not self.use_gcs:
+            return False
         blob = self.bucket.blob(blob_path)
         if not blob.exists():
             return False
@@ -40,12 +59,15 @@ class FileStorageManager:
         return True
 
     def _ensure_local_file(self, local_path: str, blob_path: str) -> bool:
+        """Pastikan file ada di local. Kalau tidak ada dan GCS aktif, coba download dari bucket."""
         if os.path.exists(local_path):
             return True
         return self._download_blob_to_file(blob_path, local_path)
 
+    # ─── Business Logic Methods ───
+
     def save_uploaded_source_code(self, id_modul: str, source_code: UploadFile) -> str:
-        """Simpan file .java yang diupload oleh Dosen ke /modules/ dan GCS."""
+        """Simpan file .java yang diupload oleh Dosen ke /modules/ (dan GCS jika aktif)."""
         modul_dir = os.path.join("modules", id_modul)
         
         if os.path.exists(modul_dir):
@@ -56,6 +78,7 @@ class FileStorageManager:
         with open(target_file, 'wb') as f:
             shutil.copyfileobj(source_code.file, f)
 
+        # Upload ke GCS jika aktif
         blob_path = f"modules/{id_modul}/{source_code.filename}"
         self._upload_file_to_gcs(target_file, blob_path)
         return target_file

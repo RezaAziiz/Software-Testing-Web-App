@@ -14,6 +14,7 @@ from infrastructure.test_code_generator import TestCodeGenerator
 from infrastructure.parsers.junit_parser import JUnitResultParser
 from infrastructure.parsers.jacoco_parser import JaCoCoParser
 from infrastructure.cfg_coverage_sync import CfgCoverageSync
+from services.path_analysis_service import PathAnalysisService
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +44,7 @@ class TestExecutionService:
         self.junit_parser = junit_parser
         self.jacoco_parser = jacoco_parser
         self.cfg_sync = cfg_sync
+        self.path_analysis_service = PathAnalysisService()
 
     def run_test(self, id_topik_modul: str, student_id: str) -> dict:
         """
@@ -159,6 +161,9 @@ class TestExecutionService:
         
         # Get Status CFG (Warna Merah/Hijau) dari CfgRepository
         nodes, edges = self.cfg_repo.get_cfg_with_status(id_topik_modul, student_id)
+
+        # Calculate unexecuted paths using PathAnalysisService
+        unexecuted_paths = self.path_analysis_service.build_unexecuted_paths(nodes, edges)
         
         # Get Test Case Statistics dari TestCaseRepository
         tc_stats = self.test_case_repo.get_statistics_by_topik_and_student(id_topik_modul, student_id)
@@ -183,5 +188,6 @@ class TestExecutionService:
             "data_cfg": {
                 "nodes": [dict(n) for n in nodes],
                 "edges": [dict(e) for e in edges],
+                "unexecutedPaths": unexecuted_paths,
             }
         }
