@@ -28,8 +28,6 @@ class FileStorageManager:
             self.storage_client = None
             self.bucket = None
 
-    # ─── GCS Helper Methods (only active when USE_GCS=true) ───
-
     def _upload_file_to_gcs(self, local_path: str, blob_path: str) -> None:
         if not self.use_gcs:
             return
