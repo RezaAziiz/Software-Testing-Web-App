@@ -2,7 +2,7 @@ import uuid
 from dataclasses import dataclass
 from core.nodes.base_node import CfgNode
 from core.nodes.node_factory import NodeFactory
-from core.types import BranchType, NodeType
+from core.types import BranchType, NodeType, AstNodeType
 from core.optimizer import optimize_merge_nodes
 
 @dataclass
@@ -55,7 +55,7 @@ class CFGGeneratorVisitor:
 
     def _get_body_block(self, method_node):
         for child in method_node.children:
-            if child.type == 'block':
+            if child.type == AstNodeType.BLOCK:
                 return child
         return None
 
@@ -66,20 +66,40 @@ class CFGGeneratorVisitor:
         if not body_block:
             return self.nodes, self.edges
             
-        self.visit_block(body_block, incoming_nodes=[])
+        # BUAT START NODE
+        start_node = CfgNode(None)
+        start_node.node_type = NodeType.START
+        start_node.source_code = "Start"
+        self._register_node(start_node)
+            
+        # VISIT BLOK UTAMA
+        # Masukkan start_node sebagai incoming_nodes agar langsung tersambung ke baris kode pertama
+        first_node, final_exits = self.visit_block(
+            body_block, 
+            incoming_nodes=[ExitNode(start_node, BranchType.SEQUENTIAL)]
+        )
         
+        # BUAT END NODE
+        end_node = CfgNode(None)
+        end_node.node_type = NodeType.END
+        end_node.source_code = "End"
+        self._register_node(end_node)
+        
+        for ex in final_exits:
+            self.create_edge(ex.node, end_node, BranchType.SEQUENTIAL)
         self.nodes, self.edges = optimize_merge_nodes(self.nodes, self.edges)
         self._reassign_execution_orders()
         
         return self.nodes, self.edges
 
     def _reassign_execution_orders(self):
-        """Reassign sequential execution order only for non-merge nodes.
-        Merge nodes keep a null execution order to stay unlabeled.
+        """Reassign sequential execution order only for non-merge/start/end nodes.
+        Merge, Start, and End nodes keep a null execution order to stay unlabeled.
         """
         order = 1
         for node in self.nodes:
-            if node.node_type == NodeType.MERGE:
+            # Abaikan penomoran untuk MERGE, START, dan END
+            if node.node_type in [NodeType.MERGE, NodeType.START, NodeType.END]:
                 node.execution_order = None
             else:
                 node.execution_order = order
@@ -89,7 +109,7 @@ class CFGGeneratorVisitor:
     def visit_block(self, ast_block, incoming_nodes):
         statements = [
             child for child in ast_block.children 
-            if child.is_named and child.type not in ['line_comment', 'block_comment']
+            if child.is_named and child.type not in [AstNodeType.LINE_COMMENT, AstNodeType.BLOCK_COMMENT]
         ]
         current_incoming = incoming_nodes
         first_node_of_block = None
@@ -133,62 +153,76 @@ class CFGGeneratorVisitor:
         cond_node = NodeFactory.create_node(cond_ast, force_decision=True)
         self._register_node(cond_node)
 
-        # Buat MERGE NODE
+        # Buat MERGE NODE sebagai titik kumpul
         merge_node = CfgNode(ast_node)
         merge_node.node_type = NodeType.MERGE
         merge_node.source_code = "" 
         self._register_node(merge_node)
 
         exit_nodes = [] 
-        connected_to_merge = set()
+
+        def process_exits(exits):
+            for ex in exits:
+                # Interupsi flow tidak boleh masuk ke merge node! Biarkan melayang ke outer scope.
+                if ex.branch_type in [BranchType.RETURN, BranchType.BREAK, BranchType.CONTINUE]:
+                    exit_nodes.append(ex)
+                else:
+                    self.create_edge(ex.node, merge_node, BranchType.SEQUENTIAL)
 
         # Proses blok TRUE
         if then_ast:
-            if then_ast.type == 'block':
+            if then_ast.type == AstNodeType.BLOCK:
                 then_first, then_exits = self.visit_block(then_ast, incoming_nodes=[])
             else:
                 then_first, then_exits = getattr(self, f'visit_{then_ast.type}', self.generic_visit)(then_ast)
             
-            cond_node.set_true_node(then_first)
-            self.create_edge(cond_node, then_first, BranchType.TRUE)
-            
-            for ex in then_exits:
-                if ex.branch_type in [BranchType.BREAK, BranchType.CONTINUE]:
-                    exit_nodes.append(ex) 
-                else:
-                    if ex.node.id_node not in connected_to_merge:
-                        self.create_edge(ex.node, merge_node, BranchType.SEQUENTIAL) 
-                        connected_to_merge.add(ex.node.id_node)
-                        
-                    if ex.branch_type == BranchType.RETURN:
-                        if not any(e.node == merge_node and e.branch_type == BranchType.RETURN for e in exit_nodes):
-                            exit_nodes.append(ExitNode(merge_node, BranchType.RETURN))
-            
+            if then_first:
+                cond_node.set_true_node(then_first)
+                self.create_edge(cond_node, then_first, BranchType.TRUE)
+                process_exits(then_exits)
+            else:
+                self.create_edge(cond_node, merge_node, BranchType.TRUE)
+                
         # Proses blok FALSE
         if else_ast:
-            if else_ast.type == 'block':
+            if else_ast.type == AstNodeType.BLOCK:
                 else_first, else_exits = self.visit_block(else_ast, incoming_nodes=[])
             else:
                 else_first, else_exits = getattr(self, f'visit_{else_ast.type}', self.generic_visit)(else_ast)
                 
-            cond_node.set_false_node(else_first)
-            self.create_edge(cond_node, else_first, BranchType.FALSE)
-            
-            for ex in else_exits:
-                if ex.branch_type in [BranchType.BREAK, BranchType.CONTINUE]:
-                    exit_nodes.append(ex)
-                else:
-                    if ex.node.id_node not in connected_to_merge:
-                        self.create_edge(ex.node, merge_node, BranchType.SEQUENTIAL) 
-                        connected_to_merge.add(ex.node.id_node)
-                        
-                    if ex.branch_type == BranchType.RETURN:
-                        if not any(e.node == merge_node and e.branch_type == BranchType.RETURN for e in exit_nodes):
-                            exit_nodes.append(ExitNode(merge_node, BranchType.RETURN))
+            if else_first:
+                cond_node.set_false_node(else_first)
+                self.create_edge(cond_node, else_first, BranchType.FALSE)
+                process_exits(else_exits)
+            else:
+                self.create_edge(cond_node, merge_node, BranchType.FALSE)
         else:
+            # Jika if tanpa else, jalur False langsung memotong ke titik kumpul
             self.create_edge(cond_node, merge_node, BranchType.FALSE)
+
+        # Hitung berapa banyak garis yang masuk ke merge_node
+        incoming_edges = [e for e in self.edges if e['id_finish_node'] == merge_node.id_node]
+        
+        if len(incoming_edges) == 0:
+            # Tidak ada jalur yang masuk (semua cabang return/break), buang merge node
+            if merge_node in self.nodes:
+                self.nodes.remove(merge_node)
+                
+        elif len(incoming_edges) == 1:
+            single_edge = incoming_edges[0]
             
-        if not any(e.node == merge_node and e.branch_type == BranchType.SEQUENTIAL for e in exit_nodes):
+            # Hapus edge penengah dan hapus merge node
+            self.edges.remove(single_edge)
+            self.nodes.remove(merge_node)
+            
+            # Ambil node asalnya, teruskan branch type-nya langsung keluar dari if
+            src_node_id = single_edge['id_start_node']
+            src_node = next((n for n in self.nodes if n.id_node == src_node_id), None)
+            
+            if src_node:
+                exit_nodes.append(ExitNode(src_node, single_edge['branch_type']))
+                
+        else:
             exit_nodes.append(ExitNode(merge_node, BranchType.SEQUENTIAL))
 
         return cond_node, exit_nodes
@@ -206,7 +240,7 @@ class CFGGeneratorVisitor:
         exit_nodes = [ExitNode(for_node, BranchType.FALSE)] 
 
         if body_ast:
-            if body_ast.type == 'block':
+            if body_ast.type == AstNodeType.BLOCK:
                 body_first, body_exits = self.visit_block(body_ast, incoming_nodes=[])
             else:
                 body_first, body_exits = getattr(self, f'visit_{body_ast.type}', self.generic_visit)(body_ast)
@@ -228,7 +262,7 @@ class CFGGeneratorVisitor:
         exit_nodes = [ExitNode(cond_node, BranchType.FALSE)]
         
         if body_ast:
-            if body_ast.type == 'block':
+            if body_ast.type == AstNodeType.BLOCK:
                 body_first, body_exits = self.visit_block(body_ast, incoming_nodes=[])
             else:
                 body_first, body_exits = getattr(self, f'visit_{body_ast.type}', self.generic_visit)(body_ast)
@@ -267,16 +301,16 @@ class CFGGeneratorVisitor:
 
         if body_ast:
             for group in body_ast.children:
-                if group.type == 'switch_block_statement_group':
+                if group.type == AstNodeType.SWITCH_BLOCK_GROUP:
                     
                     current_incoming = fallthrough_incoming
                     fallthrough_incoming = []
                     
                     for child in group.children:
-                        if not child.is_named or child.type in ['line_comment', 'block_comment']:
+                        if not child.is_named or child.type in [AstNodeType.LINE_COMMENT, AstNodeType.BLOCK_COMMENT]:
                             continue
                             
-                        if child.type == 'switch_label':
+                        if child.type == AstNodeType.SWITCH_LABEL:
                             label_node = NodeFactory.create_node(child)
                             self._register_node(label_node)
                             

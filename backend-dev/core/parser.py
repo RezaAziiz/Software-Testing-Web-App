@@ -1,5 +1,6 @@
 import tree_sitter_java as tsjava
 from tree_sitter import Language, Parser
+from core.types import AstNodeType
 
 class JavaParser:
     def __init__(self):
@@ -18,7 +19,7 @@ class JavaParser:
     def extract_all_methods(self, tree):
         methods = []
         def traverse(node):
-            if node.type == 'method_declaration':
+            if node.type == AstNodeType.METHOD_DECLARATION:
                 methods.append(node)
             for child in node.children:
                 traverse(child)
@@ -30,7 +31,7 @@ class JavaParser:
         methods = self.extract_all_methods(tree)
         for method in methods:
             for child in method.children:
-                if child.type == 'identifier':
+                if child.type == AstNodeType.IDENTIFIER:
                     method_name = child.text.decode('utf8')
                     if method_name == target_name:
                         return method

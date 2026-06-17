@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Optional, List, Dict, Any
 from core.parser import JavaParser
 from core.cfg_generator import CFGGeneratorVisitor
-from core.types import NodeType, BranchType
+from core.types import NodeType, BranchType, AstNodeType
 from core.metrics import calculate_cyclomatic_complexity
 from repositories.cfg_repository import CfgRepository
 
@@ -77,7 +77,7 @@ class CFGService:
                 method_node = methods[0]
                 # Extract method name for response
                 for child in method_node.children:
-                    if child.type == 'identifier':
+                    if child.type == AstNodeType.IDENTIFIER:
                         method_name = child.text.decode('utf8')
                         break
             
@@ -112,7 +112,7 @@ class CFGService:
                 nodes_data.append({
                     "ms_id_node": node.id_node,
                     "ms_id_modul": modul_id,
-                    "ms_execution_order": None if node.node_type == NodeType.MERGE else str(node.execution_order),
+                    "ms_execution_order": None if node.execution_order is None else int(node.execution_order),
                     "ms_line_number": node.line_start,
                     "ms_line_start": node.line_start,
                     "ms_line_end": node.line_end,
