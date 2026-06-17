@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ValidasiPendaftaran.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">jacoco-engine</a> &gt; <a href="index.source.html" class="el_package">default</a> &gt; <span class="el_source">ValidasiPendaftaran.java</span></div><h1>ValidasiPendaftaran.java</h1><pre class="source lang-java linenums"><span class="nc" id="L1">public class ValidasiPendaftaran {</span>
+
+    public String prosesValidasi(int umur, int pengalamanKerja, boolean adaSertifikat, int nilaiTes) {
+        String status;
+
+        // Level Kedalaman 1
+<span class="nc bnc" id="L7" title="All 2 branches missed.">        if (umur &gt;= 18) {</span>
+
+            // Level Kedalaman 2
+<span class="nc bnc" id="L10" title="All 2 branches missed.">            if (pengalamanKerja &gt;= 2) {</span>
+
+                // Level Kedalaman 3
+<span class="nc bnc" id="L13" title="All 2 branches missed.">                if (adaSertifikat) {</span>
+
+                    // Level Kedalaman 4
+<span class="nc bnc" id="L16" title="All 2 branches missed.">                    if (nilaiTes &gt;= 80) {</span>
+<span class="nc" id="L17">                        status = &quot;Diterima: Jalur Profesional Tersertifikasi&quot;;</span>
+                    } else {
+<span class="nc" id="L19">                        status = &quot;Ditolak: Nilai tes di bawah standar profesional (Min 80)&quot;;</span>
+                    } // EndIF Level 4
+
+                } else {
+                    // Cabang Else Level 3
+<span class="nc bnc" id="L24" title="All 2 branches missed.">                    if (nilaiTes &gt;= 90) {</span>
+<span class="nc" id="L25">                        status = &quot;Diterima: Jalur Potensi Tinggi (Tanpa Sertifikat)&quot;;</span>
+                    } else {
+<span class="nc" id="L27">                        status = &quot;Ditolak: Tidak ada sertifikat dan nilai tes gagal mencapai batas khusus (Min 90)&quot;;</span>
+                    }
+                } // EndIF Level 3
+
+            } else {
+                // Cabang Else Level 2
+<span class="nc bnc" id="L33" title="All 2 branches missed.">                if (nilaiTes &gt;= 85) {</span>
+<span class="nc" id="L34">                    status = &quot;Diterima: Jalur Junior Trainee&quot;;</span>
+                } else {
+<span class="nc" id="L36">                    status = &quot;Ditolak: Kurang pengalaman dan nilai tes tidak mencukupi untuk Trainee (Min 85)&quot;;</span>
+                }
+            } // EndIF Level 2
+
+        } else {
+            // Cabang Else Level 1
+<span class="nc" id="L42">            status = &quot;Ditolak: Belum cukup umur (Min 18 tahun)&quot;;</span>
+        } // EndIF Level 1
+
+<span class="nc" id="L45">        return status;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.8.202204050719</span></div></body></html>
