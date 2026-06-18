@@ -31,9 +31,19 @@ class CfgCoverageSync:
         master_nodes = self.cfg_repo.get_master_nodes(id_modul)
         master_edges = self.cfg_repo.get_master_edges(id_modul)
 
+        # Cek apakah metode ini dieksekusi sama sekali (ada baris yang Y atau S)
+        is_method_executed = any(line['status'] in ['Y', 'S'] for line in line_statuses)
+
         # Tentukan status awal tiap node berdasarkan JaCoCo
-        # Default semua Node ke 'N' (Belum terlalui)
-        node_status_map = {node.ms_id_node: 'N' for node in master_nodes}
+        # Default semua Node ke 'N' (Belum terlalui), kecuali START dan END jika metode dieksekusi
+        node_status_map = {}
+        for node in master_nodes:
+            node_type = str(getattr(node, 'ms_node_type', '') or getattr(node, 'node_type', '')).upper()
+            if is_method_executed and node_type in ['START', 'END']:
+                node_status_map[node.ms_id_node] = 'Y'
+            else:
+                node_status_map[node.ms_id_node] = 'N'
+                
         priority = {'Y': 2, 'S': 1, 'N': 0}
 
         for line_data in line_statuses:

@@ -354,14 +354,14 @@ const CFGCard: React.FC<CFGCardProps> = ({
   const layout = {
     name: "dagre",
     rankDir: "TB",
-    nodeSep: 120,
-    rankSep: 90,
-    edgeSep: 30,
+    nodeSep: 80,
+    rankSep: 60,
+    edgeSep: 80,
     nodeDimensionsIncludeLabels: true,
     ranker: "network-simplex",
     animate: false,
     fit: true,
-    padding: 40,
+    padding: 30,
     // Deterministic edge ordering: TRUE branches go left (lower index)
     sort: (a: any, b: any) => {
       const edgesA = a.connectedEdges?.() || [];
@@ -527,6 +527,10 @@ const CFGCard: React.FC<CFGCardProps> = ({
           <div className="w-full flex flex-row gap-3">
             <div className="w-1/2 flex flex-col">
               <p className="text-sm font-medium mb-2">Control Flow Graph</p>
+              <div className="text-[11px] text-blue-600 bg-blue-50 px-2 py-1 rounded border border-blue-100 flex items-center gap-1 mb-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg>
+                <span>Node dapat digeser dan di-hover untuk melihat detail.</span>
+              </div>
 
               {error ? (
                 <div className="h-96 flex items-center justify-center text-sm text-gray-400 bg-gray-50 rounded-lg border border-dashed border-gray-300">

@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>DecimalToRoman.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">jacoco-engine</a> &gt; <a href="index.source.html" class="el_package">default</a> &gt; <span class="el_source">DecimalToRoman.java</span></div><h1>DecimalToRoman.java</h1><pre class="source lang-java linenums">/* Program: DecimalToRoman
+ * Deskripsi: Mengonversi angka desimal ke angka Romawi
+ * Nama: Muhammad Saiful Islam/141524020
+ * Tanggal/versi: 22 November 2015/v.0
+ */
+
+<span class="nc" id="L7">public class DecimalToRoman {</span>
+    public String decimalToRoman (int bilangan) {
+<span class="nc" id="L9">        String roman = &quot;&quot;;</span>
+        int i;
+<span class="nc bnc" id="L11" title="All 2 branches missed.">        for (i = 0; i &lt; bilangan / 1000; i++) {</span>
+<span class="nc" id="L12">            roman += &quot;M&quot;;</span>
+        }
+<span class="nc" id="L14">        bilangan = bilangan % 1000;</span>
+
+<span class="nc bnc" id="L16" title="All 2 branches missed.">        if (bilangan &gt;= 900) {</span>
+<span class="nc" id="L17">            roman += &quot;CM&quot;;</span>
+<span class="nc" id="L18">            bilangan -= 900;</span>
+<span class="nc bnc" id="L19" title="All 2 branches missed.">        } else if (bilangan &gt;= 500) {</span>
+<span class="nc" id="L20">            roman += &quot;D&quot;;</span>
+<span class="nc" id="L21">            bilangan -= 500;</span>
+<span class="nc bnc" id="L22" title="All 2 branches missed.">        } else if (bilangan &gt;= 400) {</span>
+<span class="nc" id="L23">            roman += &quot;CD&quot;;</span>
+<span class="nc" id="L24">            bilangan -= 400;</span>
+        }
+<span class="nc bnc" id="L26" title="All 2 branches missed.">        for (i = 0; i &lt; bilangan / 100; i++) {</span>
+<span class="nc" id="L27">            roman += &quot;C&quot;;</span>
+        }
+<span class="nc" id="L29">        bilangan = bilangan % 100;</span>
+
+<span class="nc bnc" id="L31" title="All 2 branches missed.">        if (bilangan &gt;= 90) {</span>
+<span class="nc" id="L32">            roman += &quot;XC&quot;;</span>
+<span class="nc" id="L33">            bilangan -= 90;</span>
+<span class="nc bnc" id="L34" title="All 2 branches missed.">        } else if (bilangan &gt;= 50) {</span>
+<span class="nc" id="L35">            roman += &quot;L&quot;;</span>
+<span class="nc" id="L36">            bilangan -= 50;</span>
+<span class="nc bnc" id="L37" title="All 2 branches missed.">        } else if (bilangan &gt;= 40) {</span>
+<span class="nc" id="L38">            roman += &quot;XL&quot;;</span>
+<span class="nc" id="L39">            bilangan -= 40;</span>
+        }
+<span class="nc bnc" id="L41" title="All 2 branches missed.">        for (i = 0; i &lt; bilangan / 10; i++) {</span>
+<span class="nc" id="L42">            roman += &quot;X&quot;;</span>
+        }
+<span class="nc" id="L44">        bilangan = bilangan % 10;</span>
+
+<span class="nc bnc" id="L46" title="All 2 branches missed.">        if (bilangan &gt;= 9) {</span>
+<span class="nc" id="L47">            roman += &quot;IX&quot;;</span>
+<span class="nc" id="L48">            bilangan -= 9;</span>
+<span class="nc bnc" id="L49" title="All 2 branches missed.">        } else if (bilangan &gt;= 5) {</span>
+<span class="nc" id="L50">            roman += &quot;V&quot;;</span>
+<span class="nc" id="L51">            bilangan -= 5;</span>
+<span class="nc bnc" id="L52" title="All 2 branches missed.">        } else if (bilangan &gt;= 4) {</span>
+<span class="nc" id="L53">            roman += &quot;IV&quot;;</span>
+<span class="nc" id="L54">            bilangan -= 4;</span>
+        }
+<span class="nc bnc" id="L56" title="All 2 branches missed.">        for (i = 0; i &lt; bilangan; i++) {</span>
+<span class="nc" id="L57">            roman += &quot;I&quot;;</span>
+        }
+
+<span class="nc" id="L60">        return roman;</span>
+    }
+} 
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.8.202204050719</span></div></body></html>

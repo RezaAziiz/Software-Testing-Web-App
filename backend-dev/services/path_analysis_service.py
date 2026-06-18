@@ -1,10 +1,239 @@
 import logging
-from collections import Counter
+from collections import Counter, deque
 from typing import Any, Dict, List, Set, Tuple
+from core.types import NodeType
+import networkx as nx
 
 logger = logging.getLogger(__name__)
 
 
+class NodeAdapter:
+    """Adapter untuk mengkonversi node dict ke format yang diharapkan oleh generate_independent_paths()"""
+    def __init__(self, node_dict: Dict[str, Any]):
+        self.node_dict = node_dict
+        self.id_node = str(node_dict.get("ms_id_node") or node_dict.get("id_node"))
+        self.node_type = self._parse_node_type(node_dict)
+        self.execution_order = node_dict.get("ms_execution_order") or node_dict.get("execution_order")
+    
+    def _parse_node_type(self, node_dict: Dict[str, Any]) -> NodeType:
+        """Konversi string node_type ke NodeType enum"""
+        node_type_str = (node_dict.get("ms_node_type") or node_dict.get("node_type") or "").upper()
+        try:
+            return NodeType[node_type_str]
+        except (KeyError, TypeError):
+            return NodeType.DECISION  # default fallback
+
+
+# ============================================================================
+# Functions dari independent_paths.py (di-copy langsung ke file ini)
+# ============================================================================
+
+def _path_vector(path, edge_index):
+    vector = 0
+    for source, target in zip(path, path[1:]):
+        matching_indexes = [
+            index
+            for (edge_source, edge_target, _), index in edge_index.items()
+            if edge_source == source and edge_target == target
+        ]
+        for index in matching_indexes:
+            vector ^= 1 << index
+    return vector
+
+
+def _adds_rank(existing_vectors, vector):
+    return _rank(existing_vectors + [vector]) > _rank(existing_vectors)
+
+
+def _rank(vectors):
+    basis = {}
+
+    for vector in vectors:
+        candidate = vector
+        while candidate:
+            pivot = candidate.bit_length() - 1
+            if pivot not in basis:
+                basis[pivot] = candidate
+                break
+            candidate ^= basis[pivot]
+
+    return len(basis)
+
+
+def _shortest_node_path(starts, target_id, adjacency, terminal_nodes=None):
+    queue = deque((start_id, [start_id]) for start_id in starts)
+    visited = set(starts)
+
+    while queue:
+        current_id, path = queue.popleft()
+        if current_id == target_id or (terminal_nodes and current_id in terminal_nodes):
+            return path
+
+        for edge in adjacency.get(current_id, []):
+            next_id = edge["id_finish_node"]
+            if next_id in visited:
+                continue
+            visited.add(next_id)
+            queue.append((next_id, path + [next_id]))
+
+    return None
+
+
+def _path_covering_edge(target_edge, start_nodes, terminal_nodes, adjacency):
+    prefix = _shortest_node_path(
+        start_nodes,
+        target_edge["id_start_node"],
+        adjacency,
+    )
+    suffix = _shortest_node_path(
+        [target_edge["id_finish_node"]],
+        None,
+        adjacency,
+        terminal_nodes,
+    )
+
+    if not prefix or not suffix:
+        return None
+
+    return prefix + suffix
+
+
+def _format_path(path, node_by_id):
+    labels = []
+    ids = []
+
+    for node_id in path:
+        node = node_by_id.get(node_id)
+        if not node or node.node_type == NodeType.MERGE:
+            continue
+
+        if node.node_type == NodeType.START:
+            label = "Start"
+        elif node.node_type == NodeType.END:
+            label = "End"
+        else:
+            label = str(node.execution_order) if node.execution_order is not None else node_id
+
+        if not labels or labels[-1] != label:
+            labels.append(label)
+        ids.append(node_id)
+
+    return {
+        "ids": ids,
+        "nodes": labels,
+        "path": "→".join(labels),
+    }
+
+
+def generate_independent_paths(nodes, edges, target_count=None):
+    """Generate a practical basis path set from CFG edges using ABPC Algorithm.
+
+    Phase 1: Modify CFG to Strongly Connected Graph (End -> Start)
+    Phase 2: Find Elementary Circuits using Modified Johnson Algorithm (via NetworkX)
+    Phase 3: Path Extraction & Linear Independence Filtering over edge-incidence vectors
+    """
+    if not nodes:
+        return []
+
+    node_by_id = {node.id_node: node for node in nodes}
+    edge_keys = [
+        (edge["id_start_node"], edge["id_finish_node"], edge.get("branch_type", ""))
+        for edge in edges
+    ]
+    edge_index = {key: index for index, key in enumerate(edge_keys)}
+
+    # Tetap buat adjacency dictionary untuk backward compatibility dengan _path_covering_edge
+    adjacency = {node.id_node: [] for node in nodes}
+    indegree = {node.id_node: 0 for node in nodes}
+    outdegree = {node.id_node: 0 for node in nodes}
+
+    # Inisialisasi Graf NetworkX
+    G = nx.DiGraph()
+    for node in nodes:
+        G.add_node(node.id_node)
+
+    for edge in edges:
+        source = edge["id_start_node"]
+        target = edge["id_finish_node"]
+        adjacency.setdefault(source, []).append(edge)
+        indegree[target] = indegree.get(target, 0) + 1
+        outdegree[source] = outdegree.get(source, 0) + 1
+        # Tambahkan edge ke NetworkX
+        G.add_edge(source, target)
+
+    start_nodes = [node.id_node for node in nodes if indegree.get(node.id_node, 0) == 0]
+    if not start_nodes:
+        start_nodes = [nodes[0].id_node]
+
+    terminal_nodes = [node.id_node for node in nodes if outdegree.get(node.id_node, 0) == 0]
+    
+    # Memodifikasi CFG menjadi Strongly Connected Graph
+    # Menambahkan edge dari Exit kembali ke Entry
+    virtual_edges = []
+    for t_node in terminal_nodes:
+        for s_node in start_nodes:
+            G.add_edge(t_node, s_node)
+            virtual_edges.append((t_node, s_node))
+
+    # Mencari Sirkuit Dasar (Elementary Circuits)
+    # Menggunakan Algoritma Johnson
+    raw_cycles = list(nx.simple_cycles(G))
+
+    # Hapus kembali virtual edge untuk membersihkan graf aslinya
+    for t_node, s_node in virtual_edges:
+        G.remove_edge(t_node, s_node)
+
+    # Pemotongan Sirkuit menjadi Jalur (Path Extraction)
+    candidates = []
+    for cycle in raw_cycles:
+        
+        for i in range(len(cycle)):
+            curr_node = cycle[i]
+            prev_node = cycle[i-1] # Di Python, index -1 adalah elemen terakhir
+            
+            # Jika menemukan transisi dari Terminal ke Start (artinya melewati virtual edge)
+            if prev_node in terminal_nodes and curr_node in start_nodes:
+                # Potong array cycle di titik ini, lalu gabungkan kembali agar dimulai dari Start
+                straight_path = cycle[i:] + cycle[:i]
+                candidates.append(straight_path)
+                break
+
+
+    candidates.sort(key=lambda path: (len(path), path))
+
+    # Penyaringan Jalur Redundan (Linear Independence)
+    max_paths = target_count if target_count is not None else max(len(edges) - len(nodes) + 2, 1)
+    selected_paths = []
+    selected_vectors = []
+
+    for path in candidates:
+        vector = _path_vector(path, edge_index)
+        if vector == 0:
+            continue
+        # Hanya ambil jalur yang memiliki edge baru (kombinasi independen)
+        if _adds_rank(selected_vectors, vector):
+            selected_paths.append(path)
+            selected_vectors.append(vector)
+            if len(selected_paths) == max_paths:
+                break
+
+    # FASE FALLBACK: Penambalan Sirkuit Tengah
+    if len(selected_paths) < max_paths:
+        for edge in edges:
+            path = _path_covering_edge(edge, start_nodes, terminal_nodes, adjacency)
+            if not path:
+                continue
+            vector = _path_vector(path, edge_index)
+            if vector and _adds_rank(selected_vectors, vector):
+                selected_paths.append(path)
+                selected_vectors.append(vector)
+                if len(selected_paths) == max_paths:
+                    break
+
+    return [_format_path(path, node_by_id) for path in selected_paths]
+
+
+# PathAnalysisService
 class PathAnalysisService:
     def __init__(self):
         pass
@@ -43,6 +272,12 @@ class PathAnalysisService:
         return str(idx)
 
     def build_unexecuted_paths(self, nodes: List[Any], edges: List[Any]) -> List[str]:
+        """
+        Generate independent paths menggunakan ABPC Algorithm, 
+        kemudian filter hanya paths yang memiliki minimal satu unexecuted node (tr_status='N')
+        
+        Option A: Filter setelah generate semua independent paths
+        """
         if not nodes or not edges:
             return []
 
@@ -54,24 +289,8 @@ class PathAnalysisService:
             if node_id is not None:
                 node_by_id[node_id] = node_dict
 
-        def get_order(node_id: str) -> float:
-            node = node_by_id.get(node_id, {})
-            order = node.get("ms_execution_order") or node.get("execution_order")
-            if order is not None:
-                try:
-                    return float(order)
-                except (ValueError, TypeError):
-                    pass
-            return float("inf")
-
-        def sort_key(node_id: str):
-            return (get_order(node_id), str(node_id))
-
-        # build adjacency with edge metadata
-        adjacency: Dict[str, List[Tuple[str, Dict[str, Any]]]] = {nid: [] for nid in node_by_id}
-        incoming_count: Dict[str, int] = {nid: 0 for nid in node_by_id}
-        outgoing_count: Dict[str, int] = {nid: 0 for nid in node_by_id}
-
+        # normalize edges untuk format yang diharapkan oleh generate_independent_paths
+        normalized_edges = []
         for edge in edges:
             edge_dict = self._normalize_node(edge)
             source = (
@@ -84,15 +303,16 @@ class PathAnalysisService:
                 or edge_dict.get("ms_id_finish_node")
                 or edge_dict.get("id_finish_node")
             )
+            
             if source is None or target is None:
                 continue
 
             source_str = str(source)
             target_str = str(target)
+            
             if source_str not in node_by_id or target_str not in node_by_id:
                 continue
 
-            # normalize branch_type name from edge metadata (support multiple column names)
             branch_type = (
                 edge_dict.get("ms_branch_type")
                 or edge_dict.get("ms_label")
@@ -100,112 +320,51 @@ class PathAnalysisService:
                 or edge_dict.get("label")
                 or ""
             )
-            # store the edge metadata for later decisions
-            edge_meta = {
+
+            normalized_edges.append({
+                "id_start_node": source_str,
+                "id_finish_node": target_str,
                 "branch_type": str(branch_type).upper(),
-                "edge_id": str(edge_dict.get("ms_id_edge") or edge_dict.get("id_edge") or "")
-            }
+                "ms_id_edge": edge_dict.get("ms_id_edge") or edge_dict.get("id_edge") or ""
+            })
 
-            adjacency[source_str].append((target_str, edge_meta))
-            incoming_count[target_str] += 1
-            outgoing_count[source_str] += 1
+        if not normalized_edges:
+            return []
 
-        # sort neighbors deterministically
-        for src, neighbors in adjacency.items():
-            neighbors.sort(key=lambda t: (get_order(t[0]), t[0]))
+        # convert node dicts ke NodeAdapter objects
+        node_adapters = [NodeAdapter(node_dict) for node_dict in node_by_id.values()]
 
-        all_node_ids = sorted(node_by_id.keys(), key=sort_key)
+        # PHASE A: Generate semua independent paths menggunakan ABPC Algorithm
+        try:
+            all_independent_paths = generate_independent_paths(node_adapters, normalized_edges)
+        except Exception as e:
+            logger.error(f"Error generating independent paths: {e}")
+            return []
 
-        # prefer explicit START/END nodes if present
-        entry_nodes = [nid for nid in all_node_ids if (node_by_id[nid].get("ms_node_type") or node_by_id[nid].get("node_type") or "").upper() == "START"]
-        if not entry_nodes:
-            entry_nodes = [nid for nid in all_node_ids if incoming_count[nid] == 0]
+        # identify unexecuted nodes (tr_status='N')
+        unexecuted_set = set()
+        for node in nodes:
+            norm_node = self._normalize_node(node)
+            status = str(norm_node.get("tr_status", "")).upper()
+            node_type = str(norm_node.get("ms_node_type") or norm_node.get("node_type") or "").upper()
+            
+            if status == "N" and node_type not in ["START", "END"]:
+                node_id = self._get_node_id(norm_node)
+                if node_id is not None:
+                    unexecuted_set.add(node_id)
 
-        exit_nodes = [nid for nid in all_node_ids if (node_by_id[nid].get("ms_node_type") or node_by_id[nid].get("node_type") or "").upper() == "END"]
-        if not exit_nodes:
-            exit_nodes = [nid for nid in all_node_ids if outgoing_count[nid] == 0]
+        # PHASE B: Filter paths untuk hanya yang memiliki minimal satu unexecuted node
+        filtered_paths = []
+        for path_result in all_independent_paths:
+            path_ids = path_result.get("ids", [])
+            if any(node_id in unexecuted_set for node_id in path_ids):
+                filtered_paths.append(path_result.get("path", ""))
 
-        starts = entry_nodes if entry_nodes else all_node_ids[:1]
-        goals = set(exit_nodes if exit_nodes else all_node_ids[-1:])
-
-        # unexecuted nodes set (use node execution status)
-        unexecuted_set = {
-            self._get_node_id(self._normalize_node(node))
-            for node in nodes
-            for node_dict in [self._normalize_node(node)]
-            if str(node_dict.get("tr_status", "")).upper() == "N"
-        }
-        unexecuted_set.discard(None)
-
-        # display map (labels)
-        display_map: Dict[str, str] = {}
-        sorted_ids = sorted(node_by_id.keys(), key=sort_key)
-        for idx, nid in enumerate(sorted_ids, start=1):
-            display_map[nid] = self._get_node_label(node_by_id[nid], idx)
-
-        def format_path(path: List[str]) -> str:
-            labels = [display_map.get(nid, "") for nid in path if display_map.get(nid, "")]
-            return "→".join(labels)
-
-        # Loop/back-edge detection helper
-        def is_loop_back_edge(src: str, tgt: str, edge_meta: Dict[str, Any]) -> bool:
-            bt = (edge_meta.get("branch_type") or "").upper()
-            # explicit CONTINUE is loop-back
-            if bt == "CONTINUE":
-                return True
-            # RETURN/BREAK are not loop-back
-            if bt in ("RETURN", "BREAK"):
-                return False
-            # otherwise heuristics: back-edge if target execution order <= source execution order
-            try:
-                return get_order(tgt) <= get_order(src)
-            except Exception:
-                return False
-
-        # DFS with per-loop iteration counters
-        visited_paths: Set[str] = set()
-        max_depth = min(15, 5 * max(1, len(node_by_id)))
-        loop_iteration_limit = 2  # allow up to N iterations per loop header
-
-        def dfs(current: str, path: List[str], has_unexecuted: bool, depth: int, loop_counts: Dict[str, int]):
-            if depth > max_depth:
-                return
-
-            if current in goals and has_unexecuted:
-                visited_paths.add(format_path(path))
-
-            for neighbor, edge_meta in adjacency.get(current, []):
-                # if neighbor already in path and edge is not a loop-back, skip
-                if neighbor in path and not is_loop_back_edge(current, neighbor, edge_meta):
-                    continue
-
-                # if edge is loop-back, enforce a per-loop iteration limit
-                if is_loop_back_edge(current, neighbor, edge_meta):
-                    header = neighbor
-                    count = loop_counts.get(header, 0)
-                    if count >= loop_iteration_limit:
-                        continue
-                    next_loop_counts = dict(loop_counts)
-                    next_loop_counts[header] = count + 1
-                else:
-                    next_loop_counts = dict(loop_counts)
-
-                dfs(
-                    neighbor,
-                    path + [neighbor],
-                    has_unexecuted or (neighbor in unexecuted_set),
-                    depth + 1,
-                    next_loop_counts,
-                )
-
-        for start in starts:
-            dfs(start, [start], start in unexecuted_set, 1, {})
-
-        # Sort paths numerically by their displayed labels when possible
+        # Sort paths numerically by their displayed labels
         def parse_path_for_sorting(path: str):
             try:
                 return [float(x) for x in path.split("→")]
             except Exception:
                 return [0.0]
 
-        return sorted(visited_paths, key=parse_path_for_sorting)
+        return sorted(filtered_paths, key=parse_path_for_sorting)
