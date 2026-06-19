@@ -24,10 +24,6 @@ class NodeAdapter:
             return NodeType.DECISION  # default fallback
 
 
-# ============================================================================
-# Functions dari independent_paths.py (di-copy langsung ke file ini)
-# ============================================================================
-
 def _path_vector(path, edge_index):
     vector = 0
     for source, target in zip(path, path[1:]):
@@ -60,9 +56,10 @@ def _rank(vectors):
     return len(basis)
 
 
-def _shortest_node_path(starts, target_id, adjacency, terminal_nodes=None):
+def _shortest_node_path(starts, target_id, adjacency, terminal_nodes=None, exclude_nodes=None):
+    excluded = set(exclude_nodes) if exclude_nodes else set()
     queue = deque((start_id, [start_id]) for start_id in starts)
-    visited = set(starts)
+    visited = set(starts) | excluded
 
     while queue:
         current_id, path = queue.popleft()
@@ -187,6 +184,7 @@ def generate_independent_paths(nodes, edges, target_count=None):
     candidates = []
     for cycle in raw_cycles:
         
+        found_virtual_crossing = False
         for i in range(len(cycle)):
             curr_node = cycle[i]
             prev_node = cycle[i-1] # Di Python, index -1 adalah elemen terakhir
@@ -196,7 +194,62 @@ def generate_independent_paths(nodes, edges, target_count=None):
                 # Potong array cycle di titik ini, lalu gabungkan kembali agar dimulai dari Start
                 straight_path = cycle[i:] + cycle[:i]
                 candidates.append(straight_path)
+                found_virtual_crossing = True
                 break
+        
+        # Jika sirkuit ini internal (tidak melewati virtual edge),
+        # bangun full path: Start → ... → cycle_entry → [cycle body] → cycle_entry → ... → End
+        if not found_virtual_crossing and len(cycle) > 0:
+            cycle_set = set(cycle)
+            
+            # Rotasi cycle agar entry point adalah loop header (DECISION node) 
+            # yang punya outgoing edge ke luar cycle
+            # Contoh: cycle [3,4,2] → node 2 (DECISION, while) punya exit ke 6 → rotate ke [2,3,4]
+            best_entry_idx = 0
+            best_score = -1
+            best_depth = float('inf')
+            for idx, node_id in enumerate(cycle):
+                outgoing_targets = [e["id_finish_node"] for e in adjacency.get(node_id, [])]
+                external_exits = [t for t in outgoing_targets if t not in cycle_set]
+                if not external_exits:
+                    continue
+                # Skor: DECISION node = 10, lainnya = 1, bonus per exit
+                node_obj = node_by_id.get(node_id)
+                is_decision = node_obj and node_obj.node_type == NodeType.DECISION
+                score = (10 if is_decision else 1) + len(external_exits)
+                # Tiebreaker: jarak dari Start (lebih dekat = loop header, bukan inner decision)
+                depth_path = _shortest_node_path(start_nodes, node_id, adjacency)
+                depth = len(depth_path) if depth_path else float('inf')
+                if score > best_score or (score == best_score and depth < best_depth):
+                    best_score = score
+                    best_depth = depth
+                    best_entry_idx = idx
+            
+            # Rotate cycle
+            rotated_cycle = cycle[best_entry_idx:] + cycle[:best_entry_idx]
+            cycle_entry = rotated_cycle[0]
+            
+            # Prefix: jalur terpendek dari Start ke titik masuk cycle
+            prefix = _shortest_node_path(start_nodes, cycle_entry, adjacency)
+            if not prefix:
+                continue
+            
+            # Suffix: jalur terpendek dari cycle_entry ke terminal (End)
+            # Exclude node-node interior cycle agar suffix keluar loop, bukan masuk lagi
+            cycle_interior = set(rotated_cycle[1:])  # semua node cycle kecuali entry
+            suffix = _shortest_node_path(
+                [cycle_entry], None, adjacency, terminal_nodes, 
+                exclude_nodes=cycle_interior
+            )
+            if not suffix:
+                # Fallback: coba tanpa exclude jika tidak ada jalur keluar lain
+                suffix = _shortest_node_path([cycle_entry], None, adjacency, terminal_nodes)
+            if not suffix:
+                continue
+            
+            # Gabungkan: prefix + interior cycle + suffix
+            full_path = prefix + rotated_cycle[1:] + suffix
+            candidates.append(full_path)
 
 
     candidates.sort(key=lambda path: (len(path), path))

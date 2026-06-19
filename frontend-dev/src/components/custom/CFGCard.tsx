@@ -180,8 +180,8 @@ const CFGCard: React.FC<CFGCardProps> = ({
                 );
                 return targetNode
                   ? (targetNode.ms_execution_order ??
-                      targetNode.execution_order ??
-                      999)
+                    targetNode.execution_order ??
+                    999)
                   : 999;
               })(),
             },
@@ -317,8 +317,8 @@ const CFGCard: React.FC<CFGCardProps> = ({
                 );
                 return targetNode
                   ? (targetNode.ms_execution_order ??
-                      targetNode.execution_order ??
-                      999)
+                    targetNode.execution_order ??
+                    999)
                   : 999;
               })(),
             },
@@ -388,7 +388,6 @@ const CFGCard: React.FC<CFGCardProps> = ({
       const layoutInstance = cy.layout({
         ...layout,
         animate: true,
-        animationDuration: 500,
       } as any);
       layoutInstance.one("layoutstop", () => {
         // Unlock all nodes so they can be dragged freely
