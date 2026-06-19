@@ -70,3 +70,4 @@ uvicorn==0.15.0
 watchgod==0.7
 websockets==10.0
 XlsxWriter==3.1.0
+networkx
