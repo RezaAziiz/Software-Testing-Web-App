@@ -274,6 +274,41 @@ class CFGGeneratorVisitor:
 
         return cond_node, exit_nodes
     
+    def visit_do_statement(self, ast_node):
+        body_ast = ast_node.child_by_field_name('body')
+        cond_ast = ast_node.child_by_field_name('condition')
+
+        # 1. Buat Node Kondisi, TAPI JANGAN DI-REGISTER DULU agar penomorannya mengalah
+        cond_node = NodeFactory.create_node(cond_ast, force_decision=True)
+
+        exit_nodes = [ExitNode(cond_node, BranchType.FALSE)]
+
+        # 2. Proses Body terlebih dahulu agar masuk ke array `self.nodes` lebih awal
+        if body_ast:
+            if body_ast.type == AstNodeType.BLOCK:
+                body_first, body_exits = self.visit_block(body_ast, incoming_nodes=[])
+            else:
+                body_first, body_exits = getattr(self, f'visit_{body_ast.type}', self.generic_visit)(body_ast)
+            
+            # 3. SEKARANG baru kita register cond_node (setelah body selesai didaftarkan)
+            self._register_node(cond_node)
+            
+            # Arahkan aliran keluaran body ke kondisi
+            exit_nodes = self._process_loop_exits(body_exits, cond_node, exit_nodes)
+            
+            # Loop back
+            cond_node.set_true_node(body_first)
+            self.create_edge(cond_node, body_first, BranchType.TRUE)
+            
+            entry_node = body_first
+        else:
+            # Fallback jika body kosong
+            self._register_node(cond_node)
+            cond_node.set_true_node(cond_node)
+            self.create_edge(cond_node, cond_node, BranchType.TRUE)
+            entry_node = cond_node
+
+        return entry_node, exit_nodes
 
     def visit_switch_statement(self, ast_node):
         return self._process_switch(ast_node)
@@ -296,66 +331,219 @@ class CFGGeneratorVisitor:
         self._register_node(merge_node)
 
         exit_nodes = []
-        fallthrough_incoming = []
         has_default = False
 
-        if body_ast:
-            for group in body_ast.children:
-                if group.type == AstNodeType.SWITCH_BLOCK_GROUP:
-                    
-                    current_incoming = fallthrough_incoming
+        # Tipe-tipe statement yang memiliki control flow kompleks
+        complex_types = [
+            AstNodeType.IF_STATEMENT.value,
+            AstNodeType.WHILE_STATEMENT.value,
+            AstNodeType.DO_STATEMENT.value,
+            AstNodeType.FOR_STATEMENT.value,
+            AstNodeType.SWITCH_STATEMENT.value,
+            AstNodeType.SWITCH_EXPRESSION.value,
+        ]
+        comment_types = [AstNodeType.LINE_COMMENT, AstNodeType.BLOCK_COMMENT]
+
+        if not body_ast:
+            if not has_default:
+                self.create_edge(cond_node, merge_node, BranchType.FALSE)
+            exit_nodes.append(ExitNode(merge_node, BranchType.SEQUENTIAL))
+            return cond_node, exit_nodes
+
+        # PHASE 1: Pre-merge groups
+        raw_groups = [
+            g for g in body_ast.children
+            if g.type == AstNodeType.SWITCH_BLOCK_GROUP
+        ]
+
+        merged_groups = []  # list of dict: { 'labels': [...], 'stmts': [...] }
+        pending_labels = []
+
+        for group in raw_groups:
+            children = [
+                c for c in group.children
+                if c.is_named and c.type not in comment_types
+            ]
+            labels = [c for c in children if c.type == AstNodeType.SWITCH_LABEL]
+            stmts = [c for c in children if c.type != AstNodeType.SWITCH_LABEL]
+
+            pending_labels.extend(labels)
+
+            if len(stmts) > 0:
+                # Group ini punya statement maka gabungkan dengan pending labels
+                merged_groups.append({
+                    'labels': list(pending_labels),
+                    'stmts': stmts,
+                })
+                pending_labels = []
+            # else: label-only group → labels ditampung, lanjut ke group berikutnya
+
+        # Jika ada sisa pending labels tanpa statement (edge case)
+        if pending_labels:
+            merged_groups.append({
+                'labels': list(pending_labels),
+                'stmts': [],
+            })
+
+        # PHASE 2: Process setiap merged group
+        fallthrough_incoming = []
+
+        for mg in merged_groups:
+            labels = mg['labels']
+            stmts = mg['stmts']
+            current_incoming = fallthrough_incoming
+            fallthrough_incoming = []
+
+            # Deteksi default case
+            group_is_default = any('default' in l.text.decode('utf8') for l in labels)
+            if group_is_default:
+                has_default = True
+
+            # Deteksi apakah ada statement kompleks
+            has_complex = any(s.type in complex_types for s in stmts)
+
+            if not has_complex:
+                # === SIMPLE GROUP ===
+                # Gabungkan semua (labels + stmts termasuk break) jadi 1 node
+                all_parts = labels + stmts
+                if not all_parts:
+                    continue
+
+                combined_text = '\n'.join(c.text.decode('utf8') for c in all_parts)
+                line_start = all_parts[0].start_point[0] + 1
+                line_end = all_parts[-1].end_point[0] + 1
+
+                has_break = any(c.type == AstNodeType.BREAK_STATEMENT.value for c in stmts)
+
+                block_node = CfgNode(all_parts[0])
+                block_node.node_type = NodeType.NORMAL
+                block_node.source_code = combined_text
+                block_node.line_start = line_start
+                block_node.line_end = line_end
+                self._register_node(block_node)
+
+                # Edge dari switch condition ke block node
+                branch_type = BranchType.DEFAULT if group_is_default else BranchType.CASE
+                self.create_edge(cond_node, block_node, branch_type)
+
+                # Fallthrough dari group sebelumnya
+                for inc in current_incoming:
+                    self.create_edge(inc.node, block_node, inc.branch_type)
+
+                if has_break:
+                    self.create_edge(block_node, merge_node, BranchType.SEQUENTIAL)
                     fallthrough_incoming = []
-                    
-                    for child in group.children:
-                        if not child.is_named or child.type in [AstNodeType.LINE_COMMENT, AstNodeType.BLOCK_COMMENT]:
-                            continue
-                            
-                        if child.type == AstNodeType.SWITCH_LABEL:
-                            label_node = NodeFactory.create_node(child)
-                            self._register_node(label_node)
-                            
-                            is_default = 'default' in child.text.decode('utf8')
-                            if is_default:
-                                has_default = True
-                                branch_type = BranchType.DEFAULT
-                            else:
-                                branch_type = BranchType.CASE
-                            
-                            self.create_edge(cond_node, label_node, branch_type)
-                            
-                            # Jika ada efek fallthrough
-                            for inc in current_incoming:
-                                self.create_edge(inc.node, label_node, inc.branch_type)
-                                
-                            # Siapkan statement selanjutnya
-                            current_incoming = [ExitNode(label_node, BranchType.SEQUENTIAL)]
-                            
+                else:
+                    fallthrough_incoming = [ExitNode(block_node, BranchType.SEQUENTIAL)]
+
+            else:
+                # === COMPLEX GROUP ===
+                # Strategy: labels + simple prefix jadi 1 node, then visit complex, then simple suffix
+
+                # Phase A: Prefix = labels + simple stmts sebelum complex pertama
+                prefix_parts = list(labels)
+                complex_start_idx = 0
+                for i, s in enumerate(stmts):
+                    if s.type in complex_types:
+                        complex_start_idx = i
+                        break
+                    prefix_parts.append(s)
+                    complex_start_idx = i + 1
+
+                prefix_node = None
+                if prefix_parts:
+                    prefix_text = '\n'.join(c.text.decode('utf8') for c in prefix_parts)
+                    prefix_line_start = prefix_parts[0].start_point[0] + 1
+                    prefix_line_end = prefix_parts[-1].end_point[0] + 1
+
+                    prefix_node = CfgNode(prefix_parts[0])
+                    prefix_node.node_type = NodeType.NORMAL
+                    prefix_node.source_code = prefix_text
+                    prefix_node.line_start = prefix_line_start
+                    prefix_node.line_end = prefix_line_end
+                    self._register_node(prefix_node)
+
+                    branch_type = BranchType.DEFAULT if group_is_default else BranchType.CASE
+                    self.create_edge(cond_node, prefix_node, branch_type)
+
+                    for inc in current_incoming:
+                        self.create_edge(inc.node, prefix_node, inc.branch_type)
+
+                    current_incoming = [ExitNode(prefix_node, BranchType.SEQUENTIAL)]
+
+                # Phase B: Process remaining stmts
+                remaining_stmts = stmts[complex_start_idx:]
+
+                i = 0
+                while i < len(remaining_stmts):
+                    stmt = remaining_stmts[i]
+
+                    if stmt.type in complex_types:
+                        method_name = f'visit_{stmt.type}'
+                        visitor_method = getattr(self, method_name, self.generic_visit)
+                        entry_node, stmt_exits = visitor_method(stmt)
+
+                        if not prefix_node and len(current_incoming) == 0:
+                            bt = BranchType.DEFAULT if group_is_default else BranchType.CASE
+                            self.create_edge(cond_node, entry_node, bt)
+                            for inc_ft in fallthrough_incoming:
+                                self.create_edge(inc_ft.node, entry_node, inc_ft.branch_type)
                         else:
-                            # instruksi dalam case (misal: vokal = true; atau break;)
-                            method_name = f'visit_{child.type}'
-                            visitor_method = getattr(self, method_name, self.generic_visit)
-                            entry_node, stmt_exits = visitor_method(child)
-                            
                             for inc in current_incoming:
                                 self.create_edge(inc.node, entry_node, inc.branch_type)
-                                
-                            next_incoming = []
-                            for ex in stmt_exits:
-                                if ex.branch_type == BranchType.BREAK:
-                                    # Break memotong switch, arahnya keluar ke merge node!
-                                    self.create_edge(ex.node, merge_node, BranchType.SEQUENTIAL)
-                                elif ex.branch_type in [BranchType.RETURN, BranchType.CONTINUE]:
-                                    exit_nodes.append(ex)
-                                else:
-                                    next_incoming.append(ex)
-                                    
-                            current_incoming = next_incoming
-                            if len(current_incoming) == 0:
-                                break
-                                
-                    # Jika case selesai tanpa break, sisa garisnya akan jatuh/fallthrough ke case bawahnya
-                    fallthrough_incoming = current_incoming
-                    
+
+                        next_incoming = []
+                        for ex in stmt_exits:
+                            if ex.branch_type == BranchType.BREAK:
+                                self.create_edge(ex.node, merge_node, BranchType.SEQUENTIAL)
+                            elif ex.branch_type in [BranchType.RETURN, BranchType.CONTINUE]:
+                                exit_nodes.append(ex)
+                            else:
+                                next_incoming.append(ex)
+                        current_incoming = next_incoming
+                        i += 1
+
+                    else:
+                        # Kumpulkan simple stmts berturut-turut
+                        simple_batch = []
+                        while i < len(remaining_stmts) and remaining_stmts[i].type not in complex_types:
+                            simple_batch.append(remaining_stmts[i])
+                            i += 1
+
+                        has_break_in_batch = any(
+                            s.type == AstNodeType.BREAK_STATEMENT.value for s in simple_batch
+                        )
+                        has_return_in_batch = any(
+                            s.type == AstNodeType.RETURN_STATEMENT.value for s in simple_batch
+                        )
+
+                        batch_text = '\n'.join(s.text.decode('utf8') for s in simple_batch)
+                        batch_line_start = simple_batch[0].start_point[0] + 1
+                        batch_line_end = simple_batch[-1].end_point[0] + 1
+
+                        batch_node = CfgNode(simple_batch[0])
+                        batch_node.node_type = NodeType.NORMAL
+                        batch_node.source_code = batch_text
+                        batch_node.line_start = batch_line_start
+                        batch_node.line_end = batch_line_end
+                        self._register_node(batch_node)
+
+                        for inc in current_incoming:
+                            self.create_edge(inc.node, batch_node, inc.branch_type)
+
+                        if has_break_in_batch:
+                            self.create_edge(batch_node, merge_node, BranchType.SEQUENTIAL)
+                            current_incoming = []
+                            break
+                        elif has_return_in_batch:
+                            exit_nodes.append(ExitNode(batch_node, BranchType.RETURN))
+                            current_incoming = []
+                            break
+                        else:
+                            current_incoming = [ExitNode(batch_node, BranchType.SEQUENTIAL)]
+
+                fallthrough_incoming = current_incoming
+
         # Sisa Fallthrough di bagian paling bawah otomatis mengalir ke Merge Node
         for inc in fallthrough_incoming:
             self.create_edge(inc.node, merge_node, inc.branch_type)

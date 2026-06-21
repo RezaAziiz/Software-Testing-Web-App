@@ -36,6 +36,7 @@ class AstNodeType(str, Enum):
     # Statement Percabangan & Perulangan (Decision/Loop)
     IF_STATEMENT = "if_statement"
     WHILE_STATEMENT = "while_statement"
+    DO_STATEMENT = "do_statement"
     FOR_STATEMENT = "for_statement"
     
     # Switch Case

@@ -14,6 +14,8 @@ class NodeFactory:
             AstNodeType.FOR_STATEMENT,
             AstNodeType.SWITCH_STATEMENT,
             AstNodeType.SWITCH_EXPRESSION,
+            AstNodeType.DO_STATEMENT,
+
         ]
         switch_types = [AstNodeType.SWITCH_STATEMENT, AstNodeType.SWITCH_EXPRESSION]
             

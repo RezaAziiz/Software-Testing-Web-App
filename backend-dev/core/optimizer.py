@@ -19,10 +19,10 @@ def optimize_merge_nodes(nodes, edges):
 
         incoming = {n.id_node: [] for n in nodes}
         outgoing = {n.id_node: [] for n in nodes}
+        
         for edge in edges:
-            if edge['branch_type'] == BranchType.SEQUENTIAL:
-                outgoing[edge['id_start_node']].append(edge)
-                incoming[edge['id_finish_node']].append(edge)
+            outgoing[edge['id_start_node']].append(edge)
+            incoming[edge['id_finish_node']].append(edge)
 
         for edge in list(edges):
             if edge['branch_type'] != BranchType.SEQUENTIAL:
@@ -30,6 +30,7 @@ def optimize_merge_nodes(nodes, edges):
 
             start_node = node_map.get(edge['id_start_node'])
             finish_node = node_map.get(edge['id_finish_node'])
+            
             if not start_node or not finish_node:
                 continue
             if start_node.node_type != NodeType.NORMAL or finish_node.node_type != NodeType.NORMAL:

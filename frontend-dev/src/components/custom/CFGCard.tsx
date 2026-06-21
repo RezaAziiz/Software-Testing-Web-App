@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import CytoscapeComponent from "react-cytoscapejs";
 import cytoscape from "cytoscape";
 import dagre from "cytoscape-dagre";
@@ -12,6 +12,15 @@ import {
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import UnexecutedPathsViewer from "./UnexecutedPathsViewer";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogClose,
+} from "@/components/ui/dialog";
+import { Maximize, X } from "lucide-react";
 import "../../index.css";
 
 // Daftarkan plugin dagre ke cytoscape
@@ -83,6 +92,16 @@ const CFGCard: React.FC<CFGCardProps> = ({
     content: string;
   }>({ visible: false, x: 0, y: 0, content: "" });
 
+  // Modal fullscreen state
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const modalCyRef = useRef<cytoscape.Core | null>(null);
+  const [modalTooltip, setModalTooltip] = useState<{
+    visible: boolean;
+    x: number;
+    y: number;
+    content: string;
+  }>({ visible: false, x: 0, y: 0, content: "" });
+
   // Fetch data CFG
   const fetchCFG = async () => {
     // BLOK TEST RESULT PAGE
@@ -95,7 +114,8 @@ const CFGCard: React.FC<CFGCardProps> = ({
           const nodeType: string = n.ms_node_type ?? "NORMAL";
           const upperNodeType = nodeType.toUpperCase();
           const isMerge = upperNodeType === "MERGE";
-          const executionOrder = n.ms_execution_order;
+          const rawOrder = n.ms_execution_order ?? n.execution_order;
+          const executionOrder = (rawOrder !== undefined && rawOrder !== null) ? Number(rawOrder) : null;
 
           const trStatus: string = n.tr_status ?? "N";
           const bgColor = getStatusColor(trStatus, "node");
@@ -150,10 +170,23 @@ const CFGCard: React.FC<CFGCardProps> = ({
               trStatus,
               tooltip: tooltipText,
               bgColor,
+              executionOrder: executionOrder !== null && !isNaN(executionOrder)
+                ? executionOrder
+                : (upperNodeType === "START"
+                  ? 0
+                  : upperNodeType === "END"
+                    ? 9999
+                    : 999),
             },
           };
         },
       );
+
+      cyNodes.sort((a, b) => {
+        const orderA = (a.data as any).executionOrder ?? 999;
+        const orderB = (b.data as any).executionOrder ?? 999;
+        return orderA - orderB;
+      });
 
       const cyEdges: cytoscape.ElementDefinition[] = edgesWithStatus.map(
         (e: any) => {
@@ -244,7 +277,8 @@ const CFGCard: React.FC<CFGCardProps> = ({
           const nodeType: string = n.ms_node_type ?? n.node_type ?? "NORMAL";
           const upperNodeType = nodeType.toUpperCase();
           const isMerge = upperNodeType === "MERGE";
-          const executionOrder = n.ms_execution_order ?? n.execution_order;
+          const rawOrder = n.ms_execution_order ?? n.execution_order;
+          const executionOrder = (rawOrder !== undefined && rawOrder !== null) ? Number(rawOrder) : null;
 
           const bgColor = "#FFFFFF";
           let tooltipText = `Tipe: ${nodeType} \n`;
@@ -288,10 +322,23 @@ const CFGCard: React.FC<CFGCardProps> = ({
               isMerge,
               tooltip: tooltipText,
               bgColor: bgColor,
+              executionOrder: executionOrder !== null && !isNaN(executionOrder)
+                ? executionOrder
+                : (upperNodeType === "START"
+                  ? 0
+                  : upperNodeType === "END"
+                    ? 9999
+                    : 999),
             },
           };
         },
       );
+
+      cyNodes.sort((a, b) => {
+        const orderA = (a.data as any).executionOrder ?? 999;
+        const orderB = (b.data as any).executionOrder ?? 999;
+        return orderA - orderB;
+      });
 
       const cyEdges: cytoscape.ElementDefinition[] = backendEdges.map(
         (e: any) => {
@@ -351,7 +398,8 @@ const CFGCard: React.FC<CFGCardProps> = ({
     fetchCFG();
   }, [modulId, nodesWithStatus, edgesWithStatus]);
 
-  const layout = {
+  // Konfigurasi layout DAGRE
+  const layout = React.useMemo(() => ({
     name: "dagre",
     rankDir: "TB",
     nodeSep: 80,
@@ -362,29 +410,19 @@ const CFGCard: React.FC<CFGCardProps> = ({
     animate: false,
     fit: true,
     padding: 30,
-    // Deterministic edge ordering: TRUE branches go left (lower index)
     sort: (a: any, b: any) => {
-      const edgesA = a.connectedEdges?.() || [];
-      const edgesB = b.connectedEdges?.() || [];
-      const getMinOrder = (edges: any) => {
-        let min = 999;
-        edges.forEach((e: any) => {
-          const bt = (e.data("branchType") || "").toUpperCase();
-          if (bt === "TRUE") min = Math.min(min, 0);
-          else if (bt === "FALSE") min = Math.min(min, 1);
-          else min = Math.min(min, e.data("targetExecutionOrder") || 999);
-        });
-        return min;
-      };
-      return getMinOrder(edgesA) - getMinOrder(edgesB);
+      const orderA = a.data("executionOrder") ?? 999;
+      const orderB = b.data("executionOrder") ?? 999;
+      return orderA - orderB;
     },
-  };
+  }), []);
 
   useEffect(() => {
     if (!cyRef.current || elements.length === 0) return;
     const cy = cyRef.current;
 
     setTimeout(() => {
+      cy.resize();
       const layoutInstance = cy.layout({
         ...layout,
         animate: true,
@@ -393,6 +431,8 @@ const CFGCard: React.FC<CFGCardProps> = ({
         // Unlock all nodes so they can be dragged freely
         cy.nodes().unlock();
         cy.nodes().grabify();
+        cy.fit(undefined, 30);
+        cy.center();
       });
       layoutInstance.run();
     }, 50);
@@ -431,7 +471,65 @@ const CFGCard: React.FC<CFGCardProps> = ({
     cy.on("mouseout", "node", () => {
       setTooltip((t) => ({ ...t, visible: false }));
     });
-  }, [elements]);
+  }, [elements, layout]);
+
+  // Setup modal cytoscape events and layout
+  const setupModalCytoscape = useCallback(
+    (cy: cytoscape.Core) => {
+      modalCyRef.current = cy;
+
+      setTimeout(() => {
+        cy.resize();
+        const layoutInstance = cy.layout({
+          ...layout,
+          animate: true,
+        } as any);
+        layoutInstance.one("layoutstop", () => {
+          cy.nodes().unlock();
+          cy.nodes().grabify();
+          cy.fit(undefined, 30);
+          cy.center();
+        });
+        layoutInstance.run();
+      }, 300); // 300ms untuk menunggu animasi render modal selesai
+
+      cy.off("mouseover", "node");
+      cy.off("mouseout", "node");
+      cy.off("mousemove", "node");
+
+      cy.on("mouseover", "node", (evt) => {
+        const node = evt.target;
+        const container = cy.container();
+        if (!container) return;
+        const renderedPos = node.renderedPosition();
+        setModalTooltip({
+          visible: true,
+          x: renderedPos.x + 30,
+          y: renderedPos.y - 10,
+          content: node.data("tooltip") ?? "",
+        });
+      });
+      cy.on("mousemove", "node", (evt) => {
+        const mCy = modalCyRef.current;
+        if (!mCy) return;
+        const container = mCy.container();
+        if (!container) return;
+        const rect = container.getBoundingClientRect();
+        const originalEvt = evt.originalEvent;
+        if (originalEvt) {
+          setModalTooltip((t) => ({
+            ...t,
+            x: (originalEvt as MouseEvent).clientX - rect.left + 15,
+            y: (originalEvt as MouseEvent).clientY - rect.top - 10,
+          }));
+        }
+      });
+      cy.on("mouseout", "node", () => {
+        setModalTooltip((t) => ({ ...t, visible: false }));
+      });
+    },
+    [layout],
+  );
 
   const stylesheet: cytoscape.StylesheetCSS[] = [
     {
@@ -525,7 +623,39 @@ const CFGCard: React.FC<CFGCardProps> = ({
         <CardContent className="flex flex-col">
           <div className="w-full flex flex-row gap-3">
             <div className="w-1/2 flex flex-col">
-              <p className="text-sm font-medium mb-2">Control Flow Graph</p>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm font-medium">Control Flow Graph</p>
+                {elements.length > 0 && (
+                  <button
+                    id="cfg-expand-btn"
+                    title="Lihat CFG Fullscreen"
+                    onClick={() => setIsModalOpen(true)}
+                    style={{
+                      width: 28,
+                      height: 28,
+                      padding: 0,
+                      background: "#fff",
+                      border: "1px solid #d1d5db",
+                      borderRadius: 6,
+                      fontSize: 14,
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      boxShadow: "0 1px 4px rgba(0,0,0,0.10)",
+                      transition: "background 0.15s",
+                    }}
+                    onMouseEnter={(e) =>
+                      (e.currentTarget.style.background = "#f3f4f6")
+                    }
+                    onMouseLeave={(e) =>
+                      (e.currentTarget.style.background = "#fff")
+                    }
+                  >
+                    <Maximize size={16} color="#4b5563" />
+                  </button>
+                )}
+              </div>
               <div className="text-[11px] text-blue-600 bg-blue-50 px-2 py-1 rounded border border-blue-100 flex items-center gap-1 mb-2">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg>
                 <span>Node dapat digeser dan di-hover untuk melihat detail.</span>
@@ -689,6 +819,132 @@ const CFGCard: React.FC<CFGCardProps> = ({
 
         <CardFooter className="card-footer">{/* footer kosong */}</CardFooter>
       </Card>
+
+      {/* Modal Fullscreen CFG */}
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent
+          className="max-w-[92vw] w-[92vw] h-[88vh] flex flex-col p-0 gap-0 bg-white rounded-xl sm:rounded-xl shadow-2xl overflow-hidden border border-gray-200"
+          style={{ maxHeight: "88vh" }}
+        >
+          <DialogHeader className="px-6 pt-5 pb-3 border-b border-gray-200 flex-shrink-0 flex flex-row items-center justify-between">
+            <div className="flex flex-col space-y-1 text-left">
+              <DialogTitle className="text-base font-semibold text-gray-900">
+                Control Flow Graph — Fullscreen
+              </DialogTitle>
+              <DialogDescription className="text-xs text-gray-500">
+                Node dapat digeser dan di-hover untuk melihat detail.
+              </DialogDescription>
+            </div>
+            <DialogClose className="rounded-lg p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors border border-transparent hover:border-gray-200">
+              <X size={18} color="#4b5563" />
+            </DialogClose>
+          </DialogHeader>
+
+          <div
+            className="relative flex-1 m-4"
+            style={{ minHeight: 0, overflow: "visible" }}
+          >
+            {elements.length > 0 && (
+              <CytoscapeComponent
+                elements={elements}
+                layout={{ name: "preset" }}
+                stylesheet={stylesheet}
+                cy={setupModalCytoscape}
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  background: "#f9fafb",
+                  borderRadius: 8,
+                }}
+                wheelSensitivity={0.5}
+              />
+            )}
+
+            {/* Modal Tooltip */}
+            {modalTooltip.visible && (
+              <div
+                style={{
+                  position: "absolute",
+                  left: modalTooltip.x,
+                  top: modalTooltip.y,
+                  background: "#1e293b",
+                  color: "#f8fafc",
+                  padding: "8px 12px",
+                  borderRadius: 6,
+                  fontSize: 11,
+                  whiteSpace: "pre-wrap",
+                  maxWidth: 320,
+                  maxHeight: 250,
+                  overflowY: "auto",
+                  pointerEvents: "none",
+                  zIndex: 100,
+                  boxShadow: "0 4px 12px rgba(0,0,0,0.25)",
+                  lineHeight: 1.5,
+                }}
+              >
+                {modalTooltip.content}
+              </div>
+            )}
+
+            {/* Modal Zoom Controls */}
+            <div
+              style={{
+                position: "absolute",
+                bottom: 8,
+                right: 8,
+                display: "flex",
+                gap: 4,
+              }}
+            >
+              {[
+                {
+                  label: "+",
+                  title: "Zoom In",
+                  action: () => {
+                    const cy = modalCyRef.current;
+                    if (cy) cy.zoom(cy.zoom() * 1.3);
+                  },
+                },
+                {
+                  label: "-",
+                  title: "Zoom Out",
+                  action: () => {
+                    const cy = modalCyRef.current;
+                    if (cy) cy.zoom(cy.zoom() * 0.75);
+                  },
+                },
+                {
+                  label: "⊞",
+                  title: "Fit",
+                  action: () => modalCyRef.current?.fit(undefined, 20),
+                },
+              ].map(({ label, title, action }) => (
+                <button
+                  key={`modal-${label}`}
+                  title={title}
+                  onClick={action}
+                  style={{
+                    width: 28,
+                    height: 28,
+                    background: "#fff",
+                    border: "1px solid #d1d5db",
+                    borderRadius: 6,
+                    fontSize: 14,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    boxShadow: "0 1px 4px rgba(0,0,0,0.10)",
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
