@@ -23,7 +23,13 @@ else:
     )
 
 # Pool pre_ping memastikan koneksi yang mati akan direstart otomatis
-engine = create_engine(SQLALCHEMY_DATABASE_URL, pool_pre_ping=True)
+engine = create_engine(
+    SQLALCHEMY_DATABASE_URL, 
+    pool_size=100,          
+    max_overflow=50,        
+    pool_timeout=60,        
+    pool_pre_ping=True
+)
 SessionLocal = sessionmaker(autocommit=True, autoflush=True, bind=engine)
 Base = declarative_base()
 conn = engine.connect().execution_options(autocommit=True)
