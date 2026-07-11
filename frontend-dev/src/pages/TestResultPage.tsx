@@ -65,6 +65,7 @@ const TestResultPage = () => {
   const [dataTestResult, setDataTestResult] =
     useState<DataResultTest>(defaultData);
   const [error, setError] = useState<string | null>(null);
+  const [highlightedLines, setHighlightedLines] = useState<{ start: number; end: number } | null>(null);
   const fetchDataTestResult = async () => {
     try {
       const response = await fetch(`${apiUrl}/modul/getResultTest/${modulId}`, {
@@ -138,6 +139,8 @@ const TestResultPage = () => {
             nodesWithStatus={dataTestResult.data_cfg?.nodes}
             edgesWithStatus={dataTestResult.data_cfg?.edges}
             unexecutedPaths={dataTestResult.data_cfg?.unexecutedPaths}
+            onNodeClick={setHighlightedLines}
+            highlightedLines={highlightedLines}
           />
           <TestResultCard dataResultTest={dataTestResult} />
           <div className="flex justify-end space-x-2 items-center p-4">

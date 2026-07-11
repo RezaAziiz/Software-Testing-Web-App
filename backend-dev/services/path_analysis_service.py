@@ -23,11 +23,6 @@ class NodeAdapter:
         except (KeyError, TypeError):
             return NodeType.DECISION  # default fallback
 
-
-# ============================================================================
-# Functions dari independent_paths.py (di-copy langsung ke file ini)
-# ============================================================================
-
 def _path_vector(path, edge_index):
     vector = 0
     for source, target in zip(path, path[1:]):
@@ -127,10 +122,9 @@ def _format_path(path, node_by_id):
 
 def generate_independent_paths(nodes, edges, target_count=None):
     """Generate a practical basis path set from CFG edges using ABPC Algorithm.
-
-    Phase 1: Modify CFG to Strongly Connected Graph (End -> Start)
-    Phase 2: Find Elementary Circuits using Modified Johnson Algorithm (via NetworkX)
-    Phase 3: Path Extraction & Linear Independence Filtering over edge-incidence vectors
+       Modify CFG to Strongly Connected Graph (End -> Start)
+       Find Elementary Circuits using Modified Johnson Algorithm (via NetworkX)
+       Path Extraction & Linear Independence Filtering over edge-incidence vectors
     """
     if not nodes:
         return []

@@ -18,7 +18,7 @@ def on_test_start(environment, **kwargs):
     print("Mempersiapkan JWT Tokens dari Database...")
     query = Student.select().where(Student.c.isactive == 'Y')
     
-    # Gunakan with engine.connect() jika conn global sudah dihapus di config
+    
     students = conn.execute(query).fetchall() 
     
     if not students:
@@ -61,9 +61,6 @@ class LoadTestUser(HttpUser):
         if not self.token:
             raise StopUser()
             
-        # ---------------------------------------------------------
-        # SIMULASI JEDA BERPIKIR (THINK TIME)
-        # ---------------------------------------------------------
         # Mahasiswa butuh waktu acak antara 15 detik sampai 2 menit
         # untuk membaca soal dan bikin test case sebelum klik eksekusi.
         waktu_mikir = random.randint(15, 120) 

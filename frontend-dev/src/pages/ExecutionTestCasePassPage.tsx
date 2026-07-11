@@ -37,10 +37,8 @@ const ExecutionTestCasePassPage: React.FC = () => {
 
   const [showCyclomaticComplexity] = useState(true);
   const [showCodeCoverage] = useState(false);
-  // const [percentageCoverage, setPercentageCoverage] = useState<number>(0);
-  // const [minimumCoverage, setMinimumCoverage] = useState<number>(0);
-  // const [points, setPoints] = useState<number>(0);
   const [codeCoveragePercentage] = useState(0);
+  const [highlightedLines, setHighlightedLines] = useState<{ start: number; end: number } | null>(null);
 
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -160,7 +158,7 @@ const ExecutionTestCasePassPage: React.FC = () => {
             className="w-full md:w-1/2 flex flex-col"
             style={{ maxHeight: "600px" }}
           >
-            <CodeProgramCard />
+            <CodeProgramCard highlightedLines={highlightedLines} />
           </div>
           <div
             className="w-full md:w-1/2 flex flex-col"
@@ -170,6 +168,8 @@ const ExecutionTestCasePassPage: React.FC = () => {
               showCyclomaticComplexity={showCyclomaticComplexity}
               showCodeCoverage={showCodeCoverage}
               codeCoveragePercentage={codeCoveragePercentage}
+              onNodeClick={setHighlightedLines}
+              highlightedLines={highlightedLines}
             />
           </div>
         </div>

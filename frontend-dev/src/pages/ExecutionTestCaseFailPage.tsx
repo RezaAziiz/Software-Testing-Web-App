@@ -19,6 +19,7 @@ const ExecutionTestCaseFailPage: React.FC = () => {
   const [showCyclomaticComplexity] =useState(true);
   const [showCodeCoverage] = useState(false);
   const [codeCoveragePercentage] = useState(0);
+  const [highlightedLines, setHighlightedLines] = useState<{ start: number; end: number } | null>(null);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
@@ -82,13 +83,15 @@ const ExecutionTestCaseFailPage: React.FC = () => {
           {/* Section 2: Kode Program (Kiri) dan Struktur Program (Kanan) */}
           <div className="flex flex-col md:flex-row gap-6 w-full">
             <div className="w-full md:w-1/2 flex flex-col" style={{ maxHeight: "600px" }}>
-              <CodeProgramCard />
+              <CodeProgramCard highlightedLines={highlightedLines} />
             </div>
             <div className="w-full md:w-1/2 flex flex-col" style={{ maxHeight: "600px" }}>
               <CFGCard
                 showCyclomaticComplexity={showCyclomaticComplexity}
                 showCodeCoverage={showCodeCoverage}
                 codeCoveragePercentage={codeCoveragePercentage}
+                onNodeClick={setHighlightedLines}
+                highlightedLines={highlightedLines}
               />
             </div>
           </div>

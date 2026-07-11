@@ -1,3 +1,6 @@
+import logging
+logging.basicConfig(level=logging.INFO, format="%(levelname)s:     %(message)s")
+
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
