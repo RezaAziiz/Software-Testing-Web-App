@@ -357,7 +357,13 @@ class PathAnalysisService:
         # Sort paths numerically by their displayed labels
         def parse_path_for_sorting(path: str):
             try:
-                return [float(x) for x in path.split("→")]
+                nums = []
+                for x in path.split("→"):
+                    try:
+                        nums.append(float(x))
+                    except ValueError:
+                        pass
+                return nums
             except Exception:
                 return [0.0]
 
