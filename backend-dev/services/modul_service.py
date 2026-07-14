@@ -9,6 +9,7 @@ from repositories.modul_repository import ModulRepository
 from services.cfg_service import CFGService
 from infrastructure.file_storage import FileStorageManager
 from infrastructure.gradle_executor import GradleExecutor
+from core.parser import JavaParser
 
 class ModulService:
     def __init__(
@@ -191,6 +192,84 @@ class ModulService:
             if os.path.exists(target_file):
                 os.remove(target_file)
             raise ValueError("Source code memiliki error (Compile Gagal), silakan perbaiki dan upload ulang.")
+
+    def parse_metadata(self, java_code: str) -> dict:
+        """
+        Parses Java source code using JavaParser and extracts class name,
+        method names, return types, and parameter names/types.
+        Raises ValueError if syntax error is found.
+        """
+        parser = JavaParser()
+        tree = parser.parse_source_code(java_code)
+        root = tree.root_node
+
+        # 1. Cek Syntax Error
+        def check_errors(node):
+            if node.type == 'ERROR':
+                return True
+            for child in node.children:
+                if check_errors(child):
+                    return True
+            return False
+
+        if check_errors(root):
+            raise ValueError("Java source code has syntax errors.")
+
+        # 2. Ekstrak Metadata
+        class_name = None
+        methods = []
+
+        def traverse(node):
+            nonlocal class_name
+            if node.type == 'class_declaration':
+                for child in node.children:
+                    if child.type == 'identifier':
+                        class_name = child.text.decode('utf-8')
+                        break
+            elif node.type == 'method_declaration':
+                method_name = None
+                return_type = None
+                params = []
+
+                for child in node.children:
+                    if child.type == 'identifier':
+                        method_name = child.text.decode('utf-8')
+                    elif child.type in ['integral_type', 'type_identifier', 'floating_point_type', 'boolean_type', 'void_type']:
+                        return_type = child.text.decode('utf-8')
+                    elif child.type == 'formal_parameters':
+                        for param_node in child.children:
+                            if param_node.type == 'formal_parameter':
+                                p_type = None
+                                p_name = None
+                                for p_child in param_node.children:
+                                    if p_child.type in ['integral_type', 'type_identifier', 'floating_point_type', 'boolean_type']:
+                                        p_type = p_child.text.decode('utf-8')
+                                    elif p_child.type == 'identifier':
+                                        p_name = p_child.text.decode('utf-8')
+                                if p_type and p_name:
+                                    params.append({
+                                        "param_name": p_name,
+                                        "param_type": p_type
+                                    })
+                if method_name:
+                    methods.append({
+                        "method_name": method_name,
+                        "return_type": return_type or "void",
+                        "parameters": params
+                    })
+
+            for child in node.children:
+                traverse(child)
+
+        traverse(root)
+        
+        if not class_name:
+            raise ValueError("No class declaration found in the source code.")
+
+        return {
+            "class_name": class_name,
+            "methods": methods
+        }
 
     def get_source_code_text(self, id_modul: str) -> str:
         """Mengambil isi file source code menjadi teks"""

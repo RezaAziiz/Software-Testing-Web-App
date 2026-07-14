@@ -288,8 +288,10 @@ const EditTestCaseFormDialog = ({
 
 
   useEffect(() => {
-    fetchParameters();
-    fetchTestCaseData(editingTestId);
+    if (isEditFormDialogOpen && editingTestId && editingTestId !== "0") {
+      fetchParameters();
+      fetchTestCaseData(editingTestId);
+    }
   }, [isEditFormDialogOpen, editingTestId]);
 
 

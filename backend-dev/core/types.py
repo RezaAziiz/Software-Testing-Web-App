@@ -38,6 +38,7 @@ class AstNodeType(str, Enum):
     WHILE_STATEMENT = "while_statement"
     DO_STATEMENT = "do_statement"
     FOR_STATEMENT = "for_statement"
+    LABELED_STATEMENT = "labeled_statement"
     
     # Switch Case
     SWITCH_STATEMENT = "switch_statement"
@@ -49,6 +50,9 @@ class AstNodeType(str, Enum):
     RETURN_STATEMENT = "return_statement"
     BREAK_STATEMENT = "break_statement"
     CONTINUE_STATEMENT = "continue_statement"
+    
+    # Statements
+    EXPRESSION_STATEMENT = "expression_statement"
     
     # Ekspresi
     PARENTHESIZED_EXPRESSION = "parenthesized_expression"
