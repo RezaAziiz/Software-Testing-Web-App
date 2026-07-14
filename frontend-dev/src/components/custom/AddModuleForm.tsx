@@ -57,6 +57,11 @@ const AddModuleForm: React.FC<AddModuleFormProps> = ({ onAddModule, onEditModule
   const [selectedDataType, setSelectedDataType] = useState('');
   const [fileName, setFileName] = useState('');
 
+  const [parsedMetadata, setParsedMetadata] = useState<any>(null);
+  const [parsedMethods, setParsedMethods] = useState<any[]>([]);
+  const [selectedMethodName, setSelectedMethodName] = useState<string>('');
+  const [isSourceCodeUploaded, setIsSourceCodeUploaded] = useState<boolean>(false);
+
 
   // const handleFileChange = (e:any, field:any) => {
   //   field.onChange(e.target.files?.[0]?.name || '')
@@ -79,10 +84,15 @@ const AddModuleForm: React.FC<AddModuleFormProps> = ({ onAddModule, onEditModule
         setFileSourceCode(file);
         setFileErrors([]);
         field.onChange(file.name);
+        parseFileMetadata(file);
       } else {
         setFileSourceCode(null);
         setFileErrors(errors);
         field.onChange('');
+        setIsSourceCodeUploaded(false);
+        setParsedMetadata(null);
+        setParsedMethods([]);
+        setSelectedMethodName('');
       }
     }
   };
@@ -194,6 +204,9 @@ const AddModuleForm: React.FC<AddModuleFormProps> = ({ onAddModule, onEditModule
           }
           setParamRules(tempParamRules);
           setFileName(data.data.data_modul.ms_source_code);
+          if (data.data.data_modul.ms_source_code) {
+            setIsSourceCodeUploaded(true);
+          }
         } catch (error) {
           console.error("Error fetching module name:", error);
         }
@@ -323,6 +336,62 @@ const AddModuleForm: React.FC<AddModuleFormProps> = ({ onAddModule, onEditModule
     control: form.control,
     name: "parameters",
   });
+
+  const autoFillMetadata = (metadata: any, methodName: string) => {
+    if (!metadata) return;
+    form.setValue("className", metadata.class_name);
+    const method = metadata.methods.find((m: any) => m.method_name === methodName);
+    if (!method) return;
+    form.setValue("functionName", method.method_name);
+    form.setValue("returnType", method.return_type);
+    setDefaultValueReturnType(method.return_type);
+    const count = method.parameters.length;
+    form.setValue("paramCount", count);
+    setTimeout(() => {
+      method.parameters.forEach((p: any, idx: number) => {
+        form.setValue(`parameters.${idx}.paramName`, p.param_name);
+        form.setValue(`parameters.${idx}.paramType`, p.param_type);
+      });
+    }, 50);
+  };
+
+  const parseFileMetadata = async (file: File) => {
+    try {
+      const formData = new FormData();
+      formData.append('source_code', file);
+      const response = await fetch(`${apiUrl}/modul/parse-metadata`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: formData,
+      });
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.message || "Gagal memproses file source code");
+      }
+      const resData = await response.json();
+      setParsedMetadata(resData);
+      setParsedMethods(resData.methods || []);
+      setIsSourceCodeUploaded(true);
+      if (resData.methods && resData.methods.length > 0) {
+        const defaultMethod = resData.methods[0].method_name;
+        setSelectedMethodName(defaultMethod);
+        autoFillMetadata(resData, defaultMethod);
+      } else {
+        throw new Error("Tidak ada method/fungsi publik ditemukan dalam source code.");
+      }
+    } catch (err: any) {
+      console.error(err);
+      setFileSourceCode(null);
+      setFileErrors([err.message || "Gagal memproses file source code"]);
+      form.setValue('sourceCode', '');
+      setIsSourceCodeUploaded(false);
+      setParsedMetadata(null);
+      setParsedMethods([]);
+      setSelectedMethodName('');
+    }
+  };
 
   const paramCount = form.watch("paramCount");
 
@@ -471,7 +540,8 @@ const AddModuleForm: React.FC<AddModuleFormProps> = ({ onAddModule, onEditModule
                             <Input
                                 type="number"
                                 {...field}
-                                className="border rounded p-2 w-32 bg-gray-50"
+                                readOnly={isSourceCodeUploaded || editMode}
+                                className={`border rounded p-2 w-32 ${(isSourceCodeUploaded || editMode) ? 'bg-gray-100 cursor-not-allowed' : 'bg-gray-50'}`}
                             />
                             <FormDescription className="text-xs text-gray-500 mt-1">*Jumlah parameter minimal 1</FormDescription>
                             {error && (
@@ -528,7 +598,11 @@ const AddModuleForm: React.FC<AddModuleFormProps> = ({ onAddModule, onEditModule
                       <span className="text-red-500">*</span>
                     </FormLabel>
                     <FormControl>
-                      <Input {...field} className="border rounded p-2 w-full bg-white" />
+                      <Input 
+                        {...field} 
+                        readOnly={isSourceCodeUploaded || editMode}
+                        className={`border rounded p-2 w-full ${(isSourceCodeUploaded || editMode) ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'}`} 
+                      />
                     </FormControl>
                     {error && (
                       <p className="text-red-600 text-sm mt-1">
@@ -549,18 +623,26 @@ const AddModuleForm: React.FC<AddModuleFormProps> = ({ onAddModule, onEditModule
                       <span className="text-red-500">*</span>
                     </FormLabel>
                     <FormControl>
-                      <Select onValueChange={(e) => handleDataTypeChange(e, index)} defaultValue={field.value}>
-                        <SelectTrigger className="w-full bg-white">
-                          <SelectValue placeholder="Pilih" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-white">
-                          <SelectGroup>
-                            {comboDataType.map((dataCombo) => (
-                              <SelectItem value={dataCombo.value}>{dataCombo.label}</SelectItem>
-                            ))}
-                          </SelectGroup>
-                        </SelectContent>
-                      </Select>
+                      {isSourceCodeUploaded || editMode ? (
+                        <Input 
+                          readOnly 
+                          value={field.value} 
+                          className="border rounded p-2 w-full bg-gray-100 cursor-not-allowed" 
+                        />
+                      ) : (
+                        <Select onValueChange={(e) => handleDataTypeChange(e, index)} defaultValue={field.value}>
+                          <SelectTrigger className="w-full bg-white">
+                            <SelectValue placeholder="Pilih" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-white">
+                            <SelectGroup>
+                              {comboDataType.map((dataCombo) => (
+                                <SelectItem key={dataCombo.value} value={dataCombo.value}>{dataCombo.label}</SelectItem>
+                              ))}
+                            </SelectGroup>
+                          </SelectContent>
+                        </Select>
+                      )}
                     </FormControl>
                     {error && (
                       <p className="text-red-600 text-sm mt-1">
@@ -683,18 +765,26 @@ const AddModuleForm: React.FC<AddModuleFormProps> = ({ onAddModule, onEditModule
                     :
                  </FormLabel>
                 <FormControl className="w-auto flex-1">
-                    <Select onValueChange={(e) => handlingReturnTypeChange(e)} defaultValue={field.value} value={defaultValueReturnType}>
-                    <SelectTrigger className="w-32 bg-gray-50"> 
-                        <SelectValue placeholder="Pilih" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-white">
-                        <SelectGroup>
-                        {comboDataType.map((dataCombo) => (
-                          <SelectItem key={dataCombo.value} value={dataCombo.value}>{dataCombo.label}</SelectItem>
-                        ))}
-                        </SelectGroup>
-                    </SelectContent>
-                    </Select>
+                    {isSourceCodeUploaded || editMode ? (
+                      <Input 
+                        readOnly 
+                        value={field.value || defaultValueReturnType} 
+                        className="border rounded p-2 w-32 bg-gray-100 cursor-not-allowed" 
+                      />
+                    ) : (
+                      <Select onValueChange={(e) => handlingReturnTypeChange(e)} defaultValue={field.value} value={defaultValueReturnType}>
+                      <SelectTrigger className="w-32 bg-gray-50"> 
+                          <SelectValue placeholder="Pilih" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-white">
+                          <SelectGroup>
+                          {comboDataType.map((dataCombo) => (
+                            <SelectItem key={dataCombo.value} value={dataCombo.value}>{dataCombo.label}</SelectItem>
+                          ))}
+                          </SelectGroup>
+                      </SelectContent>
+                      </Select>
+                    )}
                 </FormControl>
                 </div>
                 {error && (
@@ -806,7 +896,11 @@ const AddModuleForm: React.FC<AddModuleFormProps> = ({ onAddModule, onEditModule
                  </FormLabel>
                 <FormControl className="flex-1">
                     <div>
-                        <Input {...field} className="border rounded p-2 w-full bg-gray-50" />
+                        <Input 
+                          {...field} 
+                          readOnly={isSourceCodeUploaded || editMode}
+                          className={`border rounded p-2 w-full ${(isSourceCodeUploaded || editMode) ? 'bg-gray-100 cursor-not-allowed' : 'bg-gray-50'}`} 
+                        />
                         <FormDescription className="text-xs text-gray-500 mt-1">*Nama Class harus sama dengan yang ada pada source code & mengikuti standar coding convention</FormDescription>
                         {error && (
                           <p className="text-red-600 text-sm mt-1">
@@ -839,8 +933,39 @@ const AddModuleForm: React.FC<AddModuleFormProps> = ({ onAddModule, onEditModule
                  </FormLabel>
                 <FormControl className="flex-1">
                     <div>
-                        <Input {...field} className="border rounded p-2 w-full bg-gray-50" />
-                        <FormDescription className="text-xs text-gray-500 mt-1">*Nama Fungsi harus sama dengan yang ada pada source code & mengikuti standar coding convention</FormDescription>
+                        {parsedMethods.length > 0 ? (
+                            <Select 
+                              onValueChange={(val) => {
+                                field.onChange(val);
+                                setSelectedMethodName(val);
+                                autoFillMetadata(parsedMetadata, val);
+                              }} 
+                              value={field.value || selectedMethodName}
+                            >
+                              <SelectTrigger className="w-full bg-white border border-blue-500">
+                                <SelectValue placeholder="Pilih Fungsi/Method" />
+                              </SelectTrigger>
+                              <SelectContent className="bg-white">
+                                <SelectGroup>
+                                  {parsedMethods.map((m: any) => (
+                                    <SelectItem key={m.method_name} value={m.method_name}>{m.method_name}</SelectItem>
+                                  ))}
+                                </SelectGroup>
+                              </SelectContent>
+                            </Select>
+                        ) : (
+                            <Input 
+                              {...field} 
+                              readOnly={isSourceCodeUploaded || editMode}
+                              className={`border rounded p-2 w-full ${(isSourceCodeUploaded || editMode) ? 'bg-gray-100 cursor-not-allowed' : 'bg-gray-50'}`} 
+                            />
+                        )}
+                        <FormDescription className="text-xs text-gray-500 mt-1">
+                          {parsedMethods.length > 0 
+                            ? "*Pilih method dari source code yang akan dijadikan objek pengujian"
+                            : "*Nama Fungsi harus sama dengan yang ada pada source code & mengikuti standar coding convention"
+                          }
+                        </FormDescription>
                         {error && (
                           <p className="text-red-600 text-sm mt-1">
                               {error.message}

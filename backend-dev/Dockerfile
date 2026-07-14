@@ -33,6 +33,9 @@ RUN java -version && echo "JAVA_HOME is set to $JAVA_HOME"
 # Make gradlew executable
 RUN chmod +x jacoco-engine/gradlew || true
 
+# Pre-download and cache Gradle wrapper and dependencies (Solusi 1)
+RUN cd jacoco-engine && ./gradlew test --no-daemon
+
 # Cloud Run uses PORT env var
 ENV PORT=8080
 EXPOSE 8080

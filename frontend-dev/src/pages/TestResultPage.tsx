@@ -141,6 +141,11 @@ const TestResultPage = () => {
             unexecutedPaths={dataTestResult.data_cfg?.unexecutedPaths}
             onNodeClick={setHighlightedLines}
             highlightedLines={highlightedLines}
+            jacocoUrl={
+              dataTestResult.linkSourceCoverage
+                ? `${apiUrl}/${dataTestResult.linkSourceCoverage}`
+                : null
+            }
           />
           <TestResultCard dataResultTest={dataTestResult} />
           <div className="flex justify-end space-x-2 items-center p-4">

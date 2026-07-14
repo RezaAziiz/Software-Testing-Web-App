@@ -191,6 +191,26 @@ async def upload_source_code(
         response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
         return {"message": "Error saat Upload Data", "error": str(e)}
 
+@modul.post("/modul/parse-metadata")
+async def parse_metadata(
+    source_code: UploadFile,
+    response: Response,
+    current_user: dict = Depends(get_current_user),
+    modul_service: ModulService = Depends(get_modul_service)
+):
+    try:
+        content = await source_code.read()
+        java_code = content.decode('utf-8')
+        result = modul_service.parse_metadata(java_code)
+        return result
+    except ValueError as e:
+        response.status_code = status.HTTP_400_BAD_REQUEST
+        return {"message": str(e)}
+    except Exception as e:
+        logger.error(f"Error parsing metadata: {str(e)}")
+        response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+        return {"message": f"Terjadi kesalahan saat memproses file: {str(e)}"}
+
 @modul.get('/modul/cfg/{id_modul}', dependencies=[Depends(JWTBearer())])
 async def get_modul_cfg(
     id_modul: str, 
