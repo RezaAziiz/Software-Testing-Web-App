@@ -350,6 +350,7 @@ class CFGGeneratorVisitor:
             return cond_node, [ExitNode(merge_node, BranchType.SEQUENTIAL)]
 
         # Ambil semua group (kumpulan case/default blocks)
+        # Ambil semua group (kumpulan case/default blocks)
         raw_groups = [
             g for g in body_ast.children
             if g.type == AstNodeType.SWITCH_BLOCK_GROUP
@@ -371,12 +372,27 @@ class CFGGeneratorVisitor:
             current_incoming = list(fallthrough_incoming)
             fallthrough_incoming = []
 
-            # Tarik garis (edge) dari switch condition ke statement pertama group ini (untuk setiap case)
-            for label in labels:
-                bt = BranchType.DEFAULT if 'default' in label.text.decode('utf8') else BranchType.CASE
-                current_incoming.append(ExitNode(cond_node, bt))
+            if len(labels) > 0:
+                # Gabungkan teks case (berguna jika ada case bertumpuk / fall-through)
+                label_text = '\n'.join(l.text.decode('utf8') for l in labels)
+                label_node = CfgNode(labels[0])
+                label_node.node_type = NodeType.NORMAL
+                label_node.source_code = label_text
+                label_node.line_start = labels[0].start_point[0] + 1
+                label_node.line_end = labels[-1].end_point[0] + 1
+                self._register_node(label_node)
 
-            # PROSES STATEMENT SATU PER SATU (PENTING: Memisahkan operasi per baris agar presisi)
+                # Tarik panah dari Kondisi Switch ke Node Label ini
+                for label in labels:
+                    bt = BranchType.DEFAULT if 'default' in label.text.decode('utf8') else BranchType.CASE
+                    self.create_edge(cond_node, label_node, bt)
+
+                # Tarik panah Fall-through dari case di atasnya (jika ada) ke Node Label ini
+                for inc in current_incoming:
+                    self.create_edge(inc.node, label_node, inc.branch_type)
+
+                # Node Label kini bersiap menyambung ke Statement pertama
+                current_incoming = [ExitNode(label_node, BranchType.SEQUENTIAL)]
             for stmt in stmts:
                 method_name = f'visit_{stmt.type}'
                 visitor_method = getattr(self, method_name, self.generic_visit)
@@ -397,10 +413,10 @@ class CFGGeneratorVisitor:
                             # Break normal (milik switch) -> belokkan ke merge node di akhir switch
                             self.create_edge(ex.node, merge_node, BranchType.SEQUENTIAL)
                         else:
-                            # Break berlabel (misal: break MAIN_FOR;) -> lemparkan (bubble up) ke luar switch!
+                            # Break berlabel -> lemparkan (bubble up) ke luar switch!
                             switch_jump_exits.append(ex)
                     elif ex.branch_type in [BranchType.RETURN, BranchType.CONTINUE]:
-                        # Return dan Continue (berlabel maupun tidak) -> selalu lemparkan keluar dari area switch!
+                        # Return dan Continue -> selalu lemparkan keluar dari area switch!
                         switch_jump_exits.append(ex)
                     else:
                         # Operasi normal berurutan -> jadikan incoming untuk statement berikutnya

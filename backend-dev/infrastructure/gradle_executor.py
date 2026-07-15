@@ -14,20 +14,24 @@ class GradleExecutor:
         """
         Menjalankan Gradle Test pada path tertentu.
         Return True jika BUILD SUCCESSFUL, False jika gagal.
+        
+        Optimasi performa:
+        - --daemon    : Reuse JVM yang sudah berjalan (skip cold start ~3-5 detik)
+        - --build-cache: Cache hasil kompilasi (skip re-compile jika source tidak berubah)
+        - -q          : Quiet mode, kurangi output logging Gradle (sedikit lebih cepat I/O)
         """
         try:
-            # Gunakan stderr=subprocess.STDOUT agar error gradle tetap tertangkap di output_string
             gradle_cmd = self.gradle_command
-            # if not gradle_cmd.startswith("./") and not os.path.isabs(gradle_cmd):
-            #     gradle_cmd = f"./{gradle_cmd}"
 
-            command = f"cd {workspace_path} && {gradle_cmd} test"
+            command = f"cd {workspace_path} && {gradle_cmd} test --daemon --build-cache -q"
             output = subprocess.check_output(command, shell=True, stderr=subprocess.STDOUT)
             output_string = output.decode("utf-8")
             
             if "BUILD SUCCESSFUL" in output_string:
                 return True
-            return False
+            # Quiet mode mungkin tidak mencetak "BUILD SUCCESSFUL",
+            # tapi jika exit code 0 (tidak exception), build berhasil
+            return True
             
         except subprocess.CalledProcessError as e:
             # Test ada yang failed, code tidak error tapi assert ada yang salah
@@ -37,4 +41,4 @@ class GradleExecutor:
             
         except Exception as e:
             logger.error(f"Unexpected error executing Gradle in {workspace_path}: {str(e)}")
-            raise
+            raise
