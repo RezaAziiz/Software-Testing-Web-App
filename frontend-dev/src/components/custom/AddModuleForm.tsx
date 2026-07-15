@@ -20,6 +20,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useNavigate } from "react-router-dom";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { UploadCloud, FileCode, AlertTriangle, Loader2 } from "lucide-react";
 
 interface AddModuleFormProps {
   onAddModule: (module: any, mode: string, fileSourceCode:any) => void;
@@ -61,6 +69,10 @@ const AddModuleForm: React.FC<AddModuleFormProps> = ({ onAddModule, onEditModule
   const [parsedMethods, setParsedMethods] = useState<any[]>([]);
   const [selectedMethodName, setSelectedMethodName] = useState<string>('');
   const [isSourceCodeUploaded, setIsSourceCodeUploaded] = useState<boolean>(false);
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
+  const [modalLoading, setModalLoading] = useState(false);
+  const [modalError, setModalError] = useState<string | null>(null);
 
 
   // const handleFileChange = (e:any, field:any) => {
@@ -70,30 +82,31 @@ const AddModuleForm: React.FC<AddModuleFormProps> = ({ onAddModule, onEditModule
   //   }
   // };
 
-  const handleFileChange = (e: any, field: any) => {
-    const file = e.target.files?.[0];
-    let errors = [];
-    if (file) {
-      if (file.size > 2097152) {
-        errors.push("Ukuran maksimal file adalah 2 MB!");
-      }
-      if (!file.name.endsWith('.java')) {
-        errors.push("File Source Code tidak sesuai");
-      }
-      if (errors.length === 0) {
-        setFileSourceCode(file);
-        setFileErrors([]);
-        field.onChange(file.name);
-        parseFileMetadata(file);
-      } else {
-        setFileSourceCode(null);
-        setFileErrors(errors);
-        field.onChange('');
-        setIsSourceCodeUploaded(false);
-        setParsedMetadata(null);
-        setParsedMethods([]);
-        setSelectedMethodName('');
-      }
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      const file = e.dataTransfer.files[0];
+      await parseFileMetadata(file);
+    }
+  };
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      await parseFileMetadata(file);
     }
   };
 
@@ -356,6 +369,9 @@ const AddModuleForm: React.FC<AddModuleFormProps> = ({ onAddModule, onEditModule
   };
 
   const parseFileMetadata = async (file: File) => {
+    setModalLoading(true);
+    setModalError(null);
+    setFileErrors([]);
     try {
       const formData = new FormData();
       formData.append('source_code', file);
@@ -374,10 +390,39 @@ const AddModuleForm: React.FC<AddModuleFormProps> = ({ onAddModule, onEditModule
       setParsedMetadata(resData);
       setParsedMethods(resData.methods || []);
       setIsSourceCodeUploaded(true);
+      setFileSourceCode(file as any);
+      setFileName(file.name);
+      
       if (resData.methods && resData.methods.length > 0) {
         const defaultMethod = resData.methods[0].method_name;
         setSelectedMethodName(defaultMethod);
-        autoFillMetadata(resData, defaultMethod);
+        
+        // Auto fill form
+        form.setValue("className", resData.class_name);
+        const method = resData.methods.find((m: any) => m.method_name === defaultMethod) || resData.methods[0];
+        form.setValue("functionName", method.method_name);
+        form.setValue("returnType", method.return_type);
+        setDefaultValueReturnType(method.return_type);
+        const count = method.parameters.length;
+        form.setValue("paramCount", count);
+        
+        // Auto-fill extracted description!
+        if (resData.description) {
+          form.setValue("moduleDescription", resData.description);
+        }
+        
+        setTimeout(() => {
+          method.parameters.forEach((p: any, idx: number) => {
+            form.setValue(`parameters.${idx}.paramName`, p.param_name);
+            form.setValue(`parameters.${idx}.paramType`, p.param_type);
+          });
+        }, 50);
+        
+        // Set form value for react-hook-form validation
+        form.setValue("sourceCode", file.name, { shouldValidate: true });
+        
+        // Close modal on success!
+        setIsUploadModalOpen(false);
       } else {
         throw new Error("Tidak ada method/fungsi publik ditemukan dalam source code.");
       }
@@ -390,6 +435,9 @@ const AddModuleForm: React.FC<AddModuleFormProps> = ({ onAddModule, onEditModule
       setParsedMetadata(null);
       setParsedMethods([]);
       setSelectedMethodName('');
+      setModalError(err.message || "Gagal memproses file source code");
+    } finally {
+      setModalLoading(false);
     }
   };
 
@@ -421,6 +469,13 @@ const AddModuleForm: React.FC<AddModuleFormProps> = ({ onAddModule, onEditModule
       fetchDataModule()
     }
   },[idModul]);
+
+  // Auto open upload modal in Create Mode if no source code is uploaded yet
+  useEffect(() => {
+    if (!editMode && !isSourceCodeUploaded) {
+      setIsUploadModalOpen(true);
+    }
+  }, [editMode, isSourceCodeUploaded]);
   const onSubmit = (data: any) => {
     let mode = "add";
     if (idModul != "0"){  
@@ -804,25 +859,55 @@ const AddModuleForm: React.FC<AddModuleFormProps> = ({ onAddModule, onEditModule
             render={({ field, fieldState:{error} }) => (
                 <FormItem>
                 <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
-                <FormLabel className="w-full sm:w-1/3">
+                <FormLabel className="w-full sm:w-1/3 flex items-center gap-1">
                     Source Code
                     {!editMode && (<span className="text-red-500">*</span>)}
                     :
                  </FormLabel>
                 <FormControl className="flex-1">
                     <div>
-                        <Input
-                            type="file"
-                            onChange={(e) => handleFileChange(e, field)}
-                            className="border rounded p-2 w-full bg-gray-50"
-                        />
-                        {fileName && (
-                          <FormLabel className="w-1/3">
-                              {fileName}
-                          </FormLabel>
+                        {isSourceCodeUploaded && fileName ? (
+                          <div className="flex flex-wrap items-center gap-3 p-3 bg-blue-50/50 border border-blue-200 rounded-xl max-w-md">
+                            <div className="p-2 rounded-lg bg-blue-100 text-blue-600">
+                              <FileCode className="h-5 w-5" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold text-gray-800 truncate">{fileName}</p>
+                              <p className="text-xs text-green-600 flex items-center gap-1 mt-0.5">
+                                <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                                Teranalisis & Siap
+                              </p>
+                            </div>
+                            <Button 
+                              type="button" 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => {
+                                setModalError(null);
+                                setModalLoading(false);
+                                setIsUploadModalOpen(true);
+                              }}
+                              className="rounded-lg text-xs h-8"
+                            >
+                              Ganti File
+                            </Button>
+                          </div>
+                        ) : (
+                          <Button 
+                            type="button" 
+                            onClick={() => {
+                              setModalError(null);
+                              setModalLoading(false);
+                              setIsUploadModalOpen(true);
+                            }}
+                            className="bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-semibold px-4 py-2 flex items-center gap-2"
+                          >
+                            <UploadCloud className="h-4 w-4" />
+                            Unggah Source Code
+                          </Button>
                         )}
                         
-                        <FormDescription className="text-xs text-gray-500 mt-1">File harus berekstensi .java dan memiliki ukuran maksimal 2MB</FormDescription>
+                        <input type="hidden" name={field.name} value={fileName} />
                     </div>
                 </FormControl>
                 </div>
@@ -985,6 +1070,95 @@ const AddModuleForm: React.FC<AddModuleFormProps> = ({ onAddModule, onEditModule
             <Button type="submit" className="bg-blue-50 text-blue-700 border-2 border-blue-700 py-2 px-4 rounded-full hover:bg-blue-700 hover:text-white">Simpan</Button>
         </div>
       </form>
+
+      {/* Upload Source Code Modal overlay */}
+      <Dialog open={isUploadModalOpen} onOpenChange={(open) => {
+        if (modalLoading) return;
+        setIsUploadModalOpen(open);
+        if (!open) {
+          setModalError(null);
+        }
+      }}>
+        <DialogContent className="sm:max-w-[500px] bg-white border border-gray-200 shadow-2xl rounded-xl p-6">
+          <DialogHeader className="space-y-1">
+            <DialogTitle className="text-xl font-bold text-gray-900 flex items-center gap-2">
+              <FileCode className="h-6 w-6 text-blue-600" />
+              Unggah Source Code Program
+            </DialogTitle>
+            <DialogDescription className="text-sm text-gray-500">
+              Unggah file Java (`.java`) untuk menganalisis class, fungsi, parameter, return type, dan deskripsi secara otomatis.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="mt-4 space-y-4">
+            <div
+              onDragEnter={handleDrag}
+              onDragOver={handleDrag}
+              onDragLeave={handleDrag}
+              onDrop={handleDrop}
+              onClick={() => document.getElementById("file-upload-input")?.click()}
+              className={`border-2 border-dashed rounded-xl p-8 flex flex-col items-center justify-center gap-4 cursor-pointer transition-all duration-200 min-h-[220px] ${
+                dragActive
+                  ? "border-blue-500 bg-blue-50/50 scale-[0.99]"
+                  : "border-gray-300 hover:border-blue-400 hover:bg-gray-50/50"
+              }`}
+            >
+              <input
+                id="file-upload-input"
+                type="file"
+                className="hidden"
+                accept=".java"
+                onChange={handleFileSelect}
+                disabled={modalLoading}
+              />
+              
+              {modalLoading ? (
+                <div className="flex flex-col items-center gap-2">
+                  <Loader2 className="h-12 w-12 text-blue-600 animate-spin" />
+                  <p className="text-sm font-semibold text-gray-700 mt-2">Menganalisis file source code...</p>
+                  <p className="text-xs text-gray-400">Menjalankan parser dan validasi Gradle</p>
+                </div>
+              ) : (
+                <>
+                  <div className="p-4 rounded-full bg-blue-50 text-blue-600">
+                    <UploadCloud className="h-10 w-10" />
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm font-semibold text-gray-800">
+                      Tarik & lepas file Java di sini, atau klik untuk memilih
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Hanya mendukung file .java dengan ukuran maksimal 2MB
+                    </p>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {modalError && (
+              <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
+                <AlertTriangle className="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <p className="font-semibold text-red-800">Gagal Memproses File</p>
+                  <p className="text-xs mt-1 text-red-700/90 leading-relaxed">{modalError}</p>
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-end gap-3 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsUploadModalOpen(false)}
+                disabled={modalLoading}
+                className="rounded-full"
+              >
+                Batal
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Form>
   );
 };

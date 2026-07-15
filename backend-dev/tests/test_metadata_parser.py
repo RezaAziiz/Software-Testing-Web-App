@@ -85,3 +85,37 @@ class TestModulServiceMetadataParser:
             self.service.parse_metadata(java_code)
         
         assert "Java source code has syntax errors" in str(exc_info.value)
+
+    def test_parse_metadata_description_extraction(self):
+        java_code = """
+        /* Program: isVokal
+         * Deskripsi: Memeriksa apakah suatu karakter merupakan huruf vokal atau bukan
+         * Nama: Muhammad Saiful Islam/141524020
+         * Tanggal/versi: 24 Oktober 2014/v.0
+         */
+        public class IsVokal {
+            public boolean isVokal(char huruf) {
+                return true;
+            }
+        }
+        """
+        result = self.service.parse_metadata(java_code)
+        assert result["class_name"] == "IsVokal"
+        assert result["description"] == "Memeriksa apakah suatu karakter merupakan huruf vokal atau bukan"
+
+    def test_parse_metadata_multiline_description_extraction(self):
+        java_code = """
+        /**
+         * Deskripsi :
+         * Melakukan analisis terhadap kombinasi lima buah perulangan bersarang
+         * berdasarkan nilai parameter limit. Parameter limit menentukan jumlah
+         * iterasi pada setiap tingkat perulangan.
+         * Nama: Muhammad Saiful Islam/141524020
+         */
+        public class NestedLoop {
+            public void analyze(int limit) {}
+        }
+        """
+        result = self.service.parse_metadata(java_code)
+        assert result["class_name"] == "NestedLoop"
+        assert result["description"] == "Melakukan analisis terhadap kombinasi lima buah perulangan bersarang berdasarkan nilai parameter limit. Parameter limit menentukan jumlah iterasi pada setiap tingkat perulangan."

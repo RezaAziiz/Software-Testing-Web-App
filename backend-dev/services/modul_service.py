@@ -203,7 +203,7 @@ class ModulService:
         tree = parser.parse_source_code(java_code)
         root = tree.root_node
 
-        # 1. Cek Syntax Error
+        #  Cek Syntax Error
         def check_errors(node):
             if node.type == 'ERROR':
                 return True
@@ -215,7 +215,7 @@ class ModulService:
         if check_errors(root):
             raise ValueError("Java source code has syntax errors.")
 
-        # 2. Ekstrak Metadata
+        # Ekstrak Metadata
         class_name = None
         methods = []
 
@@ -266,9 +266,50 @@ class ModulService:
         if not class_name:
             raise ValueError("No class declaration found in the source code.")
 
+        # Ekstrak Deskripsi dari Komentar
+        import re
+        description = ""
+        comments = re.findall(r'/\*([\s\S]*?)\*/', java_code)
+        stop_labels = {'nama', 'tanggal', 'versi', 'program', 'author', 'nim', 'kelas', 'dibuat'}
+        for comment in comments:
+            lines = comment.split('\n')
+            desc_lines = []
+            started = False
+            for line in lines:
+                line_stripped = line.strip()
+                if line_stripped.startswith('*'):
+                    line_stripped = line_stripped[1:].strip()
+                
+                if not started:
+                    match = re.match(r'^deskripsi\s*:(.*)$', line_stripped, re.IGNORECASE)
+                    if match:
+                        started = True
+                        content = match.group(1).strip()
+                        if content:
+                            desc_lines.append(content)
+                else:
+                    match_label = re.match(r'^([A-Za-z_]+)\s*:(.*)$', line_stripped)
+                    if match_label:
+                        label_name = match_label.group(1).lower()
+                        if label_name in stop_labels:
+                            break
+                    
+                    if '*/' in line_stripped:
+                        content = line_stripped.split('*/')[0].strip()
+                        if content:
+                            desc_lines.append(content)
+                        break
+                    
+                    desc_lines.append(line_stripped)
+            
+            if started:
+                description = " ".join([l for l in desc_lines if l])
+                break
+
         return {
             "class_name": class_name,
-            "methods": methods
+            "methods": methods,
+            "description": description
         }
 
     def get_source_code_text(self, id_modul: str) -> str:

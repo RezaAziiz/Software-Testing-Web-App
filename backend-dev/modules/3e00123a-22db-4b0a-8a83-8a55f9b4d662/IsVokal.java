@@ -4,10 +4,12 @@
  * Tanggal/versi: 24 Oktober 2014/v.0
  */
 
- public class IsVokal {
-    public boolean isVokal(char huruf) {
-        boolean vokal = false;
 
+public class IsVokal {
+
+    public boolean isVokal(char huruf) {
+
+        boolean vokal = false;
         switch (huruf) {
             case 'a':
                 vokal = true;
