@@ -1,6 +1,10 @@
 import React, { useMemo } from "react";
 import CytoscapeComponent from "react-cytoscapejs";
 import cytoscape from "cytoscape";
+import dagre from "cytoscape-dagre";
+
+// Register dagre layout extension
+cytoscape.use(dagre);
 
 type CfgCytoscapeViewportProps = {
   elements: cytoscape.ElementDefinition[];
@@ -17,7 +21,17 @@ export const CfgCytoscapeViewport: React.FC<CfgCytoscapeViewportProps> = ({
   style = { width: "100%", height: "100%" },
   zoomControlSuffix = "inline",
 }) => {
-  const presetLayout = useMemo(() => ({ name: "preset" }), []);
+  const dagreLayout = useMemo(() => ({
+    name: "dagre",
+    rankDir: "TB",               // Aliran dari atas ke bawah
+    ranker: "network-simplex",   // Algoritma terbaik untuk meminimalkan edge crossing
+    nodeSep: 70,                 // Pemisahan horizontal antar node di tingkat yang sama
+    rankSep: 90,                 // Pemisahan vertikal antar tingkatan
+    edgeSep: 30,                 // Pemisahan antar edge paralel
+    animate: false,
+    fit: true,
+    padding: 40,
+  }), []);
 
   const stylesheet: cytoscape.StylesheetCSS[] = useMemo(() => [
     {
@@ -62,6 +76,7 @@ export const CfgCytoscapeViewport: React.FC<CfgCytoscapeViewportProps> = ({
         "background-color": "#DBEAFE",
       },
     },
+    // ── Edge default: LURUS (Sequence, True, False, Case, dll.) ──
     {
       selector: "edge",
       css: {
@@ -70,15 +85,24 @@ export const CfgCytoscapeViewport: React.FC<CfgCytoscapeViewportProps> = ({
         "target-arrow-color": "data(lineColor)",
         "target-arrow-shape": "triangle",
         "curve-style": "bezier",
-        "control-point-step-size": 60,
         label: "data(label)",
-        "font-size": "16px",
+        "font-size": "14px",
         "font-weight": "bold",
-        "text-background-color": "#f9fafb",
+        "text-background-color": "#fafbfc",
         "text-background-opacity": 1,
         "text-background-padding": "3px",
         "edge-text-rotation": "autorotate",
         color: "data(lineColor)",
+      } as any,
+    },
+    // ── Edge LENGKUNG: Back Edge, Break jauh, Return jauh ──
+    {
+      selector: "edge[?isCurved]",
+      css: {
+        "curve-style": "unbundled-bezier",
+        "control-point-distances": "data(curveDistance)",
+        "control-point-weights": 0.5,
+        "edge-text-rotation": "none",
       } as any,
     },
   ], []);
@@ -87,7 +111,7 @@ export const CfgCytoscapeViewport: React.FC<CfgCytoscapeViewportProps> = ({
     <div style={{ position: "relative", width: "100%", height: "100%", ...style }}>
       <CytoscapeComponent
         elements={elements}
-        layout={presetLayout}
+        layout={dagreLayout}
         stylesheet={stylesheet}
         cy={(cy) => {
           cyRef.current = cy;

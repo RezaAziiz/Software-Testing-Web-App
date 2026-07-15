@@ -21,6 +21,56 @@ import { CfgTooltipContent } from "./cfg/CfgTooltipContent";
 // Register dagre plugin to cytoscape
 cytoscape.use(dagre as any);
 
+/**
+ * Menghitung jarak kelengkungan (curveDistance) untuk edge CFG.
+ *
+ * Aturan:
+ * - Sequence / True / False ke node berdekatan  → LURUS (0)
+ * - Back Edge (loop condition)                   → LENGKUNG negatif (ke kiri)
+ * - Continue (kembali ke kondisi loop)            → LENGKUNG negatif
+ * - Break yang melompati beberapa node            → LENGKUNG positif (ke kanan)
+ * - Return yang menuju End jauh                   → LENGKUNG positif
+ * - Labeled Break / Labeled Continue              → LENGKUNG (selalu)
+ * - CASE / DEFAULT ke node berdekatan             → LURUS
+ */
+const computeCurveDistance = (
+  branchType: string,
+  sourceOrder: number,
+  targetOrder: number,
+): number => {
+  const upper = branchType.toUpperCase();
+  const diff = Math.abs(sourceOrder - targetOrder);
+  const isBackward = targetOrder <= sourceOrder;
+
+  // ── 1. Back Edge (kembali ke atas) → SELALU lengkung ke kiri ──
+  if (isBackward && diff > 0) {
+    return -(40 + Math.min(diff * 12, 100));
+  }
+
+  // ── 2. Forward edges ──
+
+  // BREAK → lengkung ke kanan jika melompati ≥2 node
+  if (upper === "BREAK" && diff > 2) {
+    return 35 + Math.min(diff * 8, 80);
+  }
+
+  // RETURN → lengkung ke kanan jika menuju End yang jauh (≥3 node)
+  if (upper === "RETURN" && diff >= 3) {
+    return 35 + Math.min(diff * 8, 80);
+  }
+
+  // CONTINUE ke depan (labeled continue yang di-resolve ke forward)
+  // Biasanya continue adalah back-edge, tapi jika optimizer membuatnya maju
+  // dan jaraknya jauh, lengkungkan.
+  if (upper === "CONTINUE" && diff > 2) {
+    return -(35 + Math.min(diff * 8, 80));
+  }
+
+  // Sequence / True / False / Case / Default → LURUS
+  // Termasuk True/False branch yang melompat beberapa node (normal if-else)
+  return 0;
+};
+
 type CFGCardProps = {
   showCyclomaticComplexity?: boolean;
   showCodeCoverage?: boolean;
@@ -223,19 +273,35 @@ const CFGCard: React.FC<CFGCardProps> = ({
         const trStatus: string = e.tr_status ?? "N";
         const lineColor = getStatusColor(trStatus, "edge");
 
+        const sourceId = e.id_node_start ?? e.ms_id_start_node ?? e.id_start_node;
+        const targetId = e.id_node_finish ?? e.ms_id_finish_node ?? e.id_finish_node;
+
+        const sourceNode = nodesWithStatus.find((n: any) => (n.ms_id_node ?? n.id_node) === sourceId);
+        const targetNode = nodesWithStatus.find((n: any) => (n.ms_id_node ?? n.id_node) === targetId);
+
+        // Deteksi tipe node sumber & target
+        const sourceType = (sourceNode?.ms_node_type ?? sourceNode?.node_type ?? "").toUpperCase();
+        const targetType = (targetNode?.ms_node_type ?? targetNode?.node_type ?? "").toUpperCase();
+        const isStructuralEdge = ["MERGE", "START", "END"].includes(sourceType)
+                              || ["MERGE", "START", "END"].includes(targetType);
+
+        const sourceOrder = sourceNode ? (sourceNode.ms_execution_order ?? sourceNode.execution_order ?? 999) : 999;
+        const targetOrder = targetNode ? (targetNode.ms_execution_order ?? targetNode.execution_order ?? 999) : 999;
+
+        // Edge dari/ke MERGE, START, END selalu LURUS
+        const curveDistance = isStructuralEdge ? 0 : computeCurveDistance(branchType, sourceOrder, targetOrder);
+
         return {
           data: {
             id: e.ms_id_edge ?? e.id_edge,
-            source: e.id_node_start ?? e.ms_id_start_node ?? e.id_start_node,
-            target: e.id_node_finish ?? e.ms_id_finish_node ?? e.id_finish_node,
+            source: sourceId,
+            target: targetId,
             label,
             lineColor,
             branchType,
-            targetExecutionOrder: (() => {
-              const targetId = e.id_node_finish ?? e.ms_id_finish_node ?? e.id_finish_node;
-              const targetNode = nodesWithStatus.find((n: any) => (n.ms_id_node ?? n.id_node) === targetId);
-              return targetNode ? (targetNode.ms_execution_order ?? targetNode.execution_order ?? 999) : 999;
-            })(),
+            curveDistance,
+            isCurved: curveDistance !== 0,
+            targetExecutionOrder: targetOrder,
           },
         };
       });
@@ -347,19 +413,35 @@ const CFGCard: React.FC<CFGCardProps> = ({
         const isFalse = branchType.toUpperCase() === "FALSE";
         const label = isTrue ? "True" : isFalse ? "False" : "";
 
+        const sourceId = e.id_node_start ?? e.ms_id_start_node ?? e.id_start_node;
+        const targetId = e.id_node_finish ?? e.ms_id_finish_node ?? e.id_finish_node;
+
+        const sourceNode = backendNodes.find((n: any) => (n.ms_id_node ?? n.id_node) === sourceId);
+        const targetNode = backendNodes.find((n: any) => (n.ms_id_node ?? n.id_node) === targetId);
+
+        // Deteksi tipe node sumber & target
+        const sourceType = (sourceNode?.ms_node_type ?? sourceNode?.node_type ?? "").toUpperCase();
+        const targetType = (targetNode?.ms_node_type ?? targetNode?.node_type ?? "").toUpperCase();
+        const isStructuralEdge = ["MERGE", "START", "END"].includes(sourceType)
+                              || ["MERGE", "START", "END"].includes(targetType);
+
+        const sourceOrder = sourceNode ? (sourceNode.ms_execution_order ?? sourceNode.execution_order ?? 999) : 999;
+        const targetOrder = targetNode ? (targetNode.ms_execution_order ?? targetNode.execution_order ?? 999) : 999;
+
+        // Edge dari/ke MERGE, START, END selalu LURUS
+        const curveDistance = isStructuralEdge ? 0 : computeCurveDistance(branchType, sourceOrder, targetOrder);
+
         return {
           data: {
             id: e.ms_id_edge ?? e.id_edge,
-            source: e.id_node_start ?? e.ms_id_start_node ?? e.id_start_node,
-            target: e.id_node_finish ?? e.ms_id_finish_node ?? e.id_finish_node,
+            source: sourceId,
+            target: targetId,
             label,
             lineColor: "black",
             branchType,
-            targetExecutionOrder: (() => {
-              const targetId = e.id_node_finish ?? e.ms_id_finish_node ?? e.id_finish_node;
-              const targetNode = backendNodes.find((n: any) => (n.ms_id_node ?? n.id_node) === targetId);
-              return targetNode ? (targetNode.ms_execution_order ?? targetNode.execution_order ?? 999) : 999;
-            })(),
+            curveDistance,
+            isCurved: curveDistance !== 0,
+            targetExecutionOrder: targetOrder,
           },
         };
       });
