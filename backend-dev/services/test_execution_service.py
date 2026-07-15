@@ -233,12 +233,16 @@ class TestExecutionService:
             }
         
         finally:
-            # Step 10: bersihkan workspace, baik sukses maupun error
-            t_cleanup = time.perf_counter()
-            self.file_manager.cleanup_workspace(workspace_path)
-            elapsed_10 = time.perf_counter() - t_cleanup
-            logger.info(f"[{datetime.now().strftime('%H:%M:%S.%f')[:-3]}] [STEP 10/10] Cleanup Workspace")
-            logger.info(f"               -> Time taken: {elapsed_10:.3f}s")
+            # Step 10: bersihkan workspace di background thread agar tidak menahan response API
+            import threading
+            cleanup_thread = threading.Thread(
+                target=self.file_manager.cleanup_workspace,
+                args=(workspace_path,)
+            )
+            cleanup_thread.daemon = True
+            cleanup_thread.start()
+            
+            logger.info(f"[{datetime.now().strftime('%H:%M:%S.%f')[:-3]}] [STEP 10/10] Cleanup Workspace triggered in background thread")
             logger.info(f"[TEST EXECUTION] ============================================================")
 
     def get_execution_result(self, id_topik_modul: str, student_id: str) -> dict:

@@ -168,7 +168,15 @@ class ModulService:
         is_compile_success = self.gradle_executor.run_tests(workspace)
         
         self.file_manager.copy_reports_to_module(workspace, id_modul)
-        self.file_manager.cleanup_workspace(workspace)
+        
+        # Jalankan cleanup di background thread agar tidak menahan response API dosen
+        import threading
+        cleanup_thread = threading.Thread(
+            target=self.file_manager.cleanup_workspace,
+            args=(workspace,)
+        )
+        cleanup_thread.daemon = True
+        cleanup_thread.start()
 
         if is_compile_success:
             # Baca file dan generate CFG (File I/O aman di dalam layer Service/Infrastructure)
