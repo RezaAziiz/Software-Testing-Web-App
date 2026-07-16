@@ -15,6 +15,7 @@ import {
   FormControl,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Plus, Trash2 } from "lucide-react";
 
 
 interface EditFormDialogProps {
@@ -75,6 +76,87 @@ interface FormValues {
   [key: string]: string;
 }
 
+interface ArrayInputProps {
+  value: string;
+  onChange: (val: string) => void;
+  placeholder?: string;
+  baseType: string;
+}
+
+const ArrayInput = ({ value, onChange, placeholder, baseType }: ArrayInputProps) => {
+  const getItems = (val: string): string[] => {
+    if (!val) return [""];
+    try {
+      const parsed = JSON.parse(val);
+      if (Array.isArray(parsed)) return parsed.map(String);
+    } catch (e) {}
+    return val.split(",").map(s => s.trim()).filter(Boolean);
+  };
+
+  const [items, setItems] = useState<string[]>(() => getItems(value));
+
+  useEffect(() => {
+    const nextItems = getItems(value);
+    if (JSON.stringify(nextItems) !== JSON.stringify(items)) {
+      setItems(nextItems);
+    }
+  }, [value]);
+
+  const updateItems = (newItems: string[]) => {
+    setItems(newItems);
+    onChange(JSON.stringify(newItems));
+  };
+
+  const handleItemChange = (index: number, val: string) => {
+    const newItems = [...items];
+    newItems[index] = val;
+    updateItems(newItems);
+  };
+
+  const addItem = () => {
+    updateItems([...items, ""]);
+  };
+
+  const removeItem = (index: number) => {
+    const newItems = items.filter((_, i) => i !== index);
+    updateItems(newItems.length === 0 ? [""] : newItems);
+  };
+
+  return (
+    <div className="space-y-2 border p-3 rounded-lg bg-gray-50">
+      {items.map((item, idx) => (
+        <div key={idx} className="flex items-center gap-2">
+          <Input
+            value={item}
+            onChange={(e) => handleItemChange(idx, e.target.value)}
+            placeholder={`${placeholder || "Elemen"} #${idx + 1} (${baseType})`}
+            className="rounded-md shadow-sm bg-white border-gray-300 flex-1"
+          />
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={() => removeItem(idx)}
+            className="text-red-500 hover:text-red-700 h-9 w-9 p-0 flex items-center justify-center"
+            disabled={items.length === 1 && items[0] === ""}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      ))}
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={addItem}
+        className="w-full flex items-center justify-center gap-1 mt-1 border-dashed hover:bg-gray-100"
+      >
+        <Plus className="h-4 w-4" /> Tambah Elemen
+      </Button>
+    </div>
+  );
+};
+
 const EditTestCaseFormDialog = ({
   isEditFormDialogOpen,
   setIsEditFormDialogOpen,
@@ -94,6 +176,7 @@ const EditTestCaseFormDialog = ({
   const [parameters, setParameters] = useState<ParameterModul[]>([]);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [, setErrorMessage] = useState("");
+  const [returnType, setReturnType] = useState("");
   const isSubmitted = useRef(false);
 
   const form = useForm<FormValues>({
@@ -120,6 +203,7 @@ const EditTestCaseFormDialog = ({
 
       const responseData: DataResponse = await response.json();
       setParameters(responseData.data.data_parameter_modul);
+      setReturnType(responseData.data.data_modul.ms_return_type);
       console.log(responseData);
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -268,6 +352,7 @@ const EditTestCaseFormDialog = ({
           },
         };
       case "float":
+      case "double":
         return {
           pattern: {
             value: /^-?[0-9]+(\.[0-9]+)?$/,
@@ -398,10 +483,19 @@ const EditTestCaseFormDialog = ({
                         <FormItem>
                           <FormLabel>{param.ms_nama_parameter}</FormLabel>
                           <FormControl>
-                            <Input
-                              {...field}
-                              className="rounded-md shadow-sm bg-gray-200 focus:ring-0 border-gray-300"
-                            />
+                            {param.ms_tipe_data.endsWith("[]") ? (
+                              <ArrayInput
+                                value={field.value || ""}
+                                onChange={field.onChange}
+                                placeholder={param.ms_nama_parameter}
+                                baseType={param.ms_tipe_data.slice(0, -2)}
+                              />
+                            ) : (
+                              <Input
+                                {...field}
+                                className="rounded-md shadow-sm bg-gray-200 focus:ring-0 border-gray-300"
+                              />
+                            )}
                           </FormControl>
                           {error && <p className="text-red-600 text-sm">{error.message}</p>}
                         </FormItem>
@@ -416,10 +510,19 @@ const EditTestCaseFormDialog = ({
                     <FormItem>
                       <FormLabel>Expected</FormLabel>
                       <FormControl>
-                        <Input
-                          {...field}
-                          className="rounded-md shadow-sm bg-gray-200 focus:ring-0 border-gray-300"
-                        />
+                        {returnType.endsWith("[]") ? (
+                          <ArrayInput
+                            value={field.value || ""}
+                            onChange={field.onChange}
+                            placeholder="Expected"
+                            baseType={returnType.slice(0, -2)}
+                          />
+                        ) : (
+                          <Input
+                            {...field}
+                            className="rounded-md shadow-sm bg-gray-200 focus:ring-0 border-gray-300"
+                          />
+                        )}
                       </FormControl>
                       {error && <p className="text-red-600 text-sm">{error.message}</p>}
                     </FormItem>

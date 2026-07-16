@@ -242,7 +242,7 @@ class ModulService:
                 for child in node.children:
                     if child.type == 'identifier':
                         method_name = child.text.decode('utf-8')
-                    elif child.type in ['integral_type', 'type_identifier', 'floating_point_type', 'boolean_type', 'void_type']:
+                    elif child.type in ['integral_type', 'type_identifier', 'floating_point_type', 'boolean_type', 'void_type', 'array_type']:
                         return_type = child.text.decode('utf-8')
                     elif child.type == 'formal_parameters':
                         for param_node in child.children:
@@ -250,7 +250,7 @@ class ModulService:
                                 p_type = None
                                 p_name = None
                                 for p_child in param_node.children:
-                                    if p_child.type in ['integral_type', 'type_identifier', 'floating_point_type', 'boolean_type']:
+                                    if p_child.type in ['integral_type', 'type_identifier', 'floating_point_type', 'boolean_type', 'array_type']:
                                         p_type = p_child.text.decode('utf-8')
                                     elif p_child.type == 'identifier':
                                         p_name = p_child.text.decode('utf-8')

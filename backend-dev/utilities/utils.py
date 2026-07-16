@@ -104,7 +104,50 @@ def generateToken():
         token += str(random.randint(0, 9))
     return token
 
+def parse_array_value(value: str) -> list:
+    if not value:
+        return []
+    value = value.strip()
+    # Check if it looks like a JSON array
+    if value.startswith('[') and value.endswith(']'):
+        try:
+            import json
+            parsed = json.loads(value)
+            if isinstance(parsed, list):
+                return [str(item) for item in parsed]
+        except:
+            pass
+    # If it is inside curly braces {1, 2, 3}
+    if value.startswith('{') and value.endswith('}'):
+        value = value[1:-1].strip()
+        if not value:
+            return []
+    
+    # robust split by comma using csv reader to support quotes and escaping
+    import csv
+    try:
+        reader = csv.reader([value], skipinitialspace=True)
+        for row in reader:
+            return row
+    except:
+        pass
+    
+    return [item.strip() for item in value.split(',') if item.strip()]
+
 def dataTypeValidation(dataType:str, value:str, parameter_name:str):
+    if dataType.endswith("[]"):
+        base_type = dataType[:-2]
+        try:
+            elements = parse_array_value(value)
+        except Exception as e:
+            return {"status": False, "message": f"Format array untuk parameter \"{parameter_name}\" tidak valid."}
+        
+        for idx, el in enumerate(elements):
+            val_res = dataTypeValidation(base_type, el, f"{parameter_name}[{idx}]")
+            if not val_res["status"]:
+                return {"status": False, "message": val_res['message']}
+        return {"status": True, "message": ""}
+
     if dataType == "int":
         try:
             temp = int(value)
@@ -115,6 +158,11 @@ def dataTypeValidation(dataType:str, value:str, parameter_name:str):
             temp = float(value)
         except:
             return {"status": False, "message":"Parameter dengan nama \""+parameter_name+"\" Seharusnya berisi nilai float"}
+    elif dataType == "double":
+        try:
+            temp = float(value)
+        except:
+            return {"status": False, "message":"Parameter dengan nama \""+parameter_name+"\" Seharusnya berisi nilai double"}
     
     elif dataType == "boolean":
         val = value.lower()
