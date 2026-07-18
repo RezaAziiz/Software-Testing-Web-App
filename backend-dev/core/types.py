@@ -39,6 +39,7 @@ class AstNodeType(str, Enum):
     DO_STATEMENT = "do_statement"
     FOR_STATEMENT = "for_statement"
     LABELED_STATEMENT = "labeled_statement"
+    ENHANCED_FOR_STATEMENT = "enhanced_for_statement"
     
     # Switch Case
     SWITCH_STATEMENT = "switch_statement"

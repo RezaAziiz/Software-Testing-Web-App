@@ -42,32 +42,35 @@ const computeCurveDistance = (
   const diff = Math.abs(sourceOrder - targetOrder);
   const isBackward = targetOrder <= sourceOrder;
 
-  // ── 1. Back Edge (kembali ke atas) → SELALU lengkung ke kiri ──
+  // ── 1. Back Edge (kembali ke atas) → Melengkung ke kanan pada canvas (nilai positif untuk upward edge) ──
   if (isBackward && diff > 0) {
-    return -(40 + Math.min(diff * 12, 100));
+    return 40 + Math.min(diff * 12, 100);
   }
 
-  // ── 2. Forward edges ──
+  // ── 2. Forward edges (ke bawah) → Melengkung ke kiri pada canvas (nilai positif untuk downward edge) ──
 
-  // BREAK → lengkung ke kanan jika melompati ≥2 node
+  // BREAK → lengkung ke kiri jika melompati ≥2 node
   if (upper === "BREAK" && diff > 2) {
     return 35 + Math.min(diff * 8, 80);
   }
 
-  // RETURN → lengkung ke kanan jika menuju End yang jauh (≥3 node)
+  // RETURN → lengkung ke kiri jika menuju End yang jauh (≥3 node)
   if (upper === "RETURN" && diff >= 3) {
     return 35 + Math.min(diff * 8, 80);
   }
 
   // CONTINUE ke depan (labeled continue yang di-resolve ke forward)
-  // Biasanya continue adalah back-edge, tapi jika optimizer membuatnya maju
-  // dan jaraknya jauh, lengkungkan.
   if (upper === "CONTINUE" && diff > 2) {
-    return -(35 + Math.min(diff * 8, 80));
+    return 35 + Math.min(diff * 8, 80);
   }
 
-  // Sequence / True / False / Case / Default → LURUS
-  // Termasuk True/False branch yang melompat beberapa node (normal if-else)
+  // Jalur TRUE / FALSE / SEQUENTIAL / biasa yang melompat jauh (≥3 node) 
+  // agar tidak memotong di tengah-tengah node lain
+  if ((upper === "TRUE" || upper === "FALSE" || upper === "SEQUENTIAL" || upper === "") && diff > 2) {
+    return 35 + Math.min(diff * 8, 80);
+  }
+
+  // Sequence / True / False / Case / Default dekat → LURUS
   return 0;
 };
 
@@ -288,8 +291,14 @@ const CFGCard: React.FC<CFGCardProps> = ({
         const sourceOrder = sourceNode ? (sourceNode.ms_execution_order ?? sourceNode.execution_order ?? 999) : 999;
         const targetOrder = targetNode ? (targetNode.ms_execution_order ?? targetNode.execution_order ?? 999) : 999;
 
-        // Edge dari/ke MERGE, START, END selalu LURUS
-        const curveDistance = isStructuralEdge ? 0 : computeCurveDistance(branchType, sourceOrder, targetOrder);
+        const isBackward = targetOrder <= sourceOrder;
+        const isDecisionOrSwitchSource = ["DECISION", "SWITCH"].includes(sourceType);
+
+        // Edge dari/ke MERGE, START, END selalu LURUS.
+        // Edge maju dari DECISION/SWITCH juga selalu LURUS (untuk True/False/Case branch).
+        const curveDistance = (isStructuralEdge || (!isBackward && isDecisionOrSwitchSource))
+          ? 0
+          : computeCurveDistance(branchType, sourceOrder, targetOrder);
 
         return {
           data: {
@@ -428,8 +437,14 @@ const CFGCard: React.FC<CFGCardProps> = ({
         const sourceOrder = sourceNode ? (sourceNode.ms_execution_order ?? sourceNode.execution_order ?? 999) : 999;
         const targetOrder = targetNode ? (targetNode.ms_execution_order ?? targetNode.execution_order ?? 999) : 999;
 
-        // Edge dari/ke MERGE, START, END selalu LURUS
-        const curveDistance = isStructuralEdge ? 0 : computeCurveDistance(branchType, sourceOrder, targetOrder);
+        const isBackward = targetOrder <= sourceOrder;
+        const isDecisionOrSwitchSource = ["DECISION", "SWITCH"].includes(sourceType);
+
+        // Edge dari/ke MERGE, START, END selalu LURUS.
+        // Edge maju dari DECISION/SWITCH juga selalu LURUS (untuk True/False/Case branch).
+        const curveDistance = (isStructuralEdge || (!isBackward && isDecisionOrSwitchSource))
+          ? 0
+          : computeCurveDistance(branchType, sourceOrder, targetOrder);
 
         return {
           data: {

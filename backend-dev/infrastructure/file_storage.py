@@ -4,13 +4,13 @@ from distutils.dir_util import copy_tree, remove_tree
 from fastapi import UploadFile
 from decouple import config
 from io import BytesIO
+from concurrent.futures import ThreadPoolExecutor
 import logging
 
 logger = logging.getLogger(__name__)
 
 class FileStorageManager:
     """Menangani seluruh operasi filesystem (Create, Copy, Remove folder/file) dan sinkronisasi GCS.
-    
     Mode ditentukan oleh env var USE_GCS:
     - USE_GCS=true  → init Google Cloud Storage, upload/download ke bucket (Cloud)
     - USE_GCS=false → pakai local filesystem saja (Local Development)
@@ -21,9 +21,23 @@ class FileStorageManager:
         
         if self.use_gcs:
             from google.cloud import storage
+            import requests
+            
             self.bucket_name = config('GCS_BUCKET_NAME', default='software-testing-uat-db-init')
             self.storage_client = storage.Client()
             self.bucket = self.storage_client.bucket(self.bucket_name)
+            
+            # Optimasi Pool Koneksi GCS agar mendukung upload paralel skala besar
+            pool_size = 64
+            adapter = requests.adapters.HTTPAdapter(
+                pool_connections=pool_size,
+                pool_maxsize=pool_size,
+                max_retries=3
+            )
+            # Pasang adapter ke session HTTP client GCS
+            self.storage_client._http.mount("https://", adapter)
+            if hasattr(self.storage_client._http, '_auth_request') and self.storage_client._http._auth_request:
+                self.storage_client._http._auth_request.session.mount("https://", adapter)
         else:
             self.storage_client = None
             self.bucket = None
@@ -39,12 +53,22 @@ class FileStorageManager:
             return
         if not os.path.exists(local_dir):
             return
+        
+        # Cari semua berkas yang akan diunggah
+        upload_tasks = []
         for root, _, files in os.walk(local_dir):
             for filename in files:
                 local_file = os.path.join(root, filename)
                 relative_path = os.path.relpath(local_file, local_dir)
                 blob_path = os.path.join(blob_root, relative_path).replace('\\', '/')
-                self._upload_file_to_gcs(local_file, blob_path)
+                upload_tasks.append((local_file, blob_path))
+
+        # Unggah secara paralel menggunakan ThreadPoolExecutor
+        if upload_tasks:
+            # Gunakan 16 worker threads karena upload file ke GCS adalah I/O bound
+            with ThreadPoolExecutor(max_workers=16) as executor:
+                for local_file, blob_path in upload_tasks:
+                    executor.submit(self._upload_file_to_gcs, local_file, blob_path)
 
     def _download_blob_to_file(self, blob_path: str, local_path: str) -> bool:
         if not self.use_gcs:
@@ -61,8 +85,6 @@ class FileStorageManager:
         if os.path.exists(local_path):
             return True
         return self._download_blob_to_file(blob_path, local_path)
-
-    # ─── Business Logic Methods ───
 
     def save_uploaded_source_code(self, id_modul: str, source_code: UploadFile) -> str:
         """Simpan file .java yang diupload oleh Dosen ke /modules/ (dan GCS jika aktif)."""
@@ -86,7 +108,25 @@ class FileStorageManager:
         os.makedirs("engine-testing", exist_ok=True)
         os.makedirs(workspace_path, exist_ok=True)
         
-        copy_tree("jacoco-engine", workspace_path)
+        # Optimasi performa copy: Hanya salin berkas-berkas penting Gradle & wrapper
+        # Jangan salin folder .gradle, build, lib, dll.
+        essential_items = [
+            "build.gradle",
+            "settings.gradle",
+            "gradle.properties",
+            "gradlew",
+            "gradlew.bat"
+        ]
+        for item in essential_items:
+            src_path = os.path.join("jacoco-engine", item)
+            dest_path = os.path.join(workspace_path, item)
+            if os.path.exists(src_path):
+                shutil.copy2(src_path, dest_path)
+
+        src_gradle_dir = os.path.join("jacoco-engine", "gradle")
+        dest_gradle_dir = os.path.join(workspace_path, "gradle")
+        if os.path.exists(src_gradle_dir):
+            copy_tree(src_gradle_dir, dest_gradle_dir)
         
         src_java_dir = os.path.join(workspace_path, "src", "main", "java")
         os.makedirs(src_java_dir, exist_ok=True)
@@ -119,7 +159,16 @@ class FileStorageManager:
             safe_copy(os.path.join("build", "reports", "tests", "test"), "report_test")
             safe_copy(os.path.join("build", "test-results", "test"), "test-results")
             safe_copy(os.path.join("build", "reports", "jacoco", "test"), "jacoco_report_test")
-            self._upload_directory_to_gcs(static_dir, f"static/{user_id}/{topik_modul_id}")
+            
+            # Jalankan upload GCS di background thread agar tidak memblokir respon API mahasiswa
+            import threading
+            upload_thread = threading.Thread(
+                target=self._upload_directory_to_gcs,
+                args=(static_dir, f"static/{user_id}/{topik_modul_id}")
+            )
+            upload_thread.daemon = True
+            upload_thread.start()
+            
         except Exception as e:
             logger.warning(f"Could not copy some test reports: {str(e)}")
 
@@ -140,7 +189,14 @@ class FileStorageManager:
             safe_copy(os.path.join("build", "reports", "tests", "test"), "report_test")
             safe_copy(os.path.join("build", "test-results", "test"), "test-results")
             safe_copy(os.path.join("build", "reports", "jacoco", "test"), "jacoco_report_test")
-            self._upload_directory_to_gcs(modul_dir, f"modules/{id_modul}")
+            # Jalankan upload GCS di background thread agar tidak memblokir respon API dosen
+            import threading
+            upload_thread = threading.Thread(
+                target=self._upload_directory_to_gcs,
+                args=(modul_dir, f"modules/{id_modul}")
+            )
+            upload_thread.daemon = True
+            upload_thread.start()
         except Exception as e:
             logger.warning(f"Failed to copy initial module reports: {str(e)}")
 
@@ -161,6 +217,12 @@ class FileStorageManager:
 
     def cleanup_workspace(self, workspace_path: str) -> None:
         """Menghapus folder sementara engine-testing"""
+        if not self.use_gcs:
+            # Di local development, jangan hapus workspace agar cache gradle dan hasil kompilasi
+            # tetap ada untuk mempercepat run berikutnya (incremental compilation & config cache).
+            logger.info(f"Local development: skipping workspace cleanup for {workspace_path} to reuse build caches")
+            return
+
         try:
             if os.path.exists(workspace_path):
                 remove_tree(workspace_path)

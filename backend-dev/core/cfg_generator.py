@@ -266,6 +266,35 @@ class CFGGeneratorVisitor:
 
         return for_node, exit_nodes
 
+    def visit_enhanced_for_statement(self, ast_node):
+        # Ambil konteks label jika loop ini dibungkus labeled_statement
+        current_loop_label = getattr(self, 'current_label_context', None)
+        self.current_label_context = None # Reset agar child di dalamnya tidak mewarisinya
+        
+        body_ast = ast_node.child_by_field_name('body')
+        for_node = NodeFactory.create_node(ast_node, force_decision=True)
+        
+        full_text = for_node.source_code
+        first_line = full_text.split('\n')[0].strip()
+        for_node.source_code = first_line
+        for_node.line_end = for_node.line_start
+        self._register_node(for_node)
+
+        exit_nodes = [ExitNode(for_node, BranchType.FALSE)] 
+
+        if body_ast:
+            if body_ast.type == AstNodeType.BLOCK:
+                body_first, body_exits = self.visit_block(body_ast, incoming_nodes=[])
+            else:
+                body_first, body_exits = getattr(self, f'visit_{body_ast.type}', self.generic_visit)(body_ast)
+            
+            for_node.set_true_node(body_first)
+            self.create_edge(for_node, body_first, BranchType.TRUE)
+            
+            exit_nodes = self._process_loop_exits(body_exits, for_node, exit_nodes, current_loop_label)
+
+        return for_node, exit_nodes
+
     def visit_while_statement(self, ast_node):
         # 1. Ambil konteks label (WAJIB DITAMBAHKAN)
         current_loop_label = getattr(self, 'current_label_context', None)

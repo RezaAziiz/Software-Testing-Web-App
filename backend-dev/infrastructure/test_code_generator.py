@@ -4,6 +4,67 @@ from typing import List, Dict, Any
 
 class TestCodeGenerator:
     
+    def parse_array_value(self, value: str) -> list:
+        if not value:
+            return []
+        value = value.strip()
+        # Check if it looks like a JSON array
+        if value.startswith('[') and value.endswith(']'):
+            try:
+                parsed = json.loads(value)
+                if isinstance(parsed, list):
+                    return [str(item) for item in parsed]
+            except:
+                pass
+        # If it is inside curly braces {1, 2, 3}
+        if value.startswith('{') and value.endswith('}'):
+            value = value[1:-1].strip()
+            if not value:
+                return []
+        
+        # robust split by comma using csv reader to support quotes and escaping
+        import csv
+        try:
+            reader = csv.reader([value], skipinitialspace=True)
+            for row in reader:
+                return row
+        except:
+            pass
+        
+        return [item.strip() for item in value.split(',') if item.strip()]
+
+    def format_single_value(self, p_type: str, p_value: str) -> str:
+        if p_type == 'String':
+            if p_value == "{}":
+                return '""'
+            elif p_value == "{null}":
+                return 'null'
+            else:
+                # Escape double quotes inside the string for Java code
+                escaped = str(p_value).replace('"', '\\"')
+                return f'"{escaped}"'
+        elif p_type == 'char':
+            # Remove any outer single quotes first to prevent double-wrapping
+            val = str(p_value).strip("'")
+            return f"'{val}'"
+        elif p_type == 'float':
+            return f"{p_value}f"
+        elif p_type == 'double':
+            return f"{p_value}d"
+        elif p_type == 'boolean':
+            return str(p_value).lower()
+        else:
+            return str(p_value)
+
+    def format_value(self, p_type: str, p_value: str) -> str:
+        if p_type.endswith('[]'):
+            base_type = p_type[:-2]
+            elements = self.parse_array_value(p_value)
+            formatted_elements = [self.format_single_value(base_type, el) for el in elements]
+            return f"new {base_type}[]{{{', '.join(formatted_elements)}}}"
+        else:
+            return self.format_single_value(p_type, p_value)
+
     def generate_junit_class(
         self, 
         class_name: str, 
@@ -13,6 +74,7 @@ class TestCodeGenerator:
         output_path: str
     ) -> str:
         filename = f"{class_name}Test.java"
+        os.makedirs(output_path, exist_ok=True)
         target_file = os.path.join(output_path, filename)
         
         with open(target_file, 'w') as file:
@@ -32,6 +94,8 @@ class TestCodeGenerator:
                 file.write('\t@Test\n')
                 file.write(f'\tpublic void {method_test_name}() {{\n')
                 file.write(f'\t\t{class_name} objectTest = new {class_name}();\n')
+                
+                # Assign actual value
                 file.write(f'\t\t{return_type} actual = objectTest.{function_name}(')
                 
                 # Generate parameters
@@ -39,19 +103,8 @@ class TestCodeGenerator:
                     p_type = param.get('param_type')
                     p_value = param.get('param_value')
                     
-                    if p_type == 'String': 
-                        if p_value == "{}":
-                            file.write('""')
-                        elif p_value == "{null}":
-                            file.write('null')
-                        else:    
-                            file.write(f'"{p_value}"')
-                    elif p_type == 'char':
-                        file.write(f"'{p_value}'")
-                    elif p_type == 'float':
-                        file.write(f"{p_value}f")
-                    else:
-                        file.write(str(p_value))
+                    formatted_val = self.format_value(p_type, p_value)
+                    file.write(formatted_val)
                     
                     # Add separator if not last parameter
                     if i + 1 < len(data_test):
@@ -61,20 +114,22 @@ class TestCodeGenerator:
                 
                 # Generate assertions
                 expected = test_case['tr_expected_result']
-                file.write('\t\tAssert.assertEquals(')
                 
-                if return_type == 'String': 
-                    file.write(f'"{expected}"')
-                elif return_type == 'char':
-                    file.write(f"'{expected}'")
+                if return_type.endswith('[]'):
+                    # Use assertArrayEquals for arrays
+                    formatted_expected = self.format_value(return_type, expected)
+                    base_type = return_type[:-2]
+                    if base_type in ['float', 'double']:
+                        file.write(f'\t\tAssert.assertArrayEquals({formatted_expected}, actual, 0.0f);\n')
+                    else:
+                        file.write(f'\t\tAssert.assertArrayEquals({formatted_expected}, actual);\n')
                 else:
-                    file.write(str(expected))
-                    
-                # Handling for double/float needs delta in assert
-                if return_type in ['float', 'double']: 
-                    file.write(', actual, 0.0f);\n')
-                else:
-                    file.write(', actual);\n')
+                    # Use assertEquals for scalars
+                    formatted_expected = self.format_value(return_type, expected)
+                    if return_type in ['float', 'double']:
+                        file.write(f'\t\tAssert.assertEquals({formatted_expected}, actual, 0.0f);\n')
+                    else:
+                        file.write(f'\t\tAssert.assertEquals({formatted_expected}, actual);\n')
 
                 file.write('\t}\n\n')   
                 
