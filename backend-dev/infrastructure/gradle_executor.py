@@ -18,12 +18,14 @@ class GradleExecutor:
         Optimasi performa:
         - --daemon    : Reuse JVM yang sudah berjalan (skip cold start ~3-5 detik)
         - --build-cache: Cache hasil kompilasi (skip re-compile jika source tidak berubah)
+        - --configuration-cache: Skip fase konfigurasi jika build script tidak berubah
+        - --offline   : Cegah request HTTP untuk resolusi dependensi (asumsi dependensi sudah terunduh)
         - -q          : Quiet mode, kurangi output logging Gradle (sedikit lebih cepat I/O)
         """
         try:
             gradle_cmd = self.gradle_command
 
-            command = f"cd {workspace_path} && {gradle_cmd} test --daemon --build-cache -q"
+            command = f"cd {workspace_path} && {gradle_cmd} test --daemon --build-cache --configuration-cache --offline -q"
             output = subprocess.check_output(command, shell=True, stderr=subprocess.STDOUT)
             output_string = output.decode("utf-8")
             

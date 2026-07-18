@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>EvaluasiKualitasProduk.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">jacoco-engine</a> &gt; <a href="index.source.html" class="el_package">default</a> &gt; <span class="el_source">EvaluasiKualitasProduk.java</span></div><h1>EvaluasiKualitasProduk.java</h1><pre class="source lang-java linenums">/* Deskripsi:
+ * Menghitung total skor inspeksi produk.
+ * Hanya produk dengan ID genap yang diperiksa.
+ * Setiap produk melalui 3 tahap inspeksi.
+ * Jika kombinasi ID produk dan tahap inspeksi memenuhi syarat,
+ * maka dilakukan pemeriksaan terhadap 3 komponen.
+ * Komponen ke-2 dilewati karena tidak memerlukan inspeksi.
+ * Pemeriksaan komponen dihentikan apabila total skor inspeksi
+ * telah melebihi batas maksimum.
+ */
+<span class="nc" id="L11">public class EvaluasiKualitasProduk {</span>
+
+    public int evaluasiKualitasProduk(int jumlahProduk) {
+<span class="nc" id="L14">        int totalSkor = 0;</span>
+
+<span class="nc bnc" id="L16" title="All 2 branches missed.">        for (int idProduk = 1; idProduk &lt;= jumlahProduk; idProduk++) {</span>
+<span class="nc bnc" id="L17" title="All 2 branches missed.">            if (idProduk % 2 == 0) {</span>
+<span class="nc" id="L18">                int tahapInspeksi = 1;</span>
+
+<span class="nc bnc" id="L20" title="All 2 branches missed.">                while (tahapInspeksi &lt;= 3) {</span>
+<span class="nc bnc" id="L21" title="All 2 branches missed.">                    if ((idProduk + tahapInspeksi) % 2 == 0) {</span>
+<span class="nc" id="L22">                        int komponen = 1;</span>
+                        do {
+<span class="nc bnc" id="L24" title="All 2 branches missed.">                            if (komponen == 2) {</span>
+<span class="nc" id="L25">                                komponen++;</span>
+<span class="nc" id="L26">                                continue;</span>
+                            }
+<span class="nc" id="L28">                            totalSkor += idProduk * tahapInspeksi * komponen;</span>
+<span class="nc bnc" id="L29" title="All 2 branches missed.">                            if (totalSkor &gt; 100) {</span>
+<span class="nc" id="L30">                                break;</span>
+                            }
+<span class="nc" id="L32">                            komponen++;</span>
+<span class="nc bnc" id="L33" title="All 2 branches missed.">                        } while (komponen &lt;= 3);</span>
+                    }
+<span class="nc" id="L35">                    tahapInspeksi++;</span>
+                }
+            }
+        }
+
+<span class="nc" id="L40">        return totalSkor;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.8.202204050719</span></div></body></html>
