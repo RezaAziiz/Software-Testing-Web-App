@@ -1,10 +1,14 @@
-import os
+import io
 import json
-from typing import List, Dict, Any
+import logging
+import os
+from typing import Any
+
+logger = logging.getLogger(__name__)
 
 class TestCodeGenerator:
     
-    def parse_array_value(self, value: str) -> list:
+    def parse_array_value(self, value: str) -> list[str]:
         if not value:
             return []
         value = value.strip()
@@ -70,14 +74,15 @@ class TestCodeGenerator:
         class_name: str, 
         function_name: str, 
         return_type: str, 
-        test_cases: List[Dict[str, Any]], 
+        test_cases: list[dict[str, Any]],
         output_path: str
     ) -> str:
         filename = f"{class_name}Test.java"
         os.makedirs(output_path, exist_ok=True)
         target_file = os.path.join(output_path, filename)
-        
-        with open(target_file, 'w') as file:
+        file = io.StringIO()
+
+        try:
             file.write('import org.junit.Assert;\n')
             file.write('import org.junit.Test;\n\n')
             
@@ -134,5 +139,30 @@ class TestCodeGenerator:
                 file.write('\t}\n\n')   
                 
             file.write('}\n')
-            
+            generated_content = file.getvalue()
+        finally:
+            file.close()
+
+        current_content = None
+        existed = os.path.exists(target_file)
+        mtime_before = os.stat(target_file).st_mtime_ns if existed else None
+        if existed:
+            with open(target_file, 'r') as current_file:
+                current_content = current_file.read()
+
+        rewritten = current_content != generated_content
+        if rewritten:
+            with open(target_file, 'w') as target:
+                target.write(generated_content)
+
+        logger.info(
+            "[SOURCE PROFILE] Test source path=%s existed=%s content_unchanged=%s "
+            "rewritten=%s mtime_before_ns=%s mtime_after_ns=%s",
+            target_file,
+            existed,
+            existed and not rewritten,
+            rewritten,
+            mtime_before,
+            os.stat(target_file).st_mtime_ns,
+        )
         return target_file

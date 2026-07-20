@@ -26,8 +26,12 @@ dependencies {
 }
 
 test {
-    // Fork JVM sekali saja untuk semua test (default), bukan per-test-class
+    // Fork JVM sekali saja untuk semua test (default), bukan per-test-class.
+    // Batasi heap karena Gradle daemon dan test worker hidup bersamaan di Cloud Run.
     forkEvery = 0
+    minHeapSize = "32m"
+    maxHeapSize = "128m"
+    jvmArgs "-XX:+UseSerialGC"
 
     finalizedBy jacocoTestReport
 }
@@ -36,9 +40,21 @@ jacocoTestReport {
     dependsOn test
     reports {
         csv.enabled true
-        xml.enabled true    // WAJIB AKTIF: Digunakan backend untuk mem-parse coverage score
+        xml.enabled true
         html.enabled true
     }
 }
 
 check.dependsOn jacocoTestReport
+
+// Temporary build analyzer for bottleneck profiling. Task actions are used
+// instead of taskGraph listeners because listeners prevent configuration-cache reuse.
+tasks.configureEach { task ->
+    task.doFirst {
+        task.ext.profileStartTime = System.nanoTime()
+    }
+    task.doLast {
+        def elapsedMs = (System.nanoTime() - task.ext.profileStartTime) / 1_000_000
+        println "[PROFILE] ${task.path} : ${String.format('%.3f', elapsedMs)} ms"
+    }
+}

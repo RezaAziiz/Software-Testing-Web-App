@@ -288,7 +288,7 @@ async def get_testcase_detail(
         return {"message": str(e)}
 
 @modul.post('/modul/run/{id_topik_modul}')
-async def run_testing_app(
+def run_testing_app(
     id_topik_modul: str, 
     response: Response, 
     current_user: dict = Depends(get_current_user),

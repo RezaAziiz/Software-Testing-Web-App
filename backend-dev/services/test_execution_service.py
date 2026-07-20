@@ -129,7 +129,17 @@ class TestExecutionService:
             elapsed_5 = time.perf_counter() - t_start
             logger.info(f"[{datetime.now().strftime('%H:%M:%S.%f')[:-3]}] [STEP 5/10] Copy Reports to Static Directory")
             logger.info(f"               -> URL: {report_test_url}")
+            logger.info(f"               -> Gradle profile: static/{student_id}/{id_topik_modul}/gradle_profile/")
             logger.info(f"               -> Time taken: {elapsed_5:.3f}s")
+            logger.info(
+                "[PYTHON PROFILE] setup_workspace=%.3fs generate_java=%.3fs "
+                "gradle=%.3fs copy_reports=%.3fs profiled_total=%.3fs",
+                elapsed_2,
+                elapsed_3,
+                elapsed_4,
+                elapsed_5,
+                elapsed_2 + elapsed_3 + elapsed_4 + elapsed_5,
+            )
             logger.info(f"[TEST EXECUTION] ------------------------------------------------------------")
             
             # Step 6: Simpan Status Awal Penyelesaian

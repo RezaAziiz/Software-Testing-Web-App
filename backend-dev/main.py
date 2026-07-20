@@ -15,6 +15,7 @@ from routes.combo import combo
 from routes.grade import grade
 from routes.progress import progress
 from infrastructure.file_storage import FileStorageManager
+from infrastructure.gradle_executor import GradleExecutor
 
 from jobs.schedule import schedule_init, schedule_run_uncomplete, schedule_run_alpha
 from jobs.train_model import run_train_model
@@ -81,6 +82,32 @@ async def serve_static(file_path: str):
 @app.get("/")
 async def root():
     return {"message": "SAS API version 1.1"}
+
+@app.on_event('startup')
+def prewarm_gradle_daemon():
+    """
+    Pre-warm Gradle Daemon secara SYNCHRONOUS saat startup.
+
+    Cloud Run tidak akan mengirim traffic ke container ini sampai
+    on_event('startup') selesai. Ini menjamin bahwa ketika request
+    pertama masuk, daemon sudah dalam keadaan warm dan siap pakai.
+    Tidak ada lagi tabrakan file lock antara pre-warming dan eksekusi test.
+    """
+    import time
+
+    start = time.perf_counter()
+    logging.info("Pre-warming Gradle Daemon (blocking until ready)...")
+    try:
+        executor = GradleExecutor(config('GRADLE_COMMAND', default='gradle'))
+        if executor.run_tests("jacoco-engine"):
+            logging.info(
+                "Gradle Daemon pre-warmed successfully in %.1fs. Ready to accept requests.",
+                time.perf_counter() - start,
+            )
+        else:
+            logging.warning("Gradle Daemon pre-warming failed; proceeding anyway.")
+    except Exception as e:
+        logging.warning("Failed to pre-warm Gradle Daemon: %s", e)
 
 # Batch Proses run example
 # @app.on_event('startup')

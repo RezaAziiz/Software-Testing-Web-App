@@ -65,4 +65,11 @@ public class IsVokalTest {
 		Assert.assertEquals(true, actual);
 	}
 
+	@Test
+	public void TC10() {
+		IsVokal objectTest = new IsVokal();
+		boolean actual = objectTest.isVokal('o');
+		Assert.assertEquals(true, actual);
+	}
+
 }

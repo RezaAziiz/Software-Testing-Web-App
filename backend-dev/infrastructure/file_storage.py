@@ -1,3 +1,4 @@
+import filecmp
 import os
 import shutil
 from distutils.dir_util import copy_tree, remove_tree
@@ -34,10 +35,12 @@ class FileStorageManager:
                 pool_maxsize=pool_size,
                 max_retries=3
             )
-            # Pasang adapter ke session HTTP client GCS
+            # Pasang adapter ke session HTTP client GCS (baik http maupun https)
             self.storage_client._http.mount("https://", adapter)
+            self.storage_client._http.mount("http://", adapter)
             if hasattr(self.storage_client._http, '_auth_request') and self.storage_client._http._auth_request:
                 self.storage_client._http._auth_request.session.mount("https://", adapter)
+                self.storage_client._http._auth_request.session.mount("http://", adapter)
         else:
             self.storage_client = None
             self.bucket = None
@@ -127,6 +130,7 @@ class FileStorageManager:
         dest_gradle_dir = os.path.join(workspace_path, "gradle")
         if os.path.exists(src_gradle_dir):
             copy_tree(src_gradle_dir, dest_gradle_dir)
+
         
         src_java_dir = os.path.join(workspace_path, "src", "main", "java")
         os.makedirs(src_java_dir, exist_ok=True)
@@ -134,7 +138,26 @@ class FileStorageManager:
         if not os.path.exists(source_file_path):
             self._ensure_local_file(source_file_path, source_file_path.replace('\\', '/'))
 
-        shutil.copyfile(source_file_path, os.path.join(src_java_dir, source_filename))
+        destination_source = os.path.join(src_java_dir, source_filename)
+        destination_existed = os.path.exists(destination_source)
+        content_unchanged = (
+            destination_existed
+            and filecmp.cmp(source_file_path, destination_source, shallow=False)
+        )
+        mtime_before = (
+            os.stat(destination_source).st_mtime_ns if destination_existed else None
+        )
+        shutil.copyfile(source_file_path, destination_source)
+        mtime_after = os.stat(destination_source).st_mtime_ns
+        logger.info(
+            "[SOURCE PROFILE] Main source path=%s existed=%s content_unchanged=%s "
+            "rewritten=True mtime_before_ns=%s mtime_after_ns=%s",
+            destination_source,
+            destination_existed,
+            content_unchanged,
+            mtime_before,
+            mtime_after,
+        )
         
         # Kembalikan path tujuan tempat TestCodeGenerator harus menaruh file
         return os.path.join(workspace_path, "src", "test", "java")
@@ -159,6 +182,8 @@ class FileStorageManager:
             safe_copy(os.path.join("build", "reports", "tests", "test"), "report_test")
             safe_copy(os.path.join("build", "test-results", "test"), "test-results")
             safe_copy(os.path.join("build", "reports", "jacoco", "test"), "jacoco_report_test")
+            safe_copy(os.path.join("build", "reports", "profile"), "gradle_profile")
+            safe_copy(os.path.join("reports", "profile"), "gradle_profile")
             
             # Jalankan upload GCS di background thread agar tidak memblokir respon API mahasiswa
             import threading
@@ -189,6 +214,8 @@ class FileStorageManager:
             safe_copy(os.path.join("build", "reports", "tests", "test"), "report_test")
             safe_copy(os.path.join("build", "test-results", "test"), "test-results")
             safe_copy(os.path.join("build", "reports", "jacoco", "test"), "jacoco_report_test")
+            safe_copy(os.path.join("build", "reports", "profile"), "gradle_profile")
+            safe_copy(os.path.join("reports", "profile"), "gradle_profile")
             # Jalankan upload GCS di background thread agar tidak memblokir respon API dosen
             import threading
             upload_thread = threading.Thread(
@@ -217,11 +244,11 @@ class FileStorageManager:
 
     def cleanup_workspace(self, workspace_path: str) -> None:
         """Menghapus folder sementara engine-testing"""
-        if not self.use_gcs:
-            # Di local development, jangan hapus workspace agar cache gradle dan hasil kompilasi
-            # tetap ada untuk mempercepat run berikutnya (incremental compilation & config cache).
-            logger.info(f"Local development: skipping workspace cleanup for {workspace_path} to reuse build caches")
-            return
+        # SKIP CLEANUP (Baik di Local maupun Cloud Run)
+        # Jangan hapus workspace agar cache gradle (folder build/) dan hasil kompilasi
+        # tetap ada untuk mempercepat run berikutnya (incremental compilation).
+        logger.info(f"Skipping workspace cleanup for {workspace_path} to reuse build caches (Workspace Cache Persistence)")
+        return
 
         try:
             if os.path.exists(workspace_path):
