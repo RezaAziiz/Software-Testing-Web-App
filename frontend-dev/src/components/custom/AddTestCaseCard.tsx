@@ -326,7 +326,7 @@ const AddTestCaseCard: React.FC = () => {
 
     //REQUEST KE BACKEND MEMANGGIL MODUL RUNNNING TESTING APP
     try {
-      const response = await fetch(`${apiUrl}/modul/run/${modulId}`, {
+      const initialResponse = await fetch(`${apiUrl}/modul/run/${modulId}`, {
         method: "POST",
         headers: {
           Accept: "application/json",
@@ -334,18 +334,48 @@ const AddTestCaseCard: React.FC = () => {
         },
       });
 
-      if (!response.ok) {
-        if (response.status === 403) {
+      if (!initialResponse.ok) {
+        if (initialResponse.status === 403) {
           throw new Error("Forbidden: Access is denied");
         } else {
           setPreviouslyExecuted(true);
           localStorage.setItem("previouslyExecuted", "true");
-
-          throw new Error(`HTTP error! status: ${response.status}`);
+          throw new Error(`HTTP error! status: ${initialResponse.status}`);
         }
       }
 
-      const result = await response.json();
+      const initialResult = await initialResponse.json();
+      const taskId = initialResult.task_id;
+      
+      let result = null;
+      
+      // Polling untuk mengecek status eksekusi
+      while (true) {
+        await new Promise(resolve => setTimeout(resolve, 3000)); // Tunggu 3 detik
+        
+        const statusResponse = await fetch(`${apiUrl}/modul/run/status/${taskId}`, {
+          method: "GET",
+          headers: {
+            Accept: "application/json",
+            Authorization: `Bearer ${apiKey}`,
+          },
+        });
+        
+        if (!statusResponse.ok) {
+           throw new Error(`HTTP error during polling! status: ${statusResponse.status}`);
+        }
+        
+        const statusData = await statusResponse.json();
+        
+        if (statusData.status === "completed") {
+           result = statusData.result;
+           break;
+        } else if (statusData.status === "failed") {
+           throw new Error(`Eksekusi gagal: ${statusData.error}`);
+        }
+        // Jika status masih processing, biarkan loop berlanjut
+      }
+
       console.log("Hasil eksekusi test case:", result);
 
       setPreviouslyExecuted(true);

@@ -47,7 +47,7 @@ class TestExecutionService:
         self.cfg_sync = cfg_sync
         self.path_analysis_service = PathAnalysisService()
 
-    def run_test(self, id_topik_modul: str, student_id: str) -> dict:
+    def run_test(self, id_topik_modul: str, student_id: str, task_id: str = "") -> dict:
         """
         Orkestrasi eksekusi test case mahasiswa: Setup -> CodeGen -> Gradle -> Parse -> CFG Sync -> Save.
         """
@@ -81,7 +81,12 @@ class TestExecutionService:
         logger.info(f"[TEST EXECUTION] ------------------------------------------------------------")
 
         # Setup Workspace (Infrastructure)
-        workspace_path = f"engine-testing/{student_id}/{id_topik_modul}"
+        # Gunakan 8 karakter pertama UUID untuk menghindari batas MAX_PATH Windows (260 char)
+        short_student = student_id[:8] if student_id else "anon"
+        short_topik = id_topik_modul[:8] if id_topik_modul else "notopik"
+        unique_suffix = f"_{task_id[:8]}" if task_id else ""
+        
+        workspace_path = f"engine-testing/{short_student}/{short_topik}{unique_suffix}"
         source_file_path = f"modules/{id_modul}/{modul_data['ms_source_code']}"
         
         try:

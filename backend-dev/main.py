@@ -15,6 +15,7 @@ from routes.combo import combo
 from routes.grade import grade
 from routes.progress import progress
 from infrastructure.file_storage import FileStorageManager
+from infrastructure.task_queue import task_queue
 
 from jobs.schedule import schedule_init, schedule_run_uncomplete, schedule_run_alpha
 from jobs.train_model import run_train_model
@@ -82,10 +83,17 @@ async def serve_static(file_path: str):
 async def root():
     return {"message": "SAS API version 1.1"}
 
-# Batch Proses run example
 # @app.on_event('startup')
 # def init_data():
 #     schedule_init()
+
+@app.on_event("startup")
+async def startup_event():
+    await task_queue.start()
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    await task_queue.stop()
 
 #     scheduler = BackgroundScheduler()
 #     # scheduler.add_job(schedule_run, 'cron', hour='*') # every hour

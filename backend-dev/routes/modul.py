@@ -22,6 +22,7 @@ from repositories.cfg_repository import CfgRepository
 from repositories.test_case_repository import TestCaseRepository
 from repositories.penyelesaian_repository import PenyelesaianRepository
 from repositories.system_config_repository import SystemConfigRepository
+from infrastructure.task_queue import task_queue
 
 # Infrastructure
 from infrastructure.file_storage import FileStorageManager
@@ -291,16 +292,29 @@ async def get_testcase_detail(
 async def run_testing_app(
     id_topik_modul: str, 
     response: Response, 
-    current_user: dict = Depends(get_current_user),
-    test_execution_service: TestExecutionService = Depends(get_test_execution_service)
+    current_user: dict = Depends(get_current_user)
 ):
     try:
-        result_data = test_execution_service.run_test(id_topik_modul, current_user['userid'])
-        return result_data
+        task_id = task_queue.enqueue_test(id_topik_modul, current_user['userid'])
+        return {"task_id": task_id, "status": "processing"}
     except Exception as e:
         logger.error(f"Error test execution: {str(e)}")
         response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
-        return {"message": f"Terjadi kesalahan saat eksekusi: {str(e)}"}
+        return {"message": f"Terjadi kesalahan saat mengeksekusi tes: {str(e)}"}
+
+@modul.get('/modul/run/status/{task_id}')
+async def get_test_execution_status(
+    task_id: str,
+    response: Response,
+    current_user: dict = Depends(get_current_user)
+):
+    status_data = task_queue.get_status(task_id)
+    if status_data["status"] == "not_found":
+        response.status_code = status.HTTP_404_NOT_FOUND
+    elif status_data["status"] == "failed":
+        response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+        
+    return status_data
 
 @modul.get('/modul/getResultTest/{id_topik_modul}')
 async def get_result_testing(
