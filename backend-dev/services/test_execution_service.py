@@ -10,7 +10,6 @@ from repositories.penyelesaian_repository import PenyelesaianRepository
 from repositories.system_config_repository import SystemConfigRepository
 from repositories.cfg_repository import CfgRepository
 from infrastructure.file_storage import FileStorageManager
-from infrastructure.gradle_executor import GradleExecutor
 from infrastructure.test_code_generator import TestCodeGenerator
 from infrastructure.parsers.junit_parser import JUnitResultParser
 from infrastructure.parsers.jacoco_parser import JaCoCoParser
@@ -28,7 +27,6 @@ class TestExecutionService:
         cfg_repo :CfgRepository,
         system_repo: SystemConfigRepository,
         file_manager: FileStorageManager,
-        gradle_executor: GradleExecutor,
         test_code_gen: TestCodeGenerator,
         junit_parser: JUnitResultParser,
         jacoco_parser: JaCoCoParser,
@@ -40,7 +38,6 @@ class TestExecutionService:
         self.system_repo = system_repo
         self.cfg_repo = cfg_repo
         self.file_manager = file_manager
-        self.gradle_executor = gradle_executor
         self.test_code_gen = test_code_gen
         self.junit_parser = junit_parser
         self.jacoco_parser = jacoco_parser
@@ -49,8 +46,9 @@ class TestExecutionService:
 
     def run_test(self, id_topik_modul: str, student_id: str) -> dict:
         """
-        Orkestrasi eksekusi test case mahasiswa: Setup -> CodeGen -> Gradle -> Parse -> CFG Sync -> Save.
+        Orkestrasi eksekusi test case mahasiswa menggunakan Persistent JVM / Worker Pool.
         """
+        import requests
         total_start = time.perf_counter()
         start_time_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
         
@@ -74,129 +72,110 @@ class TestExecutionService:
             raise ValueError("Tidak ada test case yang bisa dieksekusi")
             
         elapsed_1 = time.perf_counter() - t_start
-        logger.info(f"[{datetime.now().strftime('%H:%M:%S.%f')[:-3]}] [STEP 1/10] Fetch Modul & Test Cases from Database")
+        logger.info(f"[{datetime.now().strftime('%H:%M:%S.%f')[:-3]}] [STEP 1/6] Fetch Modul & Test Cases from Database")
         logger.info(f"               -> Found Module: '{modul_data['ms_nama_modul']}' (Class: {modul_data['ms_class_name']})")
         logger.info(f"               -> Found {len(test_cases)} test cases.")
         logger.info(f"               -> Time taken: {elapsed_1:.3f}s")
         logger.info(f"[TEST EXECUTION] ------------------------------------------------------------")
 
-        # Setup Workspace (Infrastructure)
-        workspace_path = f"engine-testing/{student_id}/{id_topik_modul}"
-        source_file_path = f"modules/{id_modul}/{modul_data['ms_source_code']}"
-        
         try:
-            # Step 2: Setup Workspace
+            # Step 2: Prepare Source Code
             t_start = time.perf_counter()
-            test_dir = self.file_manager.setup_test_workspace(
-                workspace_path, source_file_path, modul_data['ms_source_code']
-            )
-            elapsed_2 = time.perf_counter() - t_start
-            logger.info(f"[{datetime.now().strftime('%H:%M:%S.%f')[:-3]}] [STEP 2/10] Setup Test Workspace")
-            logger.info(f"               -> Path: {workspace_path}")
-            logger.info(f"               -> Time taken: {elapsed_2:.3f}s")
-            logger.info(f"[TEST EXECUTION] ------------------------------------------------------------")
-            
-            # Step 3: Generate Java JUnit Class (Infrastructure)
-            t_start = time.perf_counter()
-            self.test_code_gen.generate_junit_class(
+            main_code = self.file_manager.read_source_code_text(id_modul, modul_data['ms_source_code'])
+
+            test_code = self.test_code_gen.generate_junit_class_string(
                 class_name=modul_data['ms_class_name'],
                 function_name=modul_data['ms_function_name'],
                 return_type=modul_data['ms_return_type'],
-                test_cases=test_cases,
-                output_path=test_dir
+                test_cases=test_cases
             )
+            elapsed_2 = time.perf_counter() - t_start
+            logger.info(f"[{datetime.now().strftime('%H:%M:%S.%f')[:-3]}] [STEP 2/6] Prepare In-Memory Source Code")
+            logger.info(f"               -> Main Class: {modul_data['ms_class_name']}")
+            logger.info(f"               -> Test Class: {modul_data['ms_class_name']}Test")
+            logger.info(f"               -> Time taken: {elapsed_2:.3f}s")
+            logger.info(f"[TEST EXECUTION] ------------------------------------------------------------")
+            
+            # Step 3: Execute in Java Worker (Persistent JVM)
+            t_start = time.perf_counter()
+            logger.info(f"[{datetime.now().strftime('%H:%M:%S.%f')[:-3]}] [STEP 3/6] Executing Tests via Java Worker API...")
+            
+            import os
+            report_output_dir = os.path.abspath(os.path.join(self.file_manager.base_path, "static", student_id, id_topik_modul, "jacoco_report_test", "html"))
+            payload = {
+                "mainClassName": modul_data['ms_class_name'],
+                "mainCode": main_code,
+                "testClassName": f"{modul_data['ms_class_name']}Test",
+                "testCode": test_code,
+                "reportOutputDir": report_output_dir
+            }
+            
+            from decouple import config
+            java_worker_url = config('JAVA_WORKER_URL', default='http://localhost:8081')
+            
+            t_http = time.perf_counter()
+            response = requests.post(f"{java_worker_url}/execute", json=payload, timeout=60)
+            elapsed_http = time.perf_counter() - t_http
+            logger.info(f"               -> Java Worker HTTP call: {elapsed_http:.3f}s (response size: {len(response.content)} bytes)")
+            
+            if response.status_code != 200:
+                logger.error(f"Java Worker Error: {response.text}")
+                raise RuntimeError("Terjadi kesalahan pada mesin eksekutor (Java Worker)")
+                
+            t_parse = time.perf_counter()
+            result = response.json()
+            source_html = result.get('sourceHtmlContent')
+            if source_html:
+                import os
+                # Write only the single source HTML file
+                source_dir = os.path.join(report_output_dir, "default")
+                os.makedirs(source_dir, exist_ok=True)
+                html_path = os.path.join(source_dir, f"{modul_data['ms_class_name']}.java.html")
+                with open(html_path, 'w', encoding='utf-8') as f:
+                    f.write(source_html)
+                
+                # Ensure jacoco-resources exist (static assets, only copied once)
+                resources_dir = os.path.join(report_output_dir, "jacoco-resources")
+                if not os.path.exists(resources_dir):
+                    bundled_resources = os.path.join(os.path.dirname(os.path.dirname(__file__)), "jacoco-resources")
+                    if os.path.exists(bundled_resources):
+                        import shutil
+                        shutil.copytree(bundled_resources, resources_dir)
+            elapsed_parse = time.perf_counter() - t_parse
+            logger.info(f"               -> Parse + file write: {elapsed_parse:.3f}s")
+                    
+            is_build_success = True  # If it reached here, compilation and execution succeeded
+            is_all_passed = result.get('isAllPassed', False)
+            coverage_percent = round(float(result.get('coveragePercent', 0.0)), 2)
+            
             elapsed_3 = time.perf_counter() - t_start
-            logger.info(f"[{datetime.now().strftime('%H:%M:%S.%f')[:-3]}] [STEP 3/10] Generate JUnit Test Class")
-            logger.info(f"               -> Class: {modul_data['ms_class_name']}Test.java")
-            logger.info(f"               -> Target function: {modul_data['ms_function_name']}")
-            logger.info(f"               -> Time taken: {elapsed_3:.3f}s")
+            logger.info(f"               -> Total Tests: {result.get('totalTests')}, Passed: {result.get('passedTests')}, Failed: {result.get('failedTests')}")
+            logger.info(f"               -> Coverage: {coverage_percent:.2f}%")
+            logger.info(f"               -> Time taken: {elapsed_3:.3f}s (In-Memory)")
             logger.info(f"[TEST EXECUTION] ------------------------------------------------------------")
             
-            # Step 4: Eksekusi Gradle
+            # Step 4: Simpan Status Awal Penyelesaian
             t_start = time.perf_counter()
-            logger.info(f"[{datetime.now().strftime('%H:%M:%S.%f')[:-3]}] [STEP 4/10] Executing Gradle Tests (Running Gradle Subprocess)...")
-            is_build_success = self.gradle_executor.run_tests(workspace_path)
-            status_eksekusi = 'Y' if is_build_success else 'N'
-            elapsed_4 = time.perf_counter() - t_start
-            logger.info(f"               -> Gradle build successful: {is_build_success}")
-            logger.info(f"               -> Time taken: {elapsed_4:.3f}s")
-            logger.info(f"[TEST EXECUTION] ------------------------------------------------------------")
-            
-            # Step 5: Salin Report ke Static
-            t_start = time.perf_counter()
-            self.file_manager.copy_reports_to_static(workspace_path, student_id, id_topik_modul)
-            report_test_url = f"static/{student_id}/{id_topik_modul}/report_test/index.html"
-            elapsed_5 = time.perf_counter() - t_start
-            logger.info(f"[{datetime.now().strftime('%H:%M:%S.%f')[:-3]}] [STEP 5/10] Copy Reports to Static Directory")
-            logger.info(f"               -> URL: {report_test_url}")
-            logger.info(f"               -> Gradle profile: static/{student_id}/{id_topik_modul}/gradle_profile/")
-            logger.info(f"               -> Time taken: {elapsed_5:.3f}s")
-            logger.info(
-                "[PYTHON PROFILE] setup_workspace=%.3fs generate_java=%.3fs "
-                "gradle=%.3fs copy_reports=%.3fs profiled_total=%.3fs",
-                elapsed_2,
-                elapsed_3,
-                elapsed_4,
-                elapsed_5,
-                elapsed_2 + elapsed_3 + elapsed_4 + elapsed_5,
-            )
-            logger.info(f"[TEST EXECUTION] ------------------------------------------------------------")
-            
-            # Step 6: Simpan Status Awal Penyelesaian
-            t_start = time.perf_counter()
+            report_test_url = f"#"  # No static HTML report available anymore
+            status_eksekusi = 'Y'
             self.penyelesaian_repo.upsert_execution_status(
                 id_topik_modul, student_id, status_eksekusi, report_test_url
             )
-            elapsed_6 = time.perf_counter() - t_start
-            logger.info(f"[{datetime.now().strftime('%H:%M:%S.%f')[:-3]}] [STEP 6/10] Upsert Initial Execution Status to DB")
+            elapsed_4 = time.perf_counter() - t_start
+            logger.info(f"[{datetime.now().strftime('%H:%M:%S.%f')[:-3]}] [STEP 4/6] Upsert Initial Execution Status to DB")
             logger.info(f"               -> Status: {status_eksekusi}")
-            logger.info(f"               -> Time taken: {elapsed_6:.3f}s")
+            logger.info(f"               -> Time taken: {elapsed_4:.3f}s")
             logger.info(f"[TEST EXECUTION] ------------------------------------------------------------")
 
-            if not is_build_success:
-                t_start = time.perf_counter()
-                self.penyelesaian_repo.update_coverage_and_score(
-                    id_topik_modul, student_id, coverage=0, nilai=0, status_penyelesaian='N'
-                )
-                elapsed_failed = time.perf_counter() - t_start
-                logger.warning(f"[TEST EXECUTION] Build failed. Updated score/coverage to 0 in DB (Took {elapsed_failed:.3f}s).")
-                
-                total_elapsed = time.perf_counter() - total_start
-                logger.info(f"[TEST EXECUTION] ==================== END OF EXECUTION (FAILED) ====================")
-                logger.info(f"[TEST EXECUTION] TOTAL ELAPSED TIME: {total_elapsed:.3f}s")
-                logger.info(f"[TEST EXECUTION] ============================================================")
-                
-                return {"status_eksekusi": False, "tgl_eksekusi": datetime.now().strftime('%d %B %Y, %H:%M:%S')}
-
-            # Step 7: Parse Hasil JUnit & Update Status Test Case (Infrastructure & Repo)
+            # Step 5: Update Status Test Case & Calculate Final Score
             t_start = time.perf_counter()
-            junit_xml = f"static/{student_id}/{id_topik_modul}/test-results/TEST-{modul_data['ms_class_name']}Test.xml"
-            is_all_passed, junit_results = self.junit_parser.parse(junit_xml)
-            
-            passed_count = 0
-            failed_count = 0
-            for result in junit_results:
-                if result['status'].lower() == 'passed':
-                    passed_count += 1
-                else:
-                    failed_count += 1
-                self.test_case_repo.update_result(
-                    id_topik_modul, student_id, result['test_name'], result['status']
-                )
-            elapsed_7 = time.perf_counter() - t_start
-            logger.info(f"[{datetime.now().strftime('%H:%M:%S.%f')[:-3]}] [STEP 7/10] Parse JUnit XML & Update DB Test Case Results")
-            logger.info(f"               -> Total: {len(junit_results)}, Passed: {passed_count}, Failed: {failed_count}")
-            logger.info(f"               -> All Passed: {is_all_passed}")
-            logger.info(f"               -> Time taken: {elapsed_7:.3f}s")
-            logger.info(f"[TEST EXECUTION] ------------------------------------------------------------")
-
-            # Step 8: Parse Hasil JaCoCo Coverage (Infrastructure)
-            t_start = time.perf_counter()
-            jacoco_xml = f"static/{student_id}/{id_topik_modul}/jacoco_report_test/jacocoTestReport.xml"
-            coverage_percent = self.jacoco_parser.parse_method_coverage(
-                jacoco_xml, modul_data['ms_function_name']
-            )
-            
+            # Update Test Cases status. We assume failures have 'testName' like 'pengujian_X'
+            failed_tests = [f['testName'] for f in result.get('failures', [])]
+            for tc in test_cases:
+                tc_method_name = tc['tr_object_pengujian'].replace(" ", "_")
+                tc_status = 'F' if tc_method_name in failed_tests else 'P'
+                self.test_case_repo.update_result(id_topik_modul, student_id, tc['tr_object_pengujian'], tc_status)
+                
             # Hitung Nilai (Business Rule)
             nilai = round(coverage_percent * int(modul_data['ms_tingkat_kesulitan']), 0)
             min_coverage = float(self.system_repo.get_minimum_coverage())
@@ -207,23 +186,32 @@ class TestExecutionService:
             self.penyelesaian_repo.update_coverage_and_score(
                 id_topik_modul, student_id, coverage_percent, nilai, status_penyelesaian, coverage_report_url
             )
-            elapsed_8 = time.perf_counter() - t_start
-            logger.info(f"[{datetime.now().strftime('%H:%M:%S.%f')[:-3]}] [STEP 8/10] Parse JaCoCo Coverage & Save Score to DB")
-            logger.info(f"               -> Coverage: {coverage_percent:.2f}% (Min target: {min_coverage * 100:.2f}%)")
-            logger.info(f"               -> Difficulty score multiplier: {modul_data['ms_tingkat_kesulitan']}")
+            elapsed_5 = time.perf_counter() - t_start
+            logger.info(f"[{datetime.now().strftime('%H:%M:%S.%f')[:-3]}] [STEP 5/6] Update DB Test Case Results & Score")
             logger.info(f"               -> Final Score: {nilai} | Status Penyelesaian: {status_penyelesaian}")
-            logger.info(f"               -> Time taken: {elapsed_8:.3f}s")
+            logger.info(f"               -> Time taken: {elapsed_5:.3f}s")
             logger.info(f"[TEST EXECUTION] ------------------------------------------------------------")
 
-            # Step 9: CFG Synchronization (Infrastructure)
+            # Step 6: CFG Synchronization (Infrastructure)
             t_start = time.perf_counter()
-            line_statuses = self.jacoco_parser.parse_line_execution_status(jacoco_xml)
+            raw_line_statuses = result.get('lineStatuses', [])
+            # Map the raw java worker status to CFG format
+            line_statuses = []
+            for ls in raw_line_statuses:
+                status_code = 'N'
+                if ls['status'] == 'FULLY_COVERED': status_code = 'Y'
+                elif ls['status'] == 'PARTLY_COVERED': status_code = 'S'
+                line_statuses.append({
+                    'line_number': ls['line'],
+                    'status': status_code
+                })
+                
             if line_statuses:
                 self.cfg_sync.synchronize(id_topik_modul, student_id, id_modul, line_statuses)
-            elapsed_9 = time.perf_counter() - t_start
-            logger.info(f"[{datetime.now().strftime('%H:%M:%S.%f')[:-3]}] [STEP 9/10] CFG Synchronization (AST range & color propagation)")
+            elapsed_6 = time.perf_counter() - t_start
+            logger.info(f"[{datetime.now().strftime('%H:%M:%S.%f')[:-3]}] [STEP 6/6] CFG Synchronization (AST range & color propagation)")
             logger.info(f"               -> Propagated line coverage to CFG nodes and edges.")
-            logger.info(f"               -> Time taken: {elapsed_9:.3f}s")
+            logger.info(f"               -> Time taken: {elapsed_6:.3f}s")
             logger.info(f"[TEST EXECUTION] ------------------------------------------------------------")
 
             total_elapsed = time.perf_counter() - total_start
@@ -242,18 +230,17 @@ class TestExecutionService:
                 "tgl_eksekusi": datetime.now().strftime('%d %B %Y, %H:%M:%S')
             }
         
-        finally:
-            # Step 10: bersihkan workspace di background thread agar tidak menahan response API
-            import threading
-            cleanup_thread = threading.Thread(
-                target=self.file_manager.cleanup_workspace,
-                args=(workspace_path,)
+        except Exception as e:
+            logger.error(f"[TEST EXECUTION] Exception occurred: {e}")
+            t_start = time.perf_counter()
+            self.penyelesaian_repo.update_coverage_and_score(
+                id_topik_modul, student_id, coverage=0, nilai=0, status_penyelesaian='N'
             )
-            cleanup_thread.daemon = True
-            cleanup_thread.start()
-            
-            logger.info(f"[{datetime.now().strftime('%H:%M:%S.%f')[:-3]}] [STEP 10/10] Cleanup Workspace triggered in background thread")
+            total_elapsed = time.perf_counter() - total_start
+            logger.info(f"[TEST EXECUTION] ==================== END OF EXECUTION (FAILED) ====================")
+            logger.info(f"[TEST EXECUTION] TOTAL ELAPSED TIME: {total_elapsed:.3f}s")
             logger.info(f"[TEST EXECUTION] ============================================================")
+            return {"status_eksekusi": False, "tgl_eksekusi": datetime.now().strftime('%d %B %Y, %H:%M:%S')}
 
     def get_execution_result(self, id_topik_modul: str, student_id: str) -> dict:
         """
@@ -285,7 +272,7 @@ class TestExecutionService:
             "modul_id": id_modul,
             "topik_modul_id": id_topik_modul,
             "status_eksekusi": data_result['tr_status_eksekusi'],
-            "coverageScore": data_result['tr_persentase_coverage'],
+            "coverageScore": round(float(data_result['tr_persentase_coverage']), 2),
             "minimum_coverage_score": min_coverage,
             "point": data_result['tr_nilai'],
             "totalTestCase": tc_stats['total'],

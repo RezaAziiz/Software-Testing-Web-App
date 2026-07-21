@@ -1,72 +1,73 @@
-import os
 import sys
+import os
 import uuid
 import json
 from datetime import datetime
 
-# Add backend-dev to path so we can import modules
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+# Add the backend-dev directory to python path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from config.database import conn
-from models.student import Student
+from sqlalchemy import text
 from models.test_case import TestCase
 
-def seed_test_cases():
-    print("Mulai seeding test case untuk 59 mahasiswa...")
-    id_topik_modul = '30febb1f-cb72-424b-8b3d-b558bbb4f1ed'
+ID_TOPIK_MODUL = "45feae30-d562-456b-b204-ec45a9b81bb3"
+
+test_case_data = [
+    {"no": 1, "obj": "TC1", "huruf": "a", "expected": "true"},
+    {"no": 2, "obj": "TC2", "huruf": "A", "expected": "true"},
+    {"no": 3, "obj": "TC3", "huruf": "I", "expected": "true"},
+    {"no": 4, "obj": "TC4", "huruf": "i", "expected": "true"},
+    {"no": 5, "obj": "TC5", "huruf": "U", "expected": "true"},
+    {"no": 6, "obj": "TC6", "huruf": "u", "expected": "true"},
+    {"no": 7, "obj": "TC7", "huruf": "e", "expected": "true"},
+    {"no": 8, "obj": "TC8", "huruf": "E", "expected": "true"},
+    {"no": 9, "obj": "TC9", "huruf": "O", "expected": "true"},
+    {"no": 10, "obj": "TC10", "huruf": "o", "expected": "true"},
+    {"no": 11, "obj": "TC11", "huruf": "B", "expected": "false"}
+]
+
+def seed():
+    # Dapatkan semua student ID
+    students = conn.execute(text('SELECT ms_student_id FROM ms_student')).fetchall()
+    student_ids = [row[0] for row in students]
     
-    # Ambil semua mahasiswa (atau filter berdasarkan batch jika perlu, di sini kita ambil semua yang isactive='Y')
-    query = Student.select().where(Student.c.isactive == 'Y')
-    students = conn.execute(query).fetchall()
+    print(f"Ditemukan {len(student_ids)} mahasiswa.")
     
-    if not students:
-        print("Tidak ada data mahasiswa aktif yang ditemukan. Pastikan sudah import ms_student.sql")
-        return
-        
-    print(f"Ditemukan {len(students)} mahasiswa aktif.")
+    # Hapus data lama untuk topik ini agar tidak duplikat
+    conn.execute(text(f"DELETE FROM tr_test_case_modul WHERE tr_id_topik_modul = '{ID_TOPIK_MODUL}'"))
     
-    test_cases_inserted = 0
+    total_inserted = 0
+    now = datetime.now()
     
-    for idx, student in enumerate(students):
-        student_id = student.ms_student_id
-        
-        # Cek apakah sudah ada test case untuk student ini di topik ini
-        check_query = TestCase.select().where(
-            TestCase.c.tr_id_topik_modul == id_topik_modul,
-            TestCase.c.tr_student_id == student_id
-        )
-        existing = conn.execute(check_query).fetchone()
-        
-        if existing:
-            print(f"[{idx+1}/{len(students)}] Student {student.ms_student_name} sudah memiliki test case. Melewati...")
-            continue
+    # Suntikkan test case baru
+    for student_id in student_ids:
+        for tc in test_case_data:
+            input_json = json.dumps([{
+                "param_name": "huruf", 
+                "param_type": "char", 
+                "param_value": tc["huruf"]
+            }])
+            expected_val = tc["expected"] # Langsung nilai string 'true' / 'false'
             
-        # Jika belum ada, buat test case baru (Test Ganjil/Genap Pilihan A)
-        data_input = [
-            {"param_type": "char", "param_value": "A"},
-            {"param_type": "int", "param_value": "10"}
-        ]
-        
-        test_case_data = {
-            "tr_id_test_case": str(uuid.uuid4()),
-            "tr_id_topik_modul": id_topik_modul,
-            "tr_student_id": student_id,
-            "tr_no": 1,
-            "tr_object_pengujian": "testGenapPilihanA",
-            "tr_data_test_input": json.dumps(data_input),
-            "tr_expected_result": "bil (10) adalah bilangan Genap",
-            "tr_test_result": None,
-            "createdby": "seeder",
-            "created": datetime.today(),
-            "updatedby": "seeder",
-            "updated": datetime.today()
-        }
-        
-        conn.execute(TestCase.insert().values(**test_case_data))
-        test_cases_inserted += 1
-        print(f"[{idx+1}/{len(students)}] Berhasil insert test case untuk {student.ms_student_name}")
-        
-    print(f"Selesai! {test_cases_inserted} test cases berhasil di-seed.")
+            stmt = TestCase.insert().values(
+                tr_id_test_case=str(uuid.uuid4()),
+                tr_id_topik_modul=ID_TOPIK_MODUL,
+                tr_student_id=student_id,
+                tr_no=tc["no"],
+                tr_object_pengujian=tc["obj"],
+                tr_data_test_input=input_json,
+                tr_expected_result=expected_val,
+                tr_test_result=None,
+                createdby="SYSTEM_SEED",
+                created=now,
+                updatedby="SYSTEM_SEED",
+                updated=now
+            )
+            conn.execute(stmt)
+            total_inserted += 1
+            
+    print(f"Sukses menyuntikkan {total_inserted} test case untuk {len(student_ids)} mahasiswa!")
 
 if __name__ == "__main__":
-    seed_test_cases()
+    seed()

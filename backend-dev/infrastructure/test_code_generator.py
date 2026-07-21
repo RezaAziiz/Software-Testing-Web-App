@@ -69,22 +69,17 @@ class TestCodeGenerator:
         else:
             return self.format_single_value(p_type, p_value)
 
-    def generate_junit_class(
+    def generate_junit_class_string(
         self, 
         class_name: str, 
         function_name: str, 
         return_type: str, 
-        test_cases: list[dict[str, Any]],
-        output_path: str
+        test_cases: list[dict[str, Any]]
     ) -> str:
-        filename = f"{class_name}Test.java"
-        os.makedirs(output_path, exist_ok=True)
-        target_file = os.path.join(output_path, filename)
         file = io.StringIO()
-
         try:
-            file.write('import org.junit.Assert;\n')
-            file.write('import org.junit.Test;\n\n')
+            file.write('import org.junit.jupiter.api.Assertions;\n')
+            file.write('import org.junit.jupiter.api.Test;\n\n')
             
             file.write(f'public class {class_name}Test {{\n')
             
@@ -108,6 +103,16 @@ class TestCodeGenerator:
                     p_type = param.get('param_type')
                     p_value = param.get('param_value')
                     
+                    # SECURITY FIX: Cast to int if it's int to prevent code injection
+                    if p_type == 'int':
+                        try:
+                            int(p_value)
+                        except ValueError:
+                            raise ValueError(f"Invalid integer injection detected: {p_value}")
+                    elif p_type == 'boolean':
+                        if str(p_value).lower() not in ['true', 'false']:
+                            raise ValueError(f"Invalid boolean injection detected: {p_value}")
+                            
                     formatted_val = self.format_value(p_type, p_value)
                     file.write(formatted_val)
                     
@@ -125,23 +130,37 @@ class TestCodeGenerator:
                     formatted_expected = self.format_value(return_type, expected)
                     base_type = return_type[:-2]
                     if base_type in ['float', 'double']:
-                        file.write(f'\t\tAssert.assertArrayEquals({formatted_expected}, actual, 0.0f);\n')
+                        file.write(f'\t\tAssertions.assertArrayEquals({formatted_expected}, actual, 0.0f);\n')
                     else:
-                        file.write(f'\t\tAssert.assertArrayEquals({formatted_expected}, actual);\n')
+                        file.write(f'\t\tAssertions.assertArrayEquals({formatted_expected}, actual);\n')
                 else:
                     # Use assertEquals for scalars
                     formatted_expected = self.format_value(return_type, expected)
                     if return_type in ['float', 'double']:
-                        file.write(f'\t\tAssert.assertEquals({formatted_expected}, actual, 0.0f);\n')
+                        file.write(f'\t\tAssertions.assertEquals({formatted_expected}, actual, 0.0f);\n')
                     else:
-                        file.write(f'\t\tAssert.assertEquals({formatted_expected}, actual);\n')
+                        file.write(f'\t\tAssertions.assertEquals({formatted_expected}, actual);\n')
 
                 file.write('\t}\n\n')   
                 
             file.write('}\n')
-            generated_content = file.getvalue()
+            return file.getvalue()
         finally:
             file.close()
+
+    def generate_junit_class(
+        self, 
+        class_name: str, 
+        function_name: str, 
+        return_type: str, 
+        test_cases: list[dict[str, Any]],
+        output_path: str
+    ) -> str:
+        filename = f"{class_name}Test.java"
+        os.makedirs(output_path, exist_ok=True)
+        target_file = os.path.join(output_path, filename)
+
+        generated_content = self.generate_junit_class_string(class_name, function_name, return_type, test_cases)
 
         current_content = None
         existed = os.path.exists(target_file)

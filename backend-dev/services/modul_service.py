@@ -8,7 +8,6 @@ from schemas.modul import ModulSchema, ModulEditSchema
 from repositories.modul_repository import ModulRepository
 from services.cfg_service import CFGService
 from infrastructure.file_storage import FileStorageManager
-from infrastructure.gradle_executor import GradleExecutor
 from core.parser import JavaParser
 
 class ModulService:
@@ -16,13 +15,11 @@ class ModulService:
         self, 
         modul_repo: ModulRepository, 
         cfg_service: CFGService = None,
-        file_manager: FileStorageManager = None,
-        gradle_executor: GradleExecutor = None
+        file_manager: FileStorageManager = None
     ):
         self.modul_repo = modul_repo
         self.cfg_service = cfg_service
         self.file_manager = file_manager
-        self.gradle_executor = gradle_executor
 
     def get_detail(self, id_modul: str) -> dict:
         data_modul = self.modul_repo.find_detail_with_lookup(id_modul)
@@ -155,34 +152,38 @@ class ModulService:
 
     def upload_and_process(self, id_modul: str, source_code: UploadFile, user_id: str) -> dict:
         """
-        Memproses upload file java, menjalankan compile test via gradle, 
+        Memproses upload file java, menjalankan compile test via java-worker, 
         dan mengenerate CFG jika sukses.
         """
+        import requests
+        
         # Simpan file menggunakan FileStorageManager
         target_file = self.file_manager.save_uploaded_source_code(id_modul, source_code)
         self.modul_repo.update(id_modul, {"ms_source_code": source_code.filename})
 
-        # Cek Compile via Gradle
-        workspace = f"engine-testing/{id_modul}"
-        self.file_manager.setup_test_workspace(workspace, target_file, source_code.filename)
-        is_compile_success = self.gradle_executor.run_tests(workspace)
-        
-        self.file_manager.copy_reports_to_module(workspace, id_modul)
-        
-        # Jalankan cleanup di background thread agar tidak menahan response API dosen
-        import threading
-        cleanup_thread = threading.Thread(
-            target=self.file_manager.cleanup_workspace,
-            args=(workspace,)
-        )
-        cleanup_thread.daemon = True
-        cleanup_thread.start()
+        with open(target_file, 'r', encoding='utf-8') as f:
+            java_code = f.read()
+
+        # Ambil nama class dari repository
+        data_modul = self.modul_repo.find_by_id(id_modul)
+        main_class_name = data_modul['ms_class_name'] if data_modul and data_modul['ms_class_name'] else source_code.filename.split('.')[0]
+
+        # Cek Compile via Java Worker
+        from decouple import config
+        java_worker_url = config('JAVA_WORKER_URL', default='http://localhost:8081')
+        try:
+            response = requests.post(f"{java_worker_url}/compile", json={
+                "mainClassName": main_class_name,
+                "mainCode": java_code
+            }, timeout=10)
+            result = response.json()
+            is_compile_success = result.get("success", False)
+            error_message = result.get("message", "Compilation failed")
+        except Exception as e:
+            is_compile_success = False
+            error_message = f"Gagal menghubungi Java Worker: {str(e)}"
 
         if is_compile_success:
-            # Baca file dan generate CFG (File I/O aman di dalam layer Service/Infrastructure)
-            with open(target_file, 'r', encoding='utf-8') as f:
-                java_code = f.read()
-            
             self.cfg_service.delete_cfg_for_modul(id_modul)
             cfg_result = self.cfg_service.generate_cfg_from_java_code(java_code)
             self.cfg_service.save_cfg_to_database(id_modul, cfg_result, java_code, user_id)
@@ -199,7 +200,7 @@ class ModulService:
         else:
             if os.path.exists(target_file):
                 os.remove(target_file)
-            raise ValueError("Source code memiliki error (Compile Gagal), silakan perbaiki dan upload ulang.")
+            raise ValueError(f"Source code memiliki error (Compile Gagal): {error_message}")
 
     def parse_metadata(self, java_code: str) -> dict:
         """

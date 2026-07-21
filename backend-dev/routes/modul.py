@@ -25,7 +25,6 @@ from repositories.system_config_repository import SystemConfigRepository
 
 # Infrastructure
 from infrastructure.file_storage import FileStorageManager
-from infrastructure.gradle_executor import GradleExecutor
 from infrastructure.test_code_generator import TestCodeGenerator
 from infrastructure.parsers.junit_parser import JUnitResultParser
 from infrastructure.parsers.jacoco_parser import JaCoCoParser
@@ -48,7 +47,6 @@ def get_modul_repo(conn = Depends(get_connection)): return ModulRepository(conn)
 def get_cfg_repo(conn = Depends(get_connection)): return CfgRepository(conn)
 def get_cfg_service(cfg_repo = Depends(get_cfg_repo)): return CFGService(cfg_repo)
 def get_file_manager(): return FileStorageManager()
-def get_gradle_executor(): return GradleExecutor(config('GRADLE_COMMAND', default='gradle'))
 def get_test_code_gen(): return TestCodeGenerator()
 def get_junit_parser(): return JUnitResultParser()
 def get_jacoco_parser(): return JaCoCoParser()
@@ -56,17 +54,15 @@ def get_cfg_sync(cfg_repo = Depends(get_cfg_repo)): return CfgCoverageSync(cfg_r
 def get_modul_service(
     modul_repo: ModulRepository = Depends(get_modul_repo),
     cfg_service: CFGService = Depends(get_cfg_service),
-    file_manager: FileStorageManager = Depends(get_file_manager),
-    gradle_executor: GradleExecutor = Depends(get_gradle_executor)
+    file_manager: FileStorageManager = Depends(get_file_manager)
 ):
-    return ModulService(modul_repo, cfg_service, file_manager, gradle_executor)
+    return ModulService(modul_repo, cfg_service, file_manager)
 def get_test_case_service(conn = Depends(get_connection)):
     return TestCaseService(TestCaseRepository(conn), ModulRepository(conn))
 def get_test_execution_service(
     conn = Depends(get_connection),
     cfg_repo = Depends(get_cfg_repo),
     file_manager: FileStorageManager = Depends(get_file_manager),
-    gradle_executor: GradleExecutor = Depends(get_gradle_executor),
     test_code_gen: TestCodeGenerator = Depends(get_test_code_gen),
     junit_parser: JUnitResultParser = Depends(get_junit_parser),
     jacoco_parser: JaCoCoParser = Depends(get_jacoco_parser),
@@ -79,7 +75,6 @@ def get_test_execution_service(
         system_repo=SystemConfigRepository(conn),
         cfg_repo=cfg_repo,
         file_manager=file_manager,
-        gradle_executor=gradle_executor,
         test_code_gen=test_code_gen,
         junit_parser=junit_parser,
         jacoco_parser=jacoco_parser,
