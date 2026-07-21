@@ -15,6 +15,7 @@ from routes.combo import combo
 from routes.grade import grade
 from routes.progress import progress
 from infrastructure.file_storage import FileStorageManager
+from config.database import Base, engine
 
 from jobs.schedule import schedule_init, schedule_run_uncomplete, schedule_run_alpha
 from jobs.train_model import run_train_model
@@ -66,12 +67,10 @@ file_manager = FileStorageManager()
 
 @app.get("/static/{file_path:path}")
 async def serve_static(file_path: str):
-    local_path = os.path.join("static", file_path)
-    blob_path = f"static/{file_path}"
+    local_path = os.path.join(file_manager.base_path, "static", file_path)
 
     if not os.path.exists(local_path):
-        if not file_manager._ensure_local_file(local_path, blob_path):
-            raise HTTPException(status_code=404, detail="Not Found")
+        raise HTTPException(status_code=404, detail="Not Found")
 
     if os.path.isdir(local_path):
         raise HTTPException(status_code=404, detail="Not Found")

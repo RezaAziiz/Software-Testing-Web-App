@@ -9,3 +9,6 @@ engine-testing
 Dockerfile
 Dockerfile_*
 dump-deploy-cloud.sql
+modules
+java-worker
+static

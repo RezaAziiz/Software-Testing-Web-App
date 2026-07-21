@@ -1,10 +1,14 @@
-import os
+import io
 import json
-from typing import List, Dict, Any
+import logging
+import os
+from typing import Any
+
+logger = logging.getLogger(__name__)
 
 class TestCodeGenerator:
     
-    def parse_array_value(self, value: str) -> list:
+    def parse_array_value(self, value: str) -> list[str]:
         if not value:
             return []
         value = value.strip()
@@ -65,21 +69,17 @@ class TestCodeGenerator:
         else:
             return self.format_single_value(p_type, p_value)
 
-    def generate_junit_class(
+    def generate_junit_class_string(
         self, 
         class_name: str, 
         function_name: str, 
         return_type: str, 
-        test_cases: List[Dict[str, Any]], 
-        output_path: str
+        test_cases: list[dict[str, Any]]
     ) -> str:
-        filename = f"{class_name}Test.java"
-        os.makedirs(output_path, exist_ok=True)
-        target_file = os.path.join(output_path, filename)
-        
-        with open(target_file, 'w') as file:
-            file.write('import org.junit.Assert;\n')
-            file.write('import org.junit.Test;\n\n')
+        file = io.StringIO()
+        try:
+            file.write('import org.junit.jupiter.api.Assertions;\n')
+            file.write('import org.junit.jupiter.api.Test;\n\n')
             
             file.write(f'public class {class_name}Test {{\n')
             
@@ -103,6 +103,16 @@ class TestCodeGenerator:
                     p_type = param.get('param_type')
                     p_value = param.get('param_value')
                     
+                    # SECURITY FIX: Cast to int if it's int to prevent code injection
+                    if p_type == 'int':
+                        try:
+                            int(p_value)
+                        except ValueError:
+                            raise ValueError(f"Invalid integer injection detected: {p_value}")
+                    elif p_type == 'boolean':
+                        if str(p_value).lower() not in ['true', 'false']:
+                            raise ValueError(f"Invalid boolean injection detected: {p_value}")
+                            
                     formatted_val = self.format_value(p_type, p_value)
                     file.write(formatted_val)
                     
@@ -120,19 +130,58 @@ class TestCodeGenerator:
                     formatted_expected = self.format_value(return_type, expected)
                     base_type = return_type[:-2]
                     if base_type in ['float', 'double']:
-                        file.write(f'\t\tAssert.assertArrayEquals({formatted_expected}, actual, 0.0f);\n')
+                        file.write(f'\t\tAssertions.assertArrayEquals({formatted_expected}, actual, 0.0f);\n')
                     else:
-                        file.write(f'\t\tAssert.assertArrayEquals({formatted_expected}, actual);\n')
+                        file.write(f'\t\tAssertions.assertArrayEquals({formatted_expected}, actual);\n')
                 else:
                     # Use assertEquals for scalars
                     formatted_expected = self.format_value(return_type, expected)
                     if return_type in ['float', 'double']:
-                        file.write(f'\t\tAssert.assertEquals({formatted_expected}, actual, 0.0f);\n')
+                        file.write(f'\t\tAssertions.assertEquals({formatted_expected}, actual, 0.0f);\n')
                     else:
-                        file.write(f'\t\tAssert.assertEquals({formatted_expected}, actual);\n')
+                        file.write(f'\t\tAssertions.assertEquals({formatted_expected}, actual);\n')
 
                 file.write('\t}\n\n')   
                 
             file.write('}\n')
-            
+            return file.getvalue()
+        finally:
+            file.close()
+
+    def generate_junit_class(
+        self, 
+        class_name: str, 
+        function_name: str, 
+        return_type: str, 
+        test_cases: list[dict[str, Any]],
+        output_path: str
+    ) -> str:
+        filename = f"{class_name}Test.java"
+        os.makedirs(output_path, exist_ok=True)
+        target_file = os.path.join(output_path, filename)
+
+        generated_content = self.generate_junit_class_string(class_name, function_name, return_type, test_cases)
+
+        current_content = None
+        existed = os.path.exists(target_file)
+        mtime_before = os.stat(target_file).st_mtime_ns if existed else None
+        if existed:
+            with open(target_file, 'r') as current_file:
+                current_content = current_file.read()
+
+        rewritten = current_content != generated_content
+        if rewritten:
+            with open(target_file, 'w') as target:
+                target.write(generated_content)
+
+        logger.info(
+            "[SOURCE PROFILE] Test source path=%s existed=%s content_unchanged=%s "
+            "rewritten=%s mtime_before_ns=%s mtime_after_ns=%s",
+            target_file,
+            existed,
+            existed and not rewritten,
+            rewritten,
+            mtime_before,
+            os.stat(target_file).st_mtime_ns,
+        )
         return target_file
