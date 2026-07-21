@@ -41,4 +41,4 @@ class GradleExecutor:
             
         except Exception as e:
             logger.error(f"Unexpected error executing Gradle in {workspace_path}: {str(e)}")
-            raise
+            raise
