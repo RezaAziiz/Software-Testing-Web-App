@@ -587,10 +587,10 @@ class TestCFGGeneratorVisitor:
         # Harus ada edge SEQUENTIAL menuju merge_node karena ada break
         assert any(e["branch_type"] == BranchType.SEQUENTIAL for e in visitor.edges)
         
-        # Cek tipe node yang dibuat adalah NORMAL (karena digabung ke batch_node)
+        # Cek tipe node yang dibuat adalah NORMAL (node label)
         batch_node = next((n for n in visitor.nodes if n.node_type == NodeType.NORMAL), None)
         assert batch_node is not None
-        assert "case 1:\nbreak;" in batch_node.source_code
+        assert "case 1:" in batch_node.source_code
 
     @patch("core.cfg_generator.NodeFactory.create_node")
     def test_process_switch_complex_group(self, mock_create_node):
@@ -884,9 +884,10 @@ class TestCFGGeneratorVisitor:
         mock_body.children = [mock_group1, mock_group2]
 
         call_count = [0]
-        def create_node_side_effect(*args, **kwargs):
+        def create_node_side_effect(ast_node=None, **kwargs):
             call_count[0] += 1
-            node = CfgNode(None)
+            node = CfgNode(ast_node)
+            node.node_type = NodeType.NORMAL
             node.id_node = f"node_{call_count[0]}"
             return node
 
@@ -894,19 +895,18 @@ class TestCFGGeneratorVisitor:
 
         entry, exits = visitor._process_switch(mock_ast)
 
-        # There should be fallthrough edge from group1 block_node to group2 block_node (lines 430-431)
+        # There should be fallthrough edge from group1 stmt node to group2 label node
         normal_nodes = [n for n in visitor.nodes if n.node_type == NodeType.NORMAL]
-        assert len(normal_nodes) == 2
+        assert len(normal_nodes) == 5
 
-        # group2's block_node should have an incoming edge from group1's block_node (fallthrough, line 430-431)
-        g1_id = normal_nodes[0].id_node
-        g2_id = normal_nodes[1].id_node
-        assert any(e['id_start_node'] == g1_id and e['id_finish_node'] == g2_id for e in visitor.edges)
+        lbl2_node = next(n for n in normal_nodes if n.source_code == 'case 2:')
+        stmt1_node = next(n for n in normal_nodes if n.source_code == 'x++;')
+        stmt2_node = next(n for n in normal_nodes if n.source_code == 'y++;')
+        assert any(e['id_start_node'] == stmt1_node.id_node and e['id_finish_node'] == lbl2_node.id_node for e in visitor.edges)
 
-        # group2 also has no break so fallthrough_incoming is set for it (line 437)
-        # That means group2's block_node should have a SEQUENTIAL edge to merge_node at the end
+        # group2 also has no break so fallthrough_incoming connects stmt2_node to merge_node
         merge_node = next(n for n in visitor.nodes if n.node_type == NodeType.MERGE)
-        assert any(e['id_start_node'] == g2_id and e['id_finish_node'] == merge_node.id_node for e in visitor.edges)
+        assert any(e['id_start_node'] == stmt2_node.id_node and e['id_finish_node'] == merge_node.id_node for e in visitor.edges)
 
     @patch("core.cfg_generator.NodeFactory.create_node")
     def test_process_switch_complex_group_prefix_parts_and_fallthrough_incoming(self, mock_create_node):
@@ -964,9 +964,10 @@ class TestCFGGeneratorVisitor:
         mock_body.children = [mock_group1, mock_group2]
 
         call_count = [0]
-        def create_node_factory(*args, **kwargs):
+        def create_node_factory(ast_node=None, **kwargs):
             call_count[0] += 1
-            node = CfgNode(None)
+            node = CfgNode(ast_node)
+            node.node_type = NodeType.NORMAL
             node.id_node = f"node_{call_count[0]}"
             return node
 
@@ -983,14 +984,11 @@ class TestCFGGeneratorVisitor:
         # prefix_parts for group2 should contain label + simple_pre (lines 450-452)
         # prefix_node should have source_code with both label and simple stmt
         normal_nodes = [n for n in visitor.nodes if n.node_type == NodeType.NORMAL]
-        # node from group1 + prefix_node from group2
-        assert len(normal_nodes) >= 2
+        assert len(normal_nodes) >= 4
 
-        # Fallthrough edge from group1_node to prefix_node of group2 (lines 469-470)
-        g1_node = normal_nodes[0]
-        prefix_node = normal_nodes[1]
-        assert any(e['id_start_node'] == g1_node.id_node and e['id_finish_node'] == prefix_node.id_node for e in visitor.edges)
-        assert "case 2:\nlog();" in prefix_node.source_code
+        stmt1_node = next(n for n in normal_nodes if n.id_node == 'node_1')
+        lbl2_node = next(n for n in normal_nodes if n.source_code == 'case 2:')
+        assert any(e['id_start_node'] == stmt1_node.id_node and e['id_finish_node'] == lbl2_node.id_node for e in visitor.edges)
 
     @patch("core.cfg_generator.NodeFactory.create_node")
     def test_process_switch_complex_group_no_prefix_no_incoming(self, mock_create_node):
@@ -1136,9 +1134,16 @@ class TestCFGGeneratorVisitor:
         mock_group.children = [mock_label, mock_complex, mock_break_stmt]
         mock_body.children = [mock_group]
 
-        cond_node = CfgNode(None)
-        cond_node.id_node = "switch_cond_batch_break"
-        mock_create_node.return_value = cond_node
+        call_count = [0]
+        def create_node_side_effect(ast_node=None, **kwargs):
+            call_count[0] += 1
+            node = CfgNode(ast_node)
+            node.node_type = NodeType.NORMAL
+            node.id_node = f"node_{call_count[0]}"
+            if ast_node and hasattr(ast_node, 'text') and ast_node.text:
+                node.source_code = ast_node.text.decode('utf8')
+            return node
+        mock_create_node.side_effect = create_node_side_effect
 
         complex_entry = CfgNode(None)
         complex_entry.id_node = "complex_batch_entry"
@@ -1148,7 +1153,6 @@ class TestCFGGeneratorVisitor:
             setattr(visitor, f'visit_{AstNodeType.IF_STATEMENT.value}', mock_if)
             entry, exits = visitor._process_switch(mock_ast)
 
-        # batch_node should be created and have SEQUENTIAL edge to merge_node (lines 534-535)
         merge_node = next(n for n in visitor.nodes if n.node_type == NodeType.MERGE)
         batch_nodes = [n for n in visitor.nodes if n.node_type == NodeType.NORMAL]
         assert any(n.source_code == 'break;' for n in batch_nodes)
@@ -1239,9 +1243,16 @@ class TestCFGGeneratorVisitor:
         mock_group.children = [mock_label, mock_complex, mock_expr_stmt]
         mock_body.children = [mock_group]
 
-        cond_node = CfgNode(None)
-        cond_node.id_node = "switch_cond_batch_seq"
-        mock_create_node.return_value = cond_node
+        call_count = [0]
+        def create_node_side_effect(ast_node=None, **kwargs):
+            call_count[0] += 1
+            node = CfgNode(ast_node)
+            node.node_type = NodeType.NORMAL
+            node.id_node = f"node_{call_count[0]}"
+            if ast_node and hasattr(ast_node, 'text') and ast_node.text:
+                node.source_code = ast_node.text.decode('utf8')
+            return node
+        mock_create_node.side_effect = create_node_side_effect
 
         complex_entry = CfgNode(None)
         complex_entry.id_node = "complex_seq_entry"
@@ -1405,9 +1416,10 @@ class TestCFGGeneratorVisitor:
         mock_body.children = [mock_group1, mock_group2]
 
         call_count = [0]
-        def create_node_factory(*args, **kwargs):
+        def create_node_factory(ast_node=None, **kwargs):
             call_count[0] += 1
-            node = CfgNode(None)
+            node = CfgNode(ast_node)
+            node.node_type = NodeType.NORMAL
             node.id_node = f"node_{call_count[0]}"
             return node
 
@@ -1425,8 +1437,158 @@ class TestCFGGeneratorVisitor:
         # The fallthrough from group1's block_node should connect to complex_entry
         normal_nodes = [n for n in visitor.nodes if n.node_type == NodeType.NORMAL]
         assert len(normal_nodes) >= 1
-        g1_node = normal_nodes[0]
+        g1_node = next(n for n in normal_nodes if n.source_code == 'x++;')
         assert any(
             e['id_start_node'] == g1_node.id_node and e['id_finish_node'] == complex_entry.id_node
             for e in visitor.edges
         )
+
+    @patch("core.cfg_generator.NodeFactory.create_node")
+    def test_visit_enhanced_for_statement(self, mock_create_node):
+        """TC-CFG-44: Tests visit_enhanced_for_statement with BLOCK body."""
+        visitor = CFGGeneratorVisitor()
+        mock_ast = MagicMock()
+        mock_ast.type = AstNodeType.ENHANCED_FOR_STATEMENT
+        
+        mock_body = MagicMock()
+        mock_body.type = AstNodeType.BLOCK
+        mock_ast.child_by_field_name.return_value = mock_body
+        
+        for_node = CfgBoolExprNode(None)
+        for_node.source_code = "for (String item : items)\nSystem.out.println(item);"
+        for_node.line_start = 1
+        for_node.line_end = 2
+        mock_create_node.return_value = for_node
+
+        body_node = CfgNode(None)
+        body_node.id_node = "body_node"
+
+        with patch.object(visitor, 'visit_block', return_value=(body_node, [ExitNode(body_node, BranchType.SEQUENTIAL)])):
+            entry, exits = visitor.visit_enhanced_for_statement(mock_ast)
+
+        assert entry == for_node
+        assert for_node.source_code == "for (String item : items)"
+
+    @patch("core.cfg_generator.NodeFactory.create_node")
+    def test_visit_enhanced_for_statement_non_block(self, mock_create_node):
+        """TC-CFG-45: Tests visit_enhanced_for_statement with non-block body."""
+        visitor = CFGGeneratorVisitor()
+        mock_ast = MagicMock()
+        mock_ast.type = AstNodeType.ENHANCED_FOR_STATEMENT
+        
+        mock_body = MagicMock()
+        mock_body.type = AstNodeType.EXPRESSION_STATEMENT.value
+        mock_ast.child_by_field_name.return_value = mock_body
+        
+        for_node = CfgBoolExprNode(None)
+        for_node.source_code = "for (int x : list)"
+        for_node.line_start = 1
+        for_node.line_end = 1
+        mock_create_node.return_value = for_node
+
+        stmt_node = CfgNode(None)
+        stmt_node.id_node = "stmt_node"
+
+        with patch.object(visitor, 'generic_visit', return_value=(stmt_node, [ExitNode(stmt_node, BranchType.SEQUENTIAL)])):
+            entry, exits = visitor.visit_enhanced_for_statement(mock_ast)
+
+        assert entry == for_node
+
+    def test_visit_labeled_statement_and_break_continue(self):
+        """TC-CFG-46: Tests visit_labeled_statement, labeled break, and labeled continue."""
+        visitor = CFGGeneratorVisitor()
+        
+        # Test visit_break_statement with identifier
+        break_ast = MagicMock()
+        break_ast.type = AstNodeType.BREAK_STATEMENT
+        id_child = MagicMock()
+        id_child.type = AstNodeType.IDENTIFIER
+        id_child.text = b'outer'
+        break_ast.children = [id_child]
+        
+        b_node, b_exits = visitor.visit_break_statement(break_ast)
+        assert b_exits[0].target_label == 'outer'
+
+        # Test visit_continue_statement with identifier
+        cont_ast = MagicMock()
+        cont_ast.type = AstNodeType.CONTINUE_STATEMENT
+        id_child2 = MagicMock()
+        id_child2.type = AstNodeType.IDENTIFIER
+        id_child2.text = b'outer'
+        cont_ast.children = [id_child2]
+        
+        c_node, c_exits = visitor.visit_continue_statement(cont_ast)
+        assert c_exits[0].target_label == 'outer'
+
+        # Test visit_labeled_statement with named child
+        labeled_ast = MagicMock()
+        labeled_ast.type = AstNodeType.LABELED_STATEMENT
+        label_id = MagicMock()
+        label_id.type = AstNodeType.IDENTIFIER
+        label_id.text = b'outer'
+        inner_stmt = MagicMock()
+        inner_stmt.is_named = True
+        inner_stmt.type = AstNodeType.EXPRESSION_STATEMENT.value
+        labeled_ast.children = [label_id, inner_stmt]
+
+        inner_node = CfgNode(None)
+        with patch.object(visitor, 'generic_visit', return_value=(inner_node, [ExitNode(inner_node, BranchType.SEQUENTIAL)])):
+            entry, exits = visitor.visit_labeled_statement(labeled_ast)
+            assert entry == inner_node
+
+        # Test visit_labeled_statement without named child
+        labeled_ast_empty = MagicMock()
+        labeled_ast_empty.children = []
+        with patch.object(visitor, 'generic_visit', return_value=(inner_node, [])):
+            entry, exits = visitor.visit_labeled_statement(labeled_ast_empty)
+            assert entry == inner_node
+
+    def test_process_loop_exits_label_mismatch(self):
+        """TC-CFG-47: Tests _process_loop_exits when target_label does not match current_loop_label."""
+        visitor = CFGGeneratorVisitor()
+        loop_node = CfgNode(None)
+        body_node = CfgNode(None)
+        
+        exit_item = ExitNode(body_node, BranchType.BREAK, target_label="outer")
+        exit_nodes = []
+        
+        result_exits = visitor._process_loop_exits([exit_item], loop_node, exit_nodes, current_loop_label="inner")
+        assert exit_item in result_exits
+
+    @patch("core.cfg_generator.NodeFactory.create_node")
+    def test_process_switch_labeled_break_and_no_incoming_to_merge(self, mock_create_node):
+        """TC-CFG-48: Tests switch with labeled break and 0 incoming edges to merge_node."""
+        visitor = CFGGeneratorVisitor()
+        mock_ast = MagicMock()
+        mock_body = MagicMock()
+        mock_ast.child_by_field_name.side_effect = lambda f: mock_body if f == 'body' else MagicMock()
+
+        mock_lbl = MagicMock()
+        mock_lbl.is_named = True
+        mock_lbl.type = AstNodeType.SWITCH_LABEL
+        mock_lbl.text = b'default:'
+        mock_lbl.start_point = (0, 0)
+        mock_lbl.end_point = (0, 8)
+
+        mock_break = MagicMock()
+        mock_break.is_named = True
+        mock_break.type = AstNodeType.BREAK_STATEMENT.value
+        mock_break.text = b'break outer;'
+
+        mock_group = MagicMock()
+        mock_group.type = AstNodeType.SWITCH_BLOCK_GROUP
+        mock_group.children = [mock_lbl, mock_break]
+        mock_body.children = [mock_group]
+
+        cond_node = CfgNode(None)
+        mock_create_node.return_value = cond_node
+
+        break_node = CfgNode(None)
+        break_exit = ExitNode(break_node, BranchType.BREAK, target_label="outer")
+
+        with patch.object(visitor, 'visit_break_statement', return_value=(break_node, [break_exit])):
+            entry, exits = visitor._process_switch(mock_ast)
+
+        assert break_exit in exits
+        assert not any(n.node_type == NodeType.MERGE for n in visitor.nodes)
+

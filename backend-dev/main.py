@@ -1,6 +1,13 @@
 import logging
 logging.basicConfig(level=logging.INFO, format="%(levelname)s:     %(message)s")
 
+import sys
+import asyncio
+if sys.platform == 'win32':
+    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+    import uvicorn.config
+    uvicorn.config.Config.setup_event_loop = lambda self: asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
