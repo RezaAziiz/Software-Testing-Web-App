@@ -9,12 +9,10 @@ class TestModulServiceMetadataParser:
         self.modul_repo = MagicMock()
         self.cfg_service = MagicMock()
         self.file_manager = MagicMock()
-        self.gradle_executor = MagicMock()
         self.service = ModulService(
             modul_repo=self.modul_repo,
             cfg_service=self.cfg_service,
-            file_manager=self.file_manager,
-            gradle_executor=self.gradle_executor
+            file_manager=self.file_manager
         )
 
     def test_parse_metadata_success_single_method(self):

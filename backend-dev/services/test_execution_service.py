@@ -15,6 +15,11 @@ from infrastructure.parsers.junit_parser import JUnitResultParser
 from infrastructure.parsers.jacoco_parser import JaCoCoParser
 from infrastructure.cfg_coverage_sync import CfgCoverageSync
 from services.path_analysis_service import PathAnalysisService
+import requests
+http_session = requests.Session()
+adapter = requests.adapters.HTTPAdapter(pool_connections=100, pool_maxsize=300)
+http_session.mount('http://', adapter)
+http_session.mount('https://', adapter)
 
 logger = logging.getLogger(__name__)
 
@@ -114,13 +119,13 @@ class TestExecutionService:
             java_worker_url = config('JAVA_WORKER_URL', default='http://localhost:8081')
             
             t_http = time.perf_counter()
-            response = requests.post(f"{java_worker_url}/execute", json=payload, timeout=60)
+            response = http_session.post(f"{java_worker_url}/execute", json=payload, timeout=60)
             elapsed_http = time.perf_counter() - t_http
             logger.info(f"               -> Java Worker HTTP call: {elapsed_http:.3f}s (response size: {len(response.content)} bytes)")
             
             if response.status_code != 200:
                 logger.error(f"Java Worker Error: {response.text}")
-                raise RuntimeError("Terjadi kesalahan pada mesin eksekutor (Java Worker)")
+                raise RuntimeError("Terjadi kesalahan pada (Java Worker)")
                 
             t_parse = time.perf_counter()
             result = response.json()
@@ -179,7 +184,7 @@ class TestExecutionService:
             # Step 5: Update Status Test Case & Calculate Final Score
             t_start = time.perf_counter()
             # Update Test Cases status. We assume failures have 'testName' like 'pengujian_X'
-            failed_tests = [f['testName'] for f in result.get('failures', [])]
+            failed_tests = [f['testName'].replace("()", "") for f in result.get('failures', [])]
             for tc in test_cases:
                 tc_method_name = tc['tr_object_pengujian'].replace(" ", "_")
                 tc_status = 'F' if tc_method_name in failed_tests else 'P'

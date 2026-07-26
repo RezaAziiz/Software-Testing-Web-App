@@ -1,0 +1,32 @@
+@startuml
+left to right direction
+skinparam componentStyle uml2
+
+package "<<component>>\nFrontend" {
+  [TestResultPage.tsx] ..> [CFGCard.tsx] : <<uses>>
+}
+
+package "<<component>>\nMain Backend" {
+  [Modul] --> [TestExecutionService]
+  [TestExecutionService] --> [CfgCoverageSync]
+  [CfgCoverageSync] --> [CFGRepository]
+}
+
+package "<<component>>\nJava Worker Service" {
+  [ExecutionService (Java)] --> [JaCoCo Core]
+}
+
+package "<<component>>\nDatabase (MySQL)" as DB {
+}
+
+' Connections / Interfaces
+[TestResultPage.tsx] --( API
+API -- [Modul]
+
+[TestExecutionService] --( ExecutionAPI
+ExecutionAPI -- [ExecutionService (Java)]
+
+[CFGRepository] --( DBPort
+DBPort -- DB
+
+@enduml

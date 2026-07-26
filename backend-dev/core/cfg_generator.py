@@ -422,6 +422,8 @@ class CFGGeneratorVisitor:
 
                 # Node Label kini bersiap menyambung ke Statement pertama
                 current_incoming = [ExitNode(label_node, BranchType.SEQUENTIAL)]
+            elif len(current_incoming) == 0:
+                current_incoming = [ExitNode(cond_node, BranchType.CASE)]
             for stmt in stmts:
                 method_name = f'visit_{stmt.type}'
                 visitor_method = getattr(self, method_name, self.generic_visit)

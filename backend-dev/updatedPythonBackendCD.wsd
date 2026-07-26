@@ -1,0 +1,151 @@
+@startuml
+
+skinparam class {
+    BackgroundColor #DAE8FC
+    BorderColor #6C8EBF
+    FontColor Black
+    ArrowColor #6C8EBF
+    AttributeFontColor Black
+    StereotypeFontColor Black
+}
+
+class ModulController {
+    +addModul()
+    +editModul()
+    +deleteModul()
+    +uploadSourceCode()
+    +getCFG()
+    +addTestCase()
+    +editTestCase()
+    +deleteTestCase()
+    +runTesting()
+    +getTestingResult()
+}
+
+class ModulService {
+    -modulRepo : ModulRepository
+    -cfgService : CFGService
+    -fileManager : FileStorageManager
+    +getDetail()
+    +search()
+    +create()
+    +update()
+    +delete()
+    +uploadAndProcess()
+    +getSourceCodeText()
+    +getDetailByTopik()
+    +getDownloadFilePath()
+}
+
+class CFGService {
+    -parser : JavaParser
+    -cfgRepository : CfgRepository
+    +generateCFGFromJavaCode()
+    +extractMethodNames()
+    +calculateCyclomaticComplexity()
+    +deleteCFGForModul()
+    +getCFGForModul()
+    +saveCFGToDatabase()
+}
+
+class JavaParser {
+    -javaLanguage : Language
+    -parser : Parser
+    +parseSourceCode()
+    +extractAllMethods()
+    +findMethodByName()
+}
+
+class CFGRepository {
+    -connection : SQLAlchemyConnection
+    +insertNodes()
+    +insertEdges()
+    +updateModulCC()
+    +deleteMasterCFG()
+    +getMasterNodes()
+    +getMasterEdges()
+    +getCFGWithStatus()
+}
+
+class CfgCoverageSync {
+    -cfgRepo : CfgRepository
+    +syncronize()
+}
+
+class TestExecutionService {
+    -modulRepo : ModulRepository
+    -testCaseRepo : TestCaseRepository
+    -penyelesaianRepo : PenyelesaianRepository
+    -cfgRepo : CfgRepository
+    -systemRepo : SystemConfigRepository
+    -fileManager : FileStorageManager
+    -testCodeGen : TestCodeGenerator
+    -cfgSync : CfgCoverageSync
+    +run_test()
+    +getExecutionResult()
+}
+
+class PathAnalysisService {
+    +normalizeNode()
+    +getNodeId()
+    +getNodeLabel()
+    +buildUnexecutedPaths()
+}
+
+class CFGGeneratorVisitor {
+    -nodes : List<CfgNode>
+    -edges : List<Edge>
+    -currentExecutionOrder : Integer
+    +buildCFG()
+    +registerNode()
+    +createEdge()
+    +visitBlock()
+    +genericVisit()
+    +visitIfStatement()
+    +visitForStatement()
+    +visitWhileStatement()
+    +visitDoStatement()
+    +visitSwitchStatement()
+    +processSwitch()
+    +visitReturnStatement()
+    +visitBreakStatement()
+    +visitContinueStatement()
+}
+
+class CFGNode {
+    -idNode : String
+    -astNode : ASTNode
+    -astNodeType : AstNodeType
+    -sourceCode : String
+    -lineStart : Integer
+    -lineEnd : Integer
+    -executionOrder : Integer
+    -nodeType : NodeType
+}
+
+class NodeFactory {
+    +createNode()
+}
+
+class CfgBoolExprNode {
+    -trueNode : CfgNode
+    -falseNode : CfgNode
+    +setTrueNode()
+    +setFalseNode()
+}
+
+ModulController ..> ModulService : menggunakan
+ModulService "1" *-- "1" CFGService
+CFGService "1" *-- "1" JavaParser
+CFGService "1" *-- "1" CFGRepository
+CfgCoverageSync "1" *-- "1" CFGRepository
+TestExecutionService "1" *-- "1" CfgCoverageSync
+TestExecutionService "1" *-- "1" PathAnalysisService
+TestExecutionService "1" *-- "1" CFGRepository
+
+CFGGeneratorVisitor ..> CFGNode : menghasilkan
+CFGGeneratorVisitor ..> NodeFactory : menggunakan
+NodeFactory ..> CFGNode : membuat
+CfgBoolExprNode --|> CFGNode
+
+@enduml

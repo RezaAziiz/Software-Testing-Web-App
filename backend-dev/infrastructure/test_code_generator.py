@@ -83,13 +83,25 @@ class TestCodeGenerator:
             
             file.write(f'public class {class_name}Test {{\n')
             
-            for test_case in test_cases:
+            seen_methods = set()
+            for idx, test_case in enumerate(test_cases, start=1):
                 # Handle JSON string parsing gracefully
                 data_test = test_case['tr_data_test_input']
                 if isinstance(data_test, str):
                     data_test = json.loads(data_test)
                 
-                method_test_name = test_case['tr_object_pengujian'].replace(" ", "_")
+                raw_obj = test_case['tr_object_pengujian'] if hasattr(test_case, 'tr_object_pengujian') else (test_case['tr_object_pengujian'] if 'tr_object_pengujian' in test_case else f'test_{idx}')
+                raw_name = str(raw_obj).replace(" ", "_")
+                base_method_name = "".join(c for c in raw_name if c.isalnum() or c == '_')
+                if not base_method_name or not base_method_name[0].isalpha():
+                    base_method_name = f"test_{base_method_name}"
+                
+                method_test_name = base_method_name
+                suffix = 1
+                while method_test_name in seen_methods:
+                    method_test_name = f"{base_method_name}_{suffix}"
+                    suffix += 1
+                seen_methods.add(method_test_name)
                 
                 file.write('\t@Test\n')
                 file.write(f'\tpublic void {method_test_name}() {{\n')
