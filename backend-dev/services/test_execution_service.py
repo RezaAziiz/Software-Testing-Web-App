@@ -124,6 +124,15 @@ class TestExecutionService:
                 
             t_parse = time.perf_counter()
             result = response.json()
+            
+            # --- Logger untuk menampilkan JSON Response ---
+            import json
+            log_result = result.copy()
+            if 'sourceHtmlContent' in log_result:
+                log_result['sourceHtmlContent'] = '<HTML CONTENT OMITTED FOR LOGGING>'
+            logger.info(f"               -> [JAVA WORKER JSON RESPONSE]:\n{json.dumps(log_result, indent=2)}")
+            # ---------------------------------------------
+            
             source_html = result.get('sourceHtmlContent')
             if source_html:
                 import os
