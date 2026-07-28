@@ -369,6 +369,10 @@ const AddModuleForm: React.FC<AddModuleFormProps> = ({ onAddModule, onEditModule
   };
 
   const parseFileMetadata = async (file: File) => {
+    if (!file.name.toLowerCase().endsWith('.java')) {
+      setModalError("File yang diunggah harus berekstensi .java (tidak mendukung PDF, Word, Excel, Gambar, dll).");
+      return;
+    }
     setModalLoading(true);
     setModalError(null);
     setFileErrors([]);

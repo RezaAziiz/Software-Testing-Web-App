@@ -176,6 +176,9 @@ async def upload_source_code(
     modul_service: ModulService = Depends(get_modul_service)
 ):
     try:
+        if not source_code.filename.lower().endswith('.java'):
+            raise ValueError("File harus berekstensi .java. Harap periksa kembali file yang diunggah.")
+
         result = modul_service.upload_and_process(id_modul, source_code, current_user['userid'])
         return result
     except ValueError as e:
@@ -194,6 +197,9 @@ async def parse_metadata(
     modul_service: ModulService = Depends(get_modul_service)
 ):
     try:
+        if not source_code.filename.lower().endswith('.java'):
+            raise ValueError("File harus berekstensi .java. Harap periksa kembali file yang diunggah.")
+
         content = await source_code.read()
         java_code = content.decode('utf-8')
         result = modul_service.parse_metadata(java_code)
