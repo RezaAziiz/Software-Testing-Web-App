@@ -13,18 +13,14 @@ import java.util.*;
 public class InMemoryCompiler {
 
     private static final JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
-    private static final StandardJavaFileManager standardFileManager;
+    // Cache classpath string once (immutable, thread-safe)
+    private static final String cachedClasspath;
 
     static {
         if (compiler == null) {
             throw new RuntimeException("JavaCompiler is null. Make sure you are running with a JDK, not a JRE.");
         }
-        standardFileManager = compiler.getStandardFileManager(null, null, null);
-        try {
-            standardFileManager.setLocation(StandardLocation.CLASS_PATH, buildClasspathFiles());
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        cachedClasspath = buildClasspathString();
     }
 
     private static List<File> buildClasspathFiles() {
@@ -74,8 +70,12 @@ public class InMemoryCompiler {
         if (compiler == null) {
             throw new RuntimeException("JavaCompiler is null. Make sure you are running with a JDK, not a JRE.");
         }
+        
+        // Create a fresh StandardJavaFileManager per call (NOT thread-safe if shared)
+        StandardJavaFileManager stdFileManager = compiler.getStandardFileManager(null, null, null);
+        
         DiagnosticCollector<JavaFileObject> diagnostics = new DiagnosticCollector<>();
-        InMemoryFileManager fileManager = new InMemoryFileManager(standardFileManager);
+        InMemoryFileManager fileManager = new InMemoryFileManager(stdFileManager);
 
         List<JavaFileObject> compilationUnits = new ArrayList<>();
         for (Map.Entry<String, String> entry : sources.entrySet()) {
@@ -84,7 +84,7 @@ public class InMemoryCompiler {
 
         List<String> options = new ArrayList<>();
         options.add("-classpath");
-        options.add(buildClasspathString());
+        options.add(cachedClasspath);
 
         JavaCompiler.CompilationTask task = compiler.getTask(null, fileManager, diagnostics, options, null, compilationUnits);
 

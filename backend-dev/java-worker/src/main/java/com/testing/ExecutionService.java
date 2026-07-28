@@ -37,10 +37,33 @@ import java.util.*;
 public class ExecutionService {
 
     private static final Launcher launcher = org.junit.platform.launcher.core.LauncherFactory.create();
+    
+    // Limit concurrent executions to CPU core count to prevent CPU thrashing
+    private static final int MAX_CONCURRENT = Runtime.getRuntime().availableProcessors();
+    private static final java.util.concurrent.Semaphore executionSemaphore = new java.util.concurrent.Semaphore(MAX_CONCURRENT);
+    
+    static {
+        System.out.println("ExecutionService: max concurrent executions = " + MAX_CONCURRENT + " (CPU cores)");
+    }
 
     public Map<String, Object> runTest(String mainClassName, String mainCode, String testClassName, String testCode, String reportOutputDir) throws Exception {
+        long waitStart = System.currentTimeMillis();
+        executionSemaphore.acquire();
+        long waitTime = System.currentTimeMillis() - waitStart;
+        
+        try {
+            return doRunTest(mainClassName, mainCode, testClassName, testCode, reportOutputDir, waitTime);
+        } finally {
+            executionSemaphore.release();
+        }
+    }
+    
+    private Map<String, Object> doRunTest(String mainClassName, String mainCode, String testClassName, String testCode, String reportOutputDir, long semaphoreWaitMs) throws Exception {
         Map<String, Object> result = new HashMap<>();
         long t0 = System.currentTimeMillis();
+        if (semaphoreWaitMs > 10) {
+            System.out.println("Waited " + semaphoreWaitMs + "ms in queue for " + mainClassName);
+        }
         
         // 1. Compile In-Memory
         Map<String, String> sources = new HashMap<>();
@@ -186,6 +209,8 @@ public class ExecutionService {
         
         result.put("coveragePercent", coveragePercent);
         result.put("lineStatuses", lineStatuses);
+        result.put("semaphoreWaitMs", semaphoreWaitMs);
+        result.put("totalExecutionMs", System.currentTimeMillis() - t0);
         
         return result;
     }

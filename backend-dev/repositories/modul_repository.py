@@ -16,6 +16,10 @@ class ModulRepository:
         query = Modul.select().where(Modul.c.ms_nama_modul == nama_modul)
         return self._conn.execute(query).fetchone()
 
+    def find_by_class_name(self, class_name: str):
+        query = Modul.select().where(Modul.c.ms_class_name == class_name)
+        return self._conn.execute(query).fetchone()
+
     def find_detail_with_lookup(self, id_modul: str):
         """Mengambil detail modul beserta join ke ms_system untuk nama jenis modul"""
         query = text("""

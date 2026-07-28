@@ -450,46 +450,45 @@ const AddTestCaseCard: React.FC = () => {
       )}
 
       <CardContent className="flex-grow overflow-y-auto">
-        <Table className="text-sm border-collapse border border-black w-full">
+        <div className="rounded-lg overflow-hidden border border-slate-200">
+          <Table className="text-sm w-full">
           <TableHeader>
-            <TableRow className="bg-blue-800 text-sm text-white py-2 hover:bg-blue-600">
-              <TableHead className="border border-black">No</TableHead>
-              <TableHead className="border border-black w-52">
+            <TableRow className="bg-blue-800 text-sm text-white py-2 hover:bg-blue-700">
+              <TableHead className="font-semibold text-center w-12 text-white">No</TableHead>
+              <TableHead className="font-semibold w-52 text-white">
                 Objektif Pengujian
               </TableHead>
               {parameters.map((param) => (
                 <TableHead
                   key={`param_${param.ms_id_parameter}`}
-                  className="border border-black"
+                  className="font-semibold text-white"
                 >
                   {param.ms_nama_parameter}
                 </TableHead>
               ))}
-              <TableHead className="border border-black w-64">
+              <TableHead className="font-semibold w-64 text-white">
                 Ekspektasi
               </TableHead>
-              <TableHead className="border border-black">Aksi</TableHead>
+              <TableHead className="font-semibold text-center text-white">Aksi</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {testCases.map((test, index) => (
               <TableRow
                 key={test.tr_id_test_case}
-                className={`${
-                  index % 2 === 0 ? "bg-blue-100" : "bg-blue-200"
-                } text-sm leading-tight`}
+                className="text-sm leading-tight border-b border-slate-200 hover:bg-slate-50 transition-colors"
               >
-                <TableCell className="py-2 border border-black">
+                <TableCell className="py-2 text-center">
                   {index + 1}
                 </TableCell>
-                <TableCell className="py-2 border border-black w-64 whitespace-nowrap">
+                <TableCell className="py-2 w-64 whitespace-nowrap font-medium text-slate-800">
                   {test.tr_object_pengujian}
                 </TableCell>
                 {JSON.parse(test.tr_data_test_input).map(
                   (paramData: { param_value: string }, i: number) => (
                     <TableCell
                       key={i}
-                      className="py-2 border border-black whitespace-nowrap"
+                      className="py-2 whitespace-nowrap text-slate-600 font-mono text-xs"
                     >
                       <div>
                         <span>{paramData.param_value}</span>
@@ -497,27 +496,30 @@ const AddTestCaseCard: React.FC = () => {
                     </TableCell>
                   ),
                 )}
-                <TableCell className="py-2 border border-black w-52 whitespace-nowrap">
+                <TableCell className="py-2 w-52 whitespace-nowrap text-slate-600">
                   {test.tr_expected_result}
                 </TableCell>
-                <TableCell className="py-2 flex items-center justify-center px-2">
+                <TableCell className="py-2 flex items-center justify-center px-2 gap-2">
                   <Button
                     onClick={() => handleEdit(test.tr_id_test_case)}
-                    className="text-blue-500 text-base p-1"
+                    className="bg-blue-100 text-blue-600 hover:text-blue-700 hover:bg-blue-200 h-8 w-8 p-0 border border-blue-200"
+                    title="Edit"
                   >
-                    <FaEdit />
+                    <FaEdit size={14} />
                   </Button>
                   <Button
                     onClick={() => handleDelete(test.tr_id_test_case)}
-                    className="text-red-500 text-base p-1"
+                    className="bg-red-100 text-red-600 hover:text-red-700 hover:bg-red-200 h-8 w-8 p-0 border border-red-200"
+                    title="Hapus"
                   >
-                    <FaTrash />
+                    <FaTrash size={14} />
                   </Button>
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
-        </Table>
+          </Table>
+        </div>
       </CardContent>
 
       <CardFooter className="flex justify-between">

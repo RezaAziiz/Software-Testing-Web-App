@@ -275,6 +275,11 @@ class ModulService:
         if not class_name:
             raise ValueError("No class declaration found in the source code.")
 
+        existing = self.modul_repo.find_by_class_name(class_name)
+        if existing:
+            raise ValueError(f"Source code dengan class {class_name} sudah pernah diupload sebelumnya. Silakan gunakan source code lain.")
+
+
         # Ekstrak Deskripsi dari Komentar
         import re
         description = ""

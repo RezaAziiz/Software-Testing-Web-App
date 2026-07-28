@@ -3,11 +3,11 @@ import { useState, useEffect } from "react";
 import { Menu } from "@/components/custom/Menu";
 import ModuleCoverage from "@/components/custom/ModuleCoverage";
 import CFGCard from "@/components/custom/CFGCard";
-// import {
-// //   ResizableHandle,
-//   ResizablePanel,
-//   ResizablePanelGroup,
-// } from "@/components/ui/resizable";
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from "@/components/ui/resizable";
 import TestResultCard from "@/components/custom/TestResultCard";
 import { Button } from "@/components/ui/button";
 //import PercentageCodeCoverage from "@/components/custom/PresentaseCodeCoverage";
@@ -124,51 +124,55 @@ const TestResultPage = () => {
   return (
     <Layout>
       <Menu />
-      <div className="flex flex-col md:flex-row w-screen min-h-screen">
-        <div className="flex flex-col w-full md:w-1/2">
-          <ModuleCoverage dataResultTest={dataTestResult} />
-        </div>
-        <div
-          className="flex flex-col w-full md:w-1/2 items-center md:pl-4 md:pr-4 md:gap-4"
-          style={{ overflowY: "auto" }}
-        >
-          <CFGCard
-            showCyclomaticComplexity={showCyclomaticComplexity}
-            showCodeCoverage={showCodeCoverage}
-            codeCoveragePercentage={dataTestResult.coverageScore}
-            nodesWithStatus={dataTestResult.data_cfg?.nodes}
-            edgesWithStatus={dataTestResult.data_cfg?.edges}
-            unexecutedPaths={dataTestResult.data_cfg?.unexecutedPaths}
-            onNodeClick={setHighlightedLines}
-            highlightedLines={highlightedLines}
-            jacocoUrl={
-              dataTestResult.linkSourceCoverage
-                ? `${apiUrl}/${dataTestResult.linkSourceCoverage}`
-                : null
-            }
-          />
-          <TestResultCard dataResultTest={dataTestResult} />
-          <div className="flex justify-end space-x-2 items-center p-4">
-            {dataTestResult.totalFailedTestCase == 0 &&
-              dataTestResult.executionDate !== "" && (
-                <Button
-                  variant="outline"
-                  className="bg-white text-sm text-blue-800 border-2 border-blue-800 rounded-[10px] hover:bg-blue-800 hover:text-white"
-                  onClick={handleCoverageTestReport}
-                >
-                  Coverage Test
-                </Button>
-              )}
-            {dataTestResult.executionDate !== "" && (
-              <Button
-                className="bg-blue-800 text-sm text-white border-2 border-blue-800 rounded-[10px] pt-0 pb-0"
-                onClick={handleTestReport}
-              >
-                Test Report
-              </Button>
-            )}
-          </div>
-        </div>
+      <div className="flex flex-col w-screen min-h-[calc(100vh-100px)] p-4 bg-slate-50">
+        <ResizablePanelGroup direction="horizontal" className="min-h-full rounded-lg border border-slate-200">
+          <ResizablePanel defaultSize={50} minSize={30} className="overflow-y-auto bg-white p-4 workspace-scrollbar">
+            <ModuleCoverage dataResultTest={dataTestResult} />
+          </ResizablePanel>
+
+          <ResizableHandle withHandle className="bg-slate-200 w-2 hover:bg-slate-300 transition-colors" />
+
+          <ResizablePanel defaultSize={50} minSize={30} className="overflow-y-auto bg-white p-4 workspace-scrollbar">
+            <div className="flex flex-col gap-6">
+              <CFGCard
+                showCyclomaticComplexity={showCyclomaticComplexity}
+                showCodeCoverage={showCodeCoverage}
+                codeCoveragePercentage={dataTestResult.coverageScore}
+                nodesWithStatus={dataTestResult.data_cfg?.nodes}
+                edgesWithStatus={dataTestResult.data_cfg?.edges}
+                unexecutedPaths={dataTestResult.data_cfg?.unexecutedPaths}
+                onNodeClick={setHighlightedLines}
+                highlightedLines={highlightedLines}
+                jacocoUrl={
+                  dataTestResult.linkSourceCoverage
+                    ? `${apiUrl}/${dataTestResult.linkSourceCoverage}`
+                    : null
+                }
+              />
+              <TestResultCard dataResultTest={dataTestResult} />
+              <div className="flex justify-end space-x-2 items-center p-4">
+                {dataTestResult.totalFailedTestCase == 0 &&
+                  dataTestResult.executionDate !== "" && (
+                    <Button
+                      variant="outline"
+                      className="bg-white text-sm text-blue-800 border-2 border-blue-800 rounded-[10px] hover:bg-blue-800 hover:text-white"
+                      onClick={handleCoverageTestReport}
+                    >
+                      Coverage Test
+                    </Button>
+                  )}
+                {dataTestResult.executionDate !== "" && (
+                  <Button
+                    className="bg-blue-800 text-sm text-white border-2 border-blue-800 rounded-[10px] pt-0 pb-0"
+                    onClick={handleTestReport}
+                  >
+                    Test Report
+                  </Button>
+                )}
+              </div>
+            </div>
+          </ResizablePanel>
+        </ResizablePanelGroup>
       </div>
     </Layout>
   );

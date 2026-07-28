@@ -3,7 +3,14 @@ import LayoutForm from "./LayoutForm";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { ClipLoader } from "react-spinners";
-
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { CheckCircle2, AlertCircle } from "lucide-react";
 const ModuleTestPage = () => {
     const navigate = useNavigate();
     const apiUrl = import.meta.env.VITE_API_URL;
@@ -98,7 +105,7 @@ const ModuleTestPage = () => {
               const data = await response.json();
               console.log(data.message);
               setErrorMessage(data.message);
-              setTimeout(() => setErrorMessage(null), 2000);
+              setTimeout(() => setErrorMessage(null), 3000);
             }  else {
               throw new Error(`HTTP error! status: ${response.status}`);
             }
@@ -119,11 +126,11 @@ const ModuleTestPage = () => {
                 setIsLoading(false) 
                 // navigate('/list-modules?message=addSuccess');
                 setInfoMessage("Data Modul Saved Success");
-                setTimeout(() => setInfoMessage(null), 2000);
-                setTimeout(() => navigate('/list-modules'), 2100);
+                setTimeout(() => setInfoMessage(null), 3000);
+                setTimeout(() => navigate('/list-modules'), 3100);
             }else{
                 setErrorMessage("Gagal Upload Source Code Data");
-                setTimeout(() => setErrorMessage(null), 2000);
+                setTimeout(() => setErrorMessage(null), 3000);
             }
           }
           
@@ -203,22 +210,22 @@ const ModuleTestPage = () => {
                 setIsLoading(false) 
                 // navigate('/list-modules?message=addSuccess');
                 setInfoMessage("Data Modul Saved Success");
-                setTimeout(() => setInfoMessage(null), 2000);
-                setTimeout(() => navigate('/list-modules'), 2100);
+                setTimeout(() => setInfoMessage(null), 3000);
+                setTimeout(() => navigate('/list-modules'), 3100);
             }else{
                 setErrorMessage("Gagal Upload Source Code Data");
-                setTimeout(() => setErrorMessage(null), 2000);
+                setTimeout(() => setErrorMessage(null), 3000);
             }
           }else{
             if (response.ok) {
               setIsLoading(false) 
               // navigate('/list-modules?message=addSuccess');
               setInfoMessage("Data Modul Saved Success");
-              setTimeout(() => setInfoMessage(null), 2000);
-              setTimeout(() => navigate('/list-modules'), 2100);
+              setTimeout(() => setInfoMessage(null), 3000);
+              setTimeout(() => navigate('/list-modules'), 3100);
             }else{
                 setErrorMessage("Gagal Edit Data");
-                setTimeout(() => setErrorMessage(null), 2000);
+                setTimeout(() => setErrorMessage(null), 3000);
             }
           }
         }
@@ -246,18 +253,22 @@ const ModuleTestPage = () => {
 
     return (
         <LayoutForm screenName={screenName}>
-            <div className="grid grid-cols-1">
-            {infoMessage && (
-                <div className="p-4 mb-4 text-green-500 bg-green-100 rounded-md">
-                {infoMessage}
-                </div>
-            )}
-            {errorMessage && (
-                <div className="p-4 mb-4 text-red-500 bg-red-100 rounded-md">
-                {errorMessage}
-                </div>
-            )}
-            </div>
+            <Dialog open={!!infoMessage || !!errorMessage} onOpenChange={() => { setInfoMessage(null); setErrorMessage(null); }}>
+                <DialogContent className="sm:max-w-md text-center bg-white border border-gray-200 shadow-xl">
+                    <DialogHeader>
+                        <DialogTitle className="flex flex-col items-center gap-2">
+                            {infoMessage && <CheckCircle2 className="h-10 w-10 text-green-500" />}
+                            {errorMessage && <AlertCircle className="h-10 w-10 text-red-500" />}
+                            {infoMessage ? "Berhasil" : "Gagal"}
+                        </DialogTitle>
+                    </DialogHeader>
+                    <div className="flex justify-center p-4">
+                        <p className={`text-base font-semibold ${infoMessage ? 'text-green-600' : 'text-red-600'}`}>
+                            {infoMessage || errorMessage}
+                        </p>
+                    </div>
+                </DialogContent>
+            </Dialog>
             <div className="min-h-screen w-screen flex items-center justify-center bg-gray-100 p-10">
                 <AddModuleForm onAddModule={handleAddModule} onEditModule={handleEditModule} onCancel={handleCancel} idModul={idModul} />
             </div>

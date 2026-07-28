@@ -8,6 +8,7 @@ if sys.platform == 'win32':
     import uvicorn.config
     uvicorn.config.Config.setup_event_loop = lambda self: asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
 
+
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -41,6 +42,11 @@ except locale.Error:
 
 app = FastAPI(docs_url="/doc")
 
+@app.on_event("startup")
+def configure_thread_pool():
+    import anyio
+    limiter = anyio.to_thread.current_default_thread_limiter()
+    limiter.total_tokens = 500
 def cors_headers(app):
     app.add_middleware(
         CORSMiddleware,

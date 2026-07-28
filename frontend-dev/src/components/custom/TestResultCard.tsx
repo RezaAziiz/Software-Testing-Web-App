@@ -124,7 +124,8 @@ const TestResultCard: React.FC<TestResultCardProps> = ({
       }
 
       const responseData: { data: TestCase[] } = await response.json();
-      setTestCases(responseData.data);
+      const executedTestCases = responseData.data.filter(test => test.tr_test_result !== null);
+      setTestCases(executedTestCases);
     } catch (error) {
       console.error("Error fetching data:", error);
     }
@@ -155,49 +156,55 @@ const TestResultCard: React.FC<TestResultCardProps> = ({
           </p>
         </div>
 
-        <Table className="text-sm border-collapse border border-black w-full">
+        <div className="rounded-lg overflow-hidden border border-slate-200 mt-4">
+          <Table className="text-sm w-full">
           <TableHeader>
-            <TableRow className="bg-blue-800 text-sm text-white py-2 hover:bg-blue-600">
-              <TableHead className="border border-black">No</TableHead>
-              <TableHead className="border border-black w-52">Objective Testing</TableHead>
+            <TableRow className="bg-blue-800 text-sm text-white py-2 hover:bg-blue-700">
+              <TableHead className="font-semibold text-center w-12 text-white">No</TableHead>
+              <TableHead className="font-semibold w-52 text-white">Objective Testing</TableHead>
               {parameters.map((param) => (
-                <TableHead key={`param_${param.ms_id_parameter}`} className="border border-black">
+                <TableHead key={`param_${param.ms_id_parameter}`} className="font-semibold text-white">
                   {param.ms_nama_parameter}
                 </TableHead>
               ))}
-              <TableHead className="border border-black w-64">Expected</TableHead>
-              <TableHead className="border border-black">Hasil</TableHead>
+              <TableHead className="font-semibold w-64 text-white">Expected</TableHead>
+              <TableHead className="font-semibold text-center text-white">Hasil</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {testCases.map((test, index) => (
               <TableRow
                 key={test.tr_id_test_case}
-                className={`${index % 2 === 0 ? 'bg-blue-100' : 'bg-blue-200'} text-sm leading-tight`}
+                className="text-sm leading-tight border-b border-slate-200 hover:bg-slate-50 transition-colors"
               >
-                <TableCell className="py-2 border border-black">{index + 1}</TableCell>
-                <TableCell className="py-2 border border-black w-64 whitespace-nowrap">
+                <TableCell className="py-2 text-center">{index + 1}</TableCell>
+                <TableCell className="py-2 w-64 whitespace-nowrap font-medium text-slate-800">
                   {test.tr_object_pengujian}
                 </TableCell>
                 {JSON.parse(test.tr_data_test_input).map(
                   (paramData: { param_value: string }, i: number) => (
-                    <TableCell key={i} className="py-2 border border-black whitespace-nowrap">
+                    <TableCell key={i} className="py-2 whitespace-nowrap text-slate-600 font-mono text-xs">
                       <div>
                         <span>{paramData.param_value}</span>
                       </div>
                     </TableCell>
                   )
                 )}
-                <TableCell className="py-2 border border-black w-52 whitespace-nowrap">
+                <TableCell className="py-2 w-52 whitespace-nowrap text-slate-600">
                   {test.tr_expected_result}
                 </TableCell>
-                <TableCell className="py-2 border border-black w-52 whitespace-nowrap">
-                  {test.tr_test_result === 'P' ? "Pass" : "Failed"}
+                <TableCell className="py-2 w-52 whitespace-nowrap text-center font-medium">
+                  {test.tr_test_result === 'P' ? (
+                    <span className="text-green-600 bg-green-100 px-2 py-1 rounded-md">Pass</span>
+                  ) : (
+                    <span className="text-red-600 bg-red-100 px-2 py-1 rounded-md">Failed</span>
+                  )}
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
-        </Table>
+          </Table>
+        </div>
       </CardContent>
       <CardFooter className="flex justify-between">
         {/* Konten footer card di sini */}

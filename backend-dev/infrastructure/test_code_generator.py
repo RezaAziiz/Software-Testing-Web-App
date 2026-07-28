@@ -79,7 +79,8 @@ class TestCodeGenerator:
         file = io.StringIO()
         try:
             file.write('import org.junit.jupiter.api.Assertions;\n')
-            file.write('import org.junit.jupiter.api.Test;\n\n')
+            file.write('import org.junit.jupiter.api.Test;\n')
+            file.write('import org.junit.jupiter.api.Timeout;\n\n')
             
             file.write(f'public class {class_name}Test {{\n')
             
@@ -104,6 +105,7 @@ class TestCodeGenerator:
                 seen_methods.add(method_test_name)
                 
                 file.write('\t@Test\n')
+                file.write('\t@Timeout(value = 10)\n')
                 file.write(f'\tpublic void {method_test_name}() {{\n')
                 file.write(f'\t\t{class_name} objectTest = new {class_name}();\n')
                 

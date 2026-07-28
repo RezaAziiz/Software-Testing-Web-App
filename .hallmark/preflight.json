@@ -1,0 +1,14 @@
+{
+  "date": "2026-07-25",
+  "framework": "React 18 + Vite 5",
+  "styling": "Tailwind CSS 3 + shadcn-style primitives",
+  "font_stack": "Inter/system stack in src/index.css",
+  "palette": "Existing royal blue, white, and slate values",
+  "motion": "motion-cut; no dedicated motion library",
+  "spacing": "Tailwind default scale",
+  "preserve": [
+    "blue and white brand direction",
+    "existing data fetching and auth flows",
+    "existing component ownership"
+  ]
+}
