@@ -202,7 +202,7 @@ class ModulService:
                 os.remove(target_file)
             raise ValueError(f"Source code memiliki error (Compile Gagal): {error_message}")
 
-    def parse_metadata(self, java_code: str) -> dict:
+    def parse_metadata(self, java_code: str, id_modul: str = None) -> dict:
         """
         Parses Java source code using JavaParser and extracts class name,
         method names, return types, and parameter names/types.
@@ -274,6 +274,11 @@ class ModulService:
         
         if not class_name:
             raise ValueError("No class declaration found in the source code.")
+
+        existing = self.modul_repo.find_by_class_name(class_name)
+        if existing and existing['ms_id_modul'] != id_modul:
+            raise ValueError(f"Source code dengan class {class_name} sudah pernah diupload sebelumnya. Silakan gunakan source code lain.")
+
 
         # Ekstrak Deskripsi dari Komentar
         import re

@@ -1,7 +1,7 @@
 import os
 import magic
 import logging
-from fastapi import APIRouter, Response, status, UploadFile, Depends, Request
+from fastapi import APIRouter, Response, status, UploadFile, Depends, Request, Form
 from fastapi.responses import FileResponse
 from decouple import config
 
@@ -176,6 +176,9 @@ async def upload_source_code(
     modul_service: ModulService = Depends(get_modul_service)
 ):
     try:
+        if not source_code.filename.lower().endswith('.java'):
+            raise ValueError("File harus berekstensi .java. Harap periksa kembali file yang diunggah.")
+
         result = modul_service.upload_and_process(id_modul, source_code, current_user['userid'])
         return result
     except ValueError as e:
@@ -189,14 +192,18 @@ async def upload_source_code(
 @modul.post("/modul/parse-metadata")
 async def parse_metadata(
     source_code: UploadFile,
-    response: Response,
+    id_modul: str = Form(None),
+    response: Response = None,
     current_user: dict = Depends(get_current_user),
     modul_service: ModulService = Depends(get_modul_service)
 ):
     try:
+        if not source_code.filename.lower().endswith('.java'):
+            raise ValueError("File harus berekstensi .java. Harap periksa kembali file yang diunggah.")
+
         content = await source_code.read()
         java_code = content.decode('utf-8')
-        result = modul_service.parse_metadata(java_code)
+        result = modul_service.parse_metadata(java_code, id_modul)
         return result
     except ValueError as e:
         response.status_code = status.HTTP_400_BAD_REQUEST

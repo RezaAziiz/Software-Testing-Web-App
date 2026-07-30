@@ -8,6 +8,7 @@ if sys.platform == 'win32':
     import uvicorn.config
     uvicorn.config.Config.setup_event_loop = lambda self: asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
 
+
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -41,6 +42,11 @@ except locale.Error:
 
 app = FastAPI(docs_url="/doc")
 
+@app.on_event("startup")
+def configure_thread_pool():
+    import anyio
+    limiter = anyio.to_thread.current_default_thread_limiter()
+    limiter.total_tokens = 500
 def cors_headers(app):
     app.add_middleware(
         CORSMiddleware,
@@ -74,9 +80,17 @@ file_manager = FileStorageManager()
 
 @app.get("/static/{file_path:path}")
 async def serve_static(file_path: str):
-    local_path = os.path.join(file_manager.base_path, "static", file_path)
+    # Intercept requests for JaCoCo resources (CSS/JS/images)
+    # They are static and bundled in the app, no need to fetch from GCS
+    if "jacoco-resources" in file_path:
+        filename = os.path.basename(file_path)
+        bundled_resource_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "jacoco-resources", filename))
+        if os.path.exists(bundled_resource_path) and not os.path.isdir(bundled_resource_path):
+            return FileResponse(bundled_resource_path)
 
-    if not os.path.exists(local_path):
+    try:
+        local_path = file_manager.ensure_static_file(file_path)
+    except FileNotFoundError:
         raise HTTPException(status_code=404, detail="Not Found")
 
     if os.path.isdir(local_path):

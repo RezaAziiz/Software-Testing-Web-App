@@ -27,6 +27,8 @@ public class WorkerApp {
 
         Javalin app = Javalin.create(config -> {
             config.showJavalinBanner = false;
+            // Increase HTTP request timeout for load testing (500 concurrent users waiting on semaphore)
+            config.http.maxRequestSize = 10_000_000L;
         }).start(port);
 
         app.post("/execute", ctx -> {

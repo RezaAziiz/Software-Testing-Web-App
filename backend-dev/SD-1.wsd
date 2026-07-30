@@ -1,0 +1,96 @@
+@startuml SD_1_Upload_And_Process_Design_Terbaru
+title SD-1: Membuat Modul Program
+
+skinparam style strictuml
+skinparam dpi 180
+
+skinparam ArrowColor #424242
+skinparam ArrowThickness 2
+skinparam SequenceLifeLineBorderColor #000000
+skinparam SequenceLifeLineBackgroundColor white
+skinparam SequenceLifeLineThickness 5
+
+skinparam ParticipantBorderColor #757575
+skinparam ParticipantBackgroundColor #EBEBEB
+skinparam ParticipantFontStyle bold
+
+skinparam ActorBorderColor #757575
+skinparam ActorBackgroundColor #EBEBEB
+skinparam ActorBorderThickness 2
+
+skinparam NoteBorderColor #BDBDBD
+skinparam NoteBackgroundColor #F5F5F5
+
+actor Dosen
+
+participant ":Aplikasi" as Form
+participant ":ModulController" as Controller
+participant ":ModulService" as ModulService
+participant ":JavaParser" as Parser
+participant ":CFGService" as CFGService
+
+Dosen -> Form : submit(source_code_file)
+activate Dosen
+activate Form
+
+Form -> Controller : uploadSourceCode(id_modul, source_code)
+activate Controller
+
+Controller -> ModulService : uploadAndProcess(id_modul, source_code)
+activate ModulService
+
+ModulService -> Parser : parse_metadata(java_code)
+activate Parser
+note over Parser
+  Ekstrak nama kelas, metode,
+  tipe return, & parameter secara otomatis
+end note
+Parser --> ModulService : metadataResult
+deactivate Parser
+
+note over ModulService
+  Simpan berkas, validasi sintaks & kompilasi
+  in-memory, lalu buat CFG
+end note
+
+alt is_compile_success == true
+
+    ModulService -> CFGService : generateCFGFromJavaCode(sourceCode)
+    activate CFGService
+    ref over CFGService
+        SD-2 Pembentukan CFG
+    end ref
+    CFGService --> ModulService : cfgResult
+    deactivate CFGService
+
+    ModulService -> CFGService : saveCFGToDatabase(id_modul, cfgResult, sourceCode)
+    activate CFGService
+    ref over CFGService
+        SD-3 Penyimpanan Data CFG &
+        Nilai Cyclomatic Complexity
+    end ref
+    CFGService --> ModulService : success
+    deactivate CFGService
+
+    ModulService --> Controller : success_message
+
+    Controller --> Form : success_message
+
+    Form --> Dosen : success_message
+
+else is_compile_success == false
+
+    ModulService --> Controller : error_message
+    deactivate ModulService
+
+    Controller --> Form : error_message
+    deactivate Controller
+
+    Form --> Dosen : error_message
+    deactivate Form
+
+end
+
+deactivate Dosen
+
+@enduml

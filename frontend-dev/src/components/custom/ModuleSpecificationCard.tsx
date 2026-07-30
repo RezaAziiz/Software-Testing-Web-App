@@ -43,6 +43,24 @@ interface Data {
   };
 }
 
+const parseValidationRule = (ruleString: string) => {
+  try {
+    const rule = JSON.parse(ruleString);
+    if (rule.nama_rule === "range") {
+      return `Range: ${rule.min_value} - ${rule.max_value}`;
+    } else if (rule.nama_rule === "enumerasi") {
+      return `Enumerasi: ${rule.value}`;
+    } else if (rule.nama_rule === "countOfLength") {
+      return `Length: ${rule.min_value} - ${rule.max_value}`;
+    } else if (rule.nama_rule === "condition") {
+      return `Kondisi: ${rule.condition} ${rule.value}`;
+    }
+    return rule.nama_rule || ruleString;
+  } catch (e) {
+    return ruleString;
+  }
+};
+
 const ModuleSpecificationCard = () => {
   const navigate = useNavigate();
   const apiUrl = import.meta.env.VITE_API_URL;
@@ -141,24 +159,24 @@ const ModuleSpecificationCard = () => {
               <p className="mb-4 text-sm text-gray-600">{dataModule.data_modul.ms_deskripsi_modul}</p>
             </div>
 
-            <div className="rounded-lg mb-6">
-              <h4 className="text-base font-semibold mb-3 text-gray-700">Daftar Parameter</h4>
-              <Table className="text-sm border-collapse border border-black">
+            <div className="rounded-lg mb-6 overflow-hidden border border-slate-200">
+              <h4 className="text-base font-semibold mb-3 text-gray-700 bg-white p-2 border-b border-slate-200">Daftar Parameter</h4>
+              <Table className="text-sm w-full">
                 <TableHeader>
-                  <TableRow className="bg-blue-800 text-sm text-white py-2 hover:bg-blue-600">
-                    <TableHead className="border border-black w-10">No</TableHead>
-                    <TableHead className="border border-black">Nama Parameter</TableHead>
-                    <TableHead className="border border-black">Tipe Data</TableHead>
-                    <TableHead className="border border-black w-full text-center pr-4">Aturan Validasi</TableHead>
+                  <TableRow className="bg-blue-800 text-sm text-white py-2 hover:bg-blue-700">
+                    <TableHead className="w-10 text-center font-semibold text-white">No</TableHead>
+                    <TableHead className="font-semibold text-white">Nama Parameter</TableHead>
+                    <TableHead className="font-semibold text-white">Tipe Data</TableHead>
+                    <TableHead className="w-full text-center pr-4 font-semibold text-white">Aturan Validasi</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {dataModule.data_parameter_modul.map((parameter, index) => (
-                    <TableRow key={parameter.ms_id_parameter} className={`${index % 2 === 0 ? "bg-blue-100" : "bg-blue-200"} text-sm leading-tight`}>
-                      <TableCell className="py-2 border border-black w-10 text-center">{index + 1}</TableCell>
-                      <TableCell className="py-2 border border-black">{parameter.ms_nama_parameter}</TableCell>
-                      <TableCell className="py-2 border border-black">{parameter.ms_tipe_data}</TableCell>
-                      <TableCell className="py-2 border border-black w-full pr-4">{parameter.ms_rules}</TableCell>
+                    <TableRow key={parameter.ms_id_parameter} className="text-sm leading-tight border-b border-slate-200 hover:bg-slate-50 transition-colors">
+                      <TableCell className="py-2 w-10 text-center">{index + 1}</TableCell>
+                      <TableCell className="py-2 font-medium text-slate-800">{parameter.ms_nama_parameter}</TableCell>
+                      <TableCell className="py-2 text-slate-600 font-mono text-xs">{parameter.ms_tipe_data}</TableCell>
+                      <TableCell className="py-2 w-full pr-4">{parseValidationRule(parameter.ms_rules)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

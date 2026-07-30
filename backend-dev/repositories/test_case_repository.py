@@ -32,6 +32,47 @@ class TestCaseRepository:
         )
         self._conn.execute(query)
 
+    def bulk_update_results(self, id_topik_modul: str, student_id: str, failed_method_names: set) -> None:
+        """Batch update semua test case sekaligus: yang gagal jadi 'F', sisanya 'P'. Satu query saja."""
+        now = datetime.now()
+        
+        # Ambil semua test case untuk topik+student ini
+        all_tc = self.find_by_topik_and_student(id_topik_modul, student_id)
+        if not all_tc:
+            return
+        
+        # Pisahkan ID berdasarkan status
+        failed_ids = []
+        passed_ids = []
+        for tc in all_tc:
+            tc_method_name = tc['tr_object_pengujian'].replace(" ", "_")
+            if tc_method_name in failed_method_names:
+                failed_ids.append(tc['tr_id_test_case'])
+            else:
+                passed_ids.append(tc['tr_id_test_case'])
+        
+        # Batch update PASSED test cases
+        if passed_ids:
+            query_pass = TestCase.update().values(
+                tr_test_result='P',
+                updated=now,
+                updatedby=student_id,
+            ).where(
+                TestCase.c.tr_id_test_case.in_(passed_ids)
+            )
+            self._conn.execute(query_pass)
+        
+        # Batch update FAILED test cases
+        if failed_ids:
+            query_fail = TestCase.update().values(
+                tr_test_result='F',
+                updated=now,
+                updatedby=student_id,
+            ).where(
+                TestCase.c.tr_id_test_case.in_(failed_ids)
+            )
+            self._conn.execute(query_fail)
+
     
     def find_by_id(self, id_test_case: str):
         query = TestCase.select().where(TestCase.c.tr_id_test_case == id_test_case)

@@ -1,0 +1,10 @@
+[
+  {
+    "date": "2026-07-25",
+    "macrostructure": "Workbench",
+    "theme": "Cobalt",
+    "enrichment": "none",
+    "brief": "Create Test Case resizable workspace",
+    "scope": "single-page"
+  }
+]
