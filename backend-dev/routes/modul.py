@@ -1,7 +1,7 @@
 import os
 import magic
 import logging
-from fastapi import APIRouter, Response, status, UploadFile, Depends, Request
+from fastapi import APIRouter, Response, status, UploadFile, Depends, Request, Form
 from fastapi.responses import FileResponse
 from decouple import config
 
@@ -192,7 +192,8 @@ async def upload_source_code(
 @modul.post("/modul/parse-metadata")
 async def parse_metadata(
     source_code: UploadFile,
-    response: Response,
+    id_modul: str = Form(None),
+    response: Response = None,
     current_user: dict = Depends(get_current_user),
     modul_service: ModulService = Depends(get_modul_service)
 ):
@@ -202,7 +203,7 @@ async def parse_metadata(
 
         content = await source_code.read()
         java_code = content.decode('utf-8')
-        result = modul_service.parse_metadata(java_code)
+        result = modul_service.parse_metadata(java_code, id_modul)
         return result
     except ValueError as e:
         response.status_code = status.HTTP_400_BAD_REQUEST

@@ -107,22 +107,11 @@ class TestExecutionService:
             result = response.json()
             source_html = result.get('sourceHtmlContent')
             if source_html:
-                import os
-                # Write only the single source HTML file
-                source_dir = os.path.join(report_output_dir, "default")
-                os.makedirs(source_dir, exist_ok=True)
-                html_path = os.path.join(source_dir, f"{modul_data['ms_class_name']}.java.html")
-                with open(html_path, 'w', encoding='utf-8') as f:
-                    f.write(source_html)
+                # Use file_manager to save to local + GCS
+                relative_path = f"{student_id}/{id_topik_modul}/jacoco_report_test/html/default/{modul_data['ms_class_name']}.java.html"
+                self.file_manager.save_static_content(relative_path, source_html)
                 
-                # Ensure jacoco-resources exist (static assets, only copied once)
-                resources_dir = os.path.join(report_output_dir, "jacoco-resources")
-                if not os.path.exists(resources_dir):
-                    bundled_resources = os.path.join(os.path.dirname(os.path.dirname(__file__)), "jacoco-resources")
-                    if os.path.exists(bundled_resources):
-                        import shutil
-                        shutil.copytree(bundled_resources, resources_dir)
-                    
+                # Jacoco resources are now served dynamically via intercept in main.py
             is_build_success = True  # If it reached here, compilation and execution succeeded
             is_all_passed = result.get('isAllPassed', False)
             coverage_percent = round(float(result.get('coveragePercent', 0.0)), 2)

@@ -379,6 +379,9 @@ const AddModuleForm: React.FC<AddModuleFormProps> = ({ onAddModule, onEditModule
     try {
       const formData = new FormData();
       formData.append('source_code', file);
+      if (idModul && idModul !== "0") {
+        formData.append('id_modul', idModul);
+      }
       const response = await fetch(`${apiUrl}/modul/parse-metadata`, {
         method: "POST",
         headers: {
@@ -409,6 +412,14 @@ const AddModuleForm: React.FC<AddModuleFormProps> = ({ onAddModule, onEditModule
         setDefaultValueReturnType(method.return_type);
         const count = method.parameters.length;
         form.setValue("paramCount", count);
+
+        // Auto-fill module type to Function if available
+        const functionOption = comboModuleType.find((c) => c.label.toLowerCase() === "function" || c.label.toLowerCase() === "fungsi");
+        if (functionOption) {
+          form.setValue("moduleType", functionOption.value);
+          setDefaultValueJenisModul(functionOption.value);
+        }
+
         
         // Auto-fill extracted description!
         if (resData.description) {

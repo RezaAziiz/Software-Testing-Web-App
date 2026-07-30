@@ -80,9 +80,17 @@ file_manager = FileStorageManager()
 
 @app.get("/static/{file_path:path}")
 async def serve_static(file_path: str):
-    local_path = os.path.join(file_manager.base_path, "static", file_path)
+    # Intercept requests for JaCoCo resources (CSS/JS/images)
+    # They are static and bundled in the app, no need to fetch from GCS
+    if "jacoco-resources" in file_path:
+        filename = os.path.basename(file_path)
+        bundled_resource_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "jacoco-resources", filename))
+        if os.path.exists(bundled_resource_path) and not os.path.isdir(bundled_resource_path):
+            return FileResponse(bundled_resource_path)
 
-    if not os.path.exists(local_path):
+    try:
+        local_path = file_manager.ensure_static_file(file_path)
+    except FileNotFoundError:
         raise HTTPException(status_code=404, detail="Not Found")
 
     if os.path.isdir(local_path):

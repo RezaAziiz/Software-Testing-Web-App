@@ -5,11 +5,11 @@ import ModuleSpecificationCard from "@/components/custom/ModuleSpecificationCard
 import CodeProgramCard from "@/components/custom/CodeProgramCard";
 import AddTestCaseCard from "@/components/custom/AddTestCaseCard";
 import CFGCard from "@/components/custom/CFGCard";
-import {
-  ResizableHandle,
-  ResizablePanel,
-  ResizablePanelGroup,
-} from "@/components/ui/resizable";
+// import {
+//   ResizableHandle,
+//   ResizablePanel,
+//   ResizablePanelGroup,
+// } from "@/components/ui/resizable";
 import MinimalCard from "@/components/custom/MinimalCard";
 import { useNavigate } from "react-router-dom";
 
@@ -37,42 +37,33 @@ const CreateTestCasePage: React.FC = () => {
   return (
     <Layout>
       <Menu />
-      <div className="flex flex-col w-screen min-h-screen p-4 gap-6 bg-slate-50">
-        <ResizablePanelGroup direction="horizontal" className="min-h-[calc(100vh-100px)] rounded-lg border border-slate-200">
-          
-          {/* Left Panel: Specification and Test Cases */}
-          <ResizablePanel defaultSize={40} minSize={30} className="overflow-y-auto workspace-scrollbar">
-            <div className="flex flex-col gap-6 h-full">
-              <ModuleSpecificationCard />
-              <AddTestCaseCard />
-              <MinimalCard />
-            </div>
-          </ResizablePanel>
+      <div className="flex flex-col w-screen min-h-screen p-4 gap-6">
+        {/* Section 1: Spesifikasi Modul dan Daftar Parameter (Full Width) */}
+        <div className="w-full">
+          <ModuleSpecificationCard />
+        </div>
 
-          <ResizableHandle withHandle className="bg-slate-200 w-2 hover:bg-slate-300 transition-colors" />
+        {/* Section 2: Kode Program (Kiri) dan Struktur Program (Kanan) */}
+        <div className="flex flex-col md:flex-row gap-6 w-full">
+          <div className="w-full md:w-1/2 flex flex-col" style={{ maxHeight: "600px" }}>
+            <CodeProgramCard highlightedLines={highlightedLines} />
+          </div>
+          <div className="w-full md:w-1/2 flex flex-col" style={{ maxHeight: "600px" }}>
+            <CFGCard
+              showCyclomaticComplexity={showCyclomaticComplexity}
+              showCodeCoverage={showCodeCoverage}
+              codeCoveragePercentage={codeCoveragePercentage}
+              onNodeClick={setHighlightedLines}
+              highlightedLines={highlightedLines}
+            />
+          </div>
+        </div>
 
-          {/* Right Panel: Code and CFG */}
-          <ResizablePanel defaultSize={60} minSize={30}>
-            <ResizablePanelGroup direction="horizontal">
-              <ResizablePanel defaultSize={50} minSize={30} className="overflow-y-auto workspace-scrollbar">
-                <CodeProgramCard highlightedLines={highlightedLines} />
-              </ResizablePanel>
-
-              <ResizableHandle withHandle className="bg-slate-200 w-2 hover:bg-slate-300 transition-colors" />
-
-              <ResizablePanel defaultSize={50} minSize={20} className="overflow-y-auto workspace-scrollbar">
-                <CFGCard
-                  showCyclomaticComplexity={showCyclomaticComplexity}
-                  showCodeCoverage={showCodeCoverage}
-                  codeCoveragePercentage={codeCoveragePercentage}
-                  onNodeClick={setHighlightedLines}
-                  highlightedLines={highlightedLines}
-                />
-              </ResizablePanel>
-            </ResizablePanelGroup>
-          </ResizablePanel>
-
-        </ResizablePanelGroup>
+        {/* Section 3: Test Case dan Hasil Pengujian (Full Width) */}
+        <div className="w-full flex flex-col gap-6 pb-6">
+          <AddTestCaseCard />
+          <MinimalCard />
+        </div>
       </div>
     </Layout>
   );
