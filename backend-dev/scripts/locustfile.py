@@ -29,7 +29,7 @@ from sqlalchemy import text
 import json
 
 # Target jumlah mahasiswa konkuren
-TARGET_CONCURRENCY = 425
+TARGET_CONCURRENCY = 10
 JSON_CACHE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "dummy_students.json")
 
 all_student_ids = []
