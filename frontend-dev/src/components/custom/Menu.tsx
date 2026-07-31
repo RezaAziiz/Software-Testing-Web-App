@@ -18,13 +18,17 @@ export function Menu() {
   }
   const queryParameters = new URLSearchParams(window.location.search)
   const modulId = queryParameters.get("topikModulId")
+  const idModul = queryParameters.get("idModul")
   const location = useLocation();
   const [moduleData, setModuleData] = useState<ModuleData | null>(null);
 
   useEffect(() => {
     const fetchModuleData = async () => {
       try {
-        const response = await fetch(`${apiUrl}/modul/detailByIdTopikModul/${modulId}`, {
+        const endpoint = idModul 
+          ? `${apiUrl}/modul/detail/${idModul}` 
+          : `${apiUrl}/modul/detailByIdTopikModul/${modulId}`;
+        const response = await fetch(endpoint, {
           method: "GET",
           headers: {
             Accept: "application/json",
@@ -45,8 +49,10 @@ export function Menu() {
       }
     };
 
-    fetchModuleData();
-  }, []);
+    if (modulId || idModul) {
+      fetchModuleData();
+    }
+  }, [apiUrl, apiKey, modulId, idModul]);
 
   // Simulasi nilai difficultyLevel dari database
   const difficultyLevel: string = moduleData?.ms_tingkat_kesulitan || "";
@@ -76,6 +82,11 @@ export function Menu() {
   const maxPoint: number = calculateMaxPoint(100, difficultyLevel); // Misalnya level kesulitan adalah 100
   const linkPembuatanTestCase = "/topikModul?topikModulId="+modulId
   const linkTestResult = "/test-result?topikModulId="+modulId
+  
+  if (idModul) {
+    return null; // Do not show menu for teacher viewing the module directly
+  }
+
   return (
     <div className="menu"
       style={{

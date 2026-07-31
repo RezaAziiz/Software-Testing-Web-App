@@ -74,6 +74,7 @@ const ModuleSpecificationCard = () => {
 
   const queryParameters = new URLSearchParams(window.location.search)
   const modulId = queryParameters.get("topikModulId")
+  const idModul = queryParameters.get("idModul")
 
   const [dataModule, setDataModule] = useState<Data | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -81,7 +82,10 @@ const ModuleSpecificationCard = () => {
 
   const fetchDataModule = async () => {
     try {
-      const response = await fetch(`${apiUrl}/modul/detailByIdTopikModul/${modulId}`, {
+      const endpoint = idModul 
+        ? `${apiUrl}/modul/detail/${idModul}` 
+        : `${apiUrl}/modul/detailByIdTopikModul/${modulId}`;
+      const response = await fetch(endpoint, {
         method: 'GET',
         headers: {
           'Accept': 'application/json',
@@ -110,8 +114,10 @@ const ModuleSpecificationCard = () => {
   };
 
   useEffect(() => {
-    fetchDataModule();
-  }, []);
+    if (modulId || idModul) {
+      fetchDataModule();
+    }
+  }, [apiUrl, apiKey, modulId, idModul]);
 
   if (error) {
     return <div className="p-4 bg-white rounded-lg shadow-md h-screen">Error: {error}</div>;

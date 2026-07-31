@@ -81,6 +81,7 @@ const CodeProgramCard: React.FC<CodeProgramCardProps> = ({ highlightedLines = nu
 
   const queryParameters = new URLSearchParams(window.location.search);
   const modulId = queryParameters.get("topikModulId");
+  const idModul = queryParameters.get("idModul");
 
   const [sourceCode, setSourceCode] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -92,27 +93,30 @@ const CodeProgramCard: React.FC<CodeProgramCardProps> = ({ highlightedLines = nu
 
   const fetchDataModule = async () => {
     try {
-      const response = await fetch(`${apiUrl}/modul/detailByIdTopikModul/${modulId}`, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
+      if (idModul) {
+        fetchSourceCodeText(idModul);
+      } else if (modulId) {
+        const endpoint = `${apiUrl}/modul/detailByIdTopikModul/${modulId}`;
+        const response = await fetch(endpoint, {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+            'Authorization': `Bearer ${apiKey}`
+          }
+        });
+
+        if (!response.ok) {
+          if (response.status === 403) {
+            navigate('/error');
+          } else {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
         }
-      });
 
-      if (!response.ok) {
-        if (response.status === 403) {
-          navigate('/error');
-        } else {
-          throw new Error(`HTTP error! status: ${response.status}`);
+        const data = await response.json();
+        if (data.data) {
+          fetchSourceCodeText(data.data.data_modul.ms_id_modul);
         }
-      }
-
-      const data = await response.json();
-      console.log(data);
-
-      if (data.data) {
-        fetchSourceCodeText(data.data.data_modul.ms_id_modul);
       }
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -145,12 +149,12 @@ const CodeProgramCard: React.FC<CodeProgramCardProps> = ({ highlightedLines = nu
   };
 
   useEffect(() => {
-    if (modulId) {
+    if (modulId || idModul) {
       fetchDataModule();
     } else {
       setLoading(false);
     }
-  }, [modulId]);
+  }, [apiUrl, apiKey, modulId, idModul]);
 
   // Auto-scroll to highlighted line
   useEffect(() => {

@@ -130,6 +130,7 @@ const CFGCard: React.FC<CFGCardProps> = ({
 
   const queryParameters = new URLSearchParams(window.location.search);
   const modulId = queryParameters.get("topikModulId");
+  const idModul = queryParameters.get("idModul");
 
   const [elements, setElements] = useState<cytoscape.ElementDefinition[]>([]);
   const [rawEdges, setRawEdges] = useState<any[]>([]);
@@ -160,13 +161,17 @@ const CFGCard: React.FC<CFGCardProps> = ({
   }>({ visible: false, x: 0, y: 0, content: "", codeContent: "" });
 
   const [sourceCode, setSourceCode] = useState<string | null>(null);
+  const [isAnalysisOpen, setIsAnalysisOpen] = useState<boolean>(true);
 
   // Fetch source code text for left panel when modal is open
   useEffect(() => {
-    if (isModalOpen && !sourceCode && modulId) {
+    if (isModalOpen && !sourceCode && (modulId || idModul)) {
       const fetchCode = async () => {
         try {
-          const res = await fetch(`${apiUrl}/modul/detailByIdTopikModul/${modulId}`, {
+          const endpoint = idModul 
+            ? `${apiUrl}/modul/detail/${idModul}`
+            : `${apiUrl}/modul/detailByIdTopikModul/${modulId}`;
+          const res = await fetch(endpoint, {
             headers: {
               Accept: "application/json",
               Authorization: `Bearer ${apiKey}`,
@@ -194,7 +199,7 @@ const CFGCard: React.FC<CFGCardProps> = ({
       };
       fetchCode();
     }
-  }, [isModalOpen, modulId, apiUrl, apiKey, sourceCode]);
+  }, [isModalOpen, modulId, idModul, apiUrl, apiKey, sourceCode]);
 
   // Fetch data CFG
   const fetchCFG = async () => {
@@ -330,13 +335,16 @@ const CFGCard: React.FC<CFGCardProps> = ({
       return;
     }
 
-    if (!modulId) {
+    if (!modulId && !idModul) {
       setLoading(false);
       return;
     }
 
     try {
-      const res = await fetch(`${apiUrl}/modul/detailByIdTopikModul/${modulId}`, {
+      const endpoint = idModul 
+        ? `${apiUrl}/modul/detail/${idModul}`
+        : `${apiUrl}/modul/detailByIdTopikModul/${modulId}`;
+      const res = await fetch(endpoint, {
         method: "GET",
         headers: {
           Accept: "application/json",
@@ -482,7 +490,7 @@ const CFGCard: React.FC<CFGCardProps> = ({
 
   useEffect(() => {
     fetchCFG();
-  }, [modulId, nodesWithStatus, edgesWithStatus]);
+  }, [modulId, idModul, nodesWithStatus, edgesWithStatus]);
 
   const layout = React.useMemo(() => ({
     name: "dagre",
@@ -692,15 +700,15 @@ const CFGCard: React.FC<CFGCardProps> = ({
 
   return (
     <div className="h-full w-full">
-      <Card>
-        <CardHeader className="pt-6 pb-2">
+      <Card className="relative overflow-hidden h-full flex flex-col min-h-[500px]">
+        <CardHeader className="pt-6 pb-2 shrink-0">
           <CardTitle className="text-base module-title">Struktur Program</CardTitle>
         </CardHeader>
 
-        <CardContent className="flex flex-col">
-          <div className="w-full flex flex-row gap-3">
-            <div className="w-1/2 flex flex-col">
-              <div className="flex items-center justify-between mb-2">
+        <CardContent className="flex flex-col flex-1 relative min-h-0">
+          <div className="w-full flex flex-row gap-3 h-full">
+            <div className={`transition-all duration-300 ${isAnalysisOpen ? 'w-1/2' : 'w-full pr-6'} flex flex-col h-full min-h-0`}>
+              <div className="flex items-center justify-between mb-2 shrink-0">
                 <p className="text-sm font-medium">Control Flow Graph</p>
                 {elements.length > 0 && (
                   <button
@@ -725,7 +733,7 @@ const CFGCard: React.FC<CFGCardProps> = ({
                     onMouseEnter={(e) => (e.currentTarget.style.background = "#f3f4f6")}
                     onMouseLeave={(e) => (e.currentTarget.style.background = "#fff")}
                   >
-                    <Maximize size={16} color="#4b5563" />
+                    <Maximize size={18} color="#4b5563" />
                   </button>
                 )}
               </div>
@@ -735,19 +743,20 @@ const CFGCard: React.FC<CFGCardProps> = ({
               </div>
 
               {error ? (
-                <div className="h-96 flex items-center justify-center text-sm text-gray-400 bg-gray-50 rounded-lg border border-dashed border-gray-300">
+                <div className="flex-1 min-h-[24rem] flex items-center justify-center text-sm text-gray-400 bg-gray-50 rounded-lg border border-dashed border-gray-300">
                   <span>Belum ada data CFG untuk modul ini.</span>
                 </div>
               ) : elements.length === 0 ? (
-                <div className="h-96 flex items-center justify-center text-sm text-gray-400 bg-gray-50 rounded-lg border border-dashed border-gray-300">
+                <div className="flex-1 min-h-[24rem] flex items-center justify-center text-sm text-gray-400 bg-gray-50 rounded-lg border border-dashed border-gray-300">
                   <span>Data CFG tidak tersedia.</span>
                 </div>
               ) : (
-                <div className="relative" style={{ height: "24rem", overflow: "visible" }}>
+                <div className="relative flex-1 min-h-[24rem]" style={{ overflow: "visible" }}>
                   <CfgCytoscapeViewport
                     elements={elements}
                     cyRef={cyRef}
                     zoomControlSuffix="inline"
+                    style={{ position: "absolute", inset: 0 }}
                   />
 
                   {tooltip.visible && (
@@ -778,39 +787,64 @@ const CFGCard: React.FC<CFGCardProps> = ({
               )}
             </div>
 
-            <div className="w-1/2 flex flex-col items-center">
-              {showCodeCoverage && codeCoveragePercentage !== undefined && (
-                <>
-                  <p className="text-sm font-medium mb-5">Presentase Code Coverage</p>
-                  <PercentageCodeCoverage percentage={codeCoveragePercentage} />
-                  <UnexecutedPathsViewer paths={unexecutedPaths} />
-                </>
-              )}
+            {isAnalysisOpen && (
+              <div className="w-1/2 flex flex-col border-l border-gray-200 relative overflow-y-auto">
+                <div className="flex justify-end w-full mb-2">
+                  <button
+                    onClick={() => setIsAnalysisOpen(false)}
+                    className="text-xs text-gray-500 hover:text-gray-700 bg-gray-100 hover:bg-gray-200 px-2 py-1 rounded transition-colors"
+                  >
+                    Tutup
+                  </button>
+                </div>
+                
+                <div className="flex flex-col items-center w-full">
+                  {showCodeCoverage && codeCoveragePercentage !== undefined && (
+                    <>
+                      <p className="text-sm font-medium mb-5">Presentase Code Coverage</p>
+                      <PercentageCodeCoverage percentage={codeCoveragePercentage} />
+                      <UnexecutedPathsViewer paths={unexecutedPaths} />
+                    </>
+                  )}
 
-              {showCyclomaticComplexity && cyclomaticComplexity !== null ? (
-                <>
-                  <p className="text-sm font-medium mb-2">Nilai Cyclomatic Complexity</p>
-                  <div className="text-sm flex items-start">
-                    <div className="mr-4">
-                      <div>V(G)</div>
-                    </div>
-                    <div className="flex flex-col">
-                      <span>= E − N + 2</span>
-                      <span>= {rawEdges.length} − {rawNodes.length} + 2</span>
-                      <span className="font-bold">= {cyclomaticComplexity}</span>
-                    </div>
-                  </div>
-                </>
-              ) : showCyclomaticComplexity ? (
-                <>
-                  <p className="text-sm font-medium mb-2">Nilai Cyclomatic Complexity</p>
-                  <p className="text-sm text-gray-400">CC tidak tersedia</p>
-                </>
-              ) : null}
-            </div>
+                  {showCyclomaticComplexity && cyclomaticComplexity !== null ? (
+                    <>
+                      <p className="text-sm font-medium mb-2">Nilai Cyclomatic Complexity</p>
+                      <div className="text-sm flex items-start">
+                        <div className="mr-4">
+                          <div>V(G)</div>
+                        </div>
+                        <div className="flex flex-col">
+                          <span>= E − N + 2</span>
+                          <span>= {rawEdges.length} − {rawNodes.length} + 2</span>
+                          <span className="font-bold">= {cyclomaticComplexity}</span>
+                        </div>
+                      </div>
+                    </>
+                  ) : showCyclomaticComplexity ? (
+                    <>
+                      <p className="text-sm font-medium mb-2">Nilai Cyclomatic Complexity</p>
+                      <p className="text-sm text-gray-400">CC tidak tersedia</p>
+                    </>
+                  ) : null}
+                </div>
+              </div>
+            )}
           </div>
         </CardContent>
-        <CardFooter className="card-footer" />
+        <CardFooter className="card-footer shrink-0" />
+
+        {!isAnalysisOpen && (showCyclomaticComplexity || showCodeCoverage) && (
+          <button
+            onClick={() => setIsAnalysisOpen(true)}
+            className="absolute right-0 top-[56px] bg-blue-50 hover:bg-blue-100 border border-blue-200 border-r-0 rounded-l-md px-1.5 py-4 shadow-sm transition-colors z-10 flex flex-col items-center justify-center"
+            title={showCyclomaticComplexity ? "Tampilkan Nilai CC" : "Tampilkan Coverage"}
+          >
+            <div style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }} className="text-xs font-semibold text-blue-700 tracking-wider">
+              {showCyclomaticComplexity ? "Nilai CC" : "Coverage"}
+            </div>
+          </button>
+        )}
       </Card>
 
       <CfgFullscreenModal

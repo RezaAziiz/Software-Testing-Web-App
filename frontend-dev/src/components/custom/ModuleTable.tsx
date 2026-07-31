@@ -1,4 +1,4 @@
-import { FaEdit, FaTrash } from "react-icons/fa";
+import { FaEdit, FaTrash, FaEye } from "react-icons/fa";
 
 // Define the Module interface directly here
 interface Module {
@@ -27,10 +27,12 @@ const ModulesTable = ({
   modules,
   onDelete,
   onEdit,
+  onView,
 }: {
   modules: Module[];
   onDelete: (module: Module) => void;
   onEdit: (module: Module) => void;
+  onView?: (module: Module) => void;
 }) => {
   return (
     <table className="min-w-full">
@@ -63,8 +65,9 @@ const ModulesTable = ({
               </span>
             </td>
             <td className="py-3 px-2 md:px-6 flex items-center space-x-2">
-              <FaEdit className="cursor-pointer text-blue-500" onClick={() => onEdit(module)} />
-              <FaTrash className="cursor-pointer text-red-500" onClick={() => onDelete(module)} />
+              <FaEye className="cursor-pointer text-gray-500" onClick={() => onView && onView(module)} title="Lihat Modul" />
+              <FaEdit className="cursor-pointer text-blue-500" onClick={() => onEdit(module)} title="Edit Modul" />
+              <FaTrash className="cursor-pointer text-red-500" onClick={() => onDelete(module)} title="Hapus Modul" />
             </td>
           </tr>
         ))}

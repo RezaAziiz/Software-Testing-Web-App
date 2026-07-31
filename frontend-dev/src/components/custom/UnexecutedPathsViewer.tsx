@@ -11,7 +11,7 @@ const UnexecutedPathsViewer: React.FC<UnexecutedPathsViewerProps> = ({ paths }) 
         Jalur Belum Tereksekusi
       </p>
       {paths && paths.length > 0 ? (
-        <div className="max-h-40 overflow-y-auto rounded border border-gray-200 bg-gray-50 px-3 py-2">
+        <div className="ml-4 max-h-40 overflow-y-auto rounded border border-gray-200 bg-gray-50 px-3 py-2">
           {paths.map((path) => (
             <p
               key={path}

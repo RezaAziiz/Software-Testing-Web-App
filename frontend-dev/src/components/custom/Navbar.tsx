@@ -30,21 +30,26 @@ export function Navbar() {
 
   const queryParameters = new URLSearchParams(window.location.search);
   const modulId = queryParameters.get("topikModulId");
+  const idModul = queryParameters.get("idModul");
   const idTopikParam = queryParameters.get("idTopik");
   const [moduleName, setModuleName] = useState("");
   const [idTopik, setIdTopik] = useState(idTopikParam ?? "");
   const [topicName, setTopicName] = useState("");
-  const linkTopikModul = modulId
-    ? "/topikModul?topikModulId=" + modulId
-    : "/topikModul";
+  const linkTopikModul = idModul
+    ? "/topikModul?idModul=" + idModul
+    : modulId
+      ? "/topikModul?topikModulId=" + modulId
+      : "/topikModul";
   const linkChallanges = idTopik
     ? "/list-challanges?idTopik=" + idTopik
     : "/challenge";
 
   const fetchModuleName = async () => {
     try {
-      const response = await fetch(
-        `${apiUrl}/modul/detailByIdTopikModul/${modulId}`,
+      const endpoint = idModul 
+        ? `${apiUrl}/modul/detail/${idModul}` 
+        : `${apiUrl}/modul/detailByIdTopikModul/${modulId}`;
+      const response = await fetch(endpoint,
         {
           method: "GET",
           headers: {
@@ -63,8 +68,11 @@ export function Navbar() {
       }
 
       const data = await response.json();
-      setModuleName(data.data.data_modul.ms_nama_modul);
-      setIdTopik(data.data.data_modul.id_topik ?? "");
+      const extractedModul = data.data.data_modul;
+      setModuleName(extractedModul.ms_nama_modul);
+      if (!idModul && !idTopikParam) {
+        setIdTopik(extractedModul.id_topik ?? "");
+      }
     } catch (error) {
       console.error("Error fetching module name:", error);
     }
@@ -99,10 +107,10 @@ export function Navbar() {
   };
 
   useEffect(() => {
-    if (modulId) {
+    if (modulId || idModul) {
       fetchModuleName();
     }
-  }, [apiUrl, apiKey, modulId]);
+  }, [apiUrl, apiKey, modulId, idModul]);
 
   useEffect(() => {
     if (idTopik) {
@@ -111,7 +119,11 @@ export function Navbar() {
   }, [idTopik, apiUrl, apiKey]);
 
   const handleBack = () => {
-    navigate(linkChallanges);
+    if (idModul) {
+      navigate("/list-modules");
+    } else {
+      navigate(linkChallanges);
+    }
   };
 
   return (
@@ -138,23 +150,27 @@ export function Navbar() {
                 |
               </BreadcrumbSeparator>
               <BreadcrumbList>
-                <BreadcrumbItem>
-                  <BreadcrumbLink
-                    onClick={(e) => {
-                      e.preventDefault();
-                      navigate(linkChallanges);
-                    }}
-                    href={linkChallanges}
-                    style={{ cursor: "pointer" }}
-                  >
-                    <span className="text-white text-l hover:text-gray-300">
-                      {topicName || "Topik Pengujian"}
-                    </span>
-                  </BreadcrumbLink>
-                </BreadcrumbItem>
-                <BreadcrumbSeparator className="text-white text-xl mx-2">
-                  <FaAngleRight />
-                </BreadcrumbSeparator>
+                {!idModul && (
+                  <>
+                    <BreadcrumbItem>
+                      <BreadcrumbLink
+                        onClick={(e) => {
+                          e.preventDefault();
+                          navigate(linkChallanges);
+                        }}
+                        href={linkChallanges}
+                        style={{ cursor: "pointer" }}
+                      >
+                        <span className="text-white text-l hover:text-gray-300">
+                          {topicName || "Topik Pengujian"}
+                        </span>
+                      </BreadcrumbLink>
+                    </BreadcrumbItem>
+                    <BreadcrumbSeparator className="text-white text-xl mx-2">
+                      <FaAngleRight />
+                    </BreadcrumbSeparator>
+                  </>
+                )}
                 <BreadcrumbItem>
                   <BreadcrumbLink
                     onClick={(e) => {

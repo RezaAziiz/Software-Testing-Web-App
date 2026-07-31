@@ -186,6 +186,9 @@ const ListModulesPage = () => {
   const editModul = (module: Module) => {
     navigate("/module?idModul="+module.id)
   };
+  const viewModul = (module: Module) => {
+    navigate("/topikModul?idModul="+module.id)
+  };
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(min-width: 768px)");
@@ -250,7 +253,7 @@ const ListModulesPage = () => {
               </div>
             ) : (
               <>
-                <ModulesTable modules={modules} onDelete={openModal} onEdit={editModul} />
+                <ModulesTable modules={modules} onDelete={openModal} onEdit={editModul} onView={viewModul} />
               </>
             )}
           </div>
