@@ -473,50 +473,61 @@ const AddTestCaseCard: React.FC = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {testCases.map((test, index) => (
-              <TableRow
-                key={test.tr_id_test_case}
-                className="text-sm leading-tight border-b border-slate-200 hover:bg-slate-50 transition-colors"
-              >
-                <TableCell className="py-2 text-center">
-                  {index + 1}
-                </TableCell>
-                <TableCell className="py-2 w-64 whitespace-nowrap font-medium text-slate-800">
-                  {test.tr_object_pengujian}
-                </TableCell>
-                {JSON.parse(test.tr_data_test_input).map(
-                  (paramData: { param_value: string }, i: number) => (
-                    <TableCell
-                      key={i}
-                      className="py-2 whitespace-nowrap text-slate-600 font-mono text-xs"
+            {testCases.length > 0 ? (
+              testCases.map((test, index) => (
+                <TableRow
+                  key={test.tr_id_test_case}
+                  className="text-sm leading-tight border-b border-slate-200 hover:bg-slate-50 transition-colors"
+                >
+                  <TableCell className="py-2 text-center">
+                    {index + 1}
+                  </TableCell>
+                  <TableCell className="py-2 w-64 whitespace-nowrap font-medium text-slate-800">
+                    {test.tr_object_pengujian}
+                  </TableCell>
+                  {JSON.parse(test.tr_data_test_input).map(
+                    (paramData: { param_value: string }, i: number) => (
+                      <TableCell
+                        key={i}
+                        className="py-2 whitespace-nowrap text-slate-600 font-mono text-xs"
+                      >
+                        <div>
+                          <span>{paramData.param_value}</span>
+                        </div>
+                      </TableCell>
+                    ),
+                  )}
+                  <TableCell className="py-2 w-52 whitespace-nowrap text-slate-600">
+                    {test.tr_expected_result}
+                  </TableCell>
+                  <TableCell className="py-2 flex items-center justify-center px-2 gap-2">
+                    <Button
+                      onClick={() => handleEdit(test.tr_id_test_case)}
+                      className="bg-blue-100 text-blue-600 hover:text-blue-700 hover:bg-blue-200 h-8 w-8 p-0 border border-blue-200"
+                      title="Edit"
                     >
-                      <div>
-                        <span>{paramData.param_value}</span>
-                      </div>
-                    </TableCell>
-                  ),
-                )}
-                <TableCell className="py-2 w-52 whitespace-nowrap text-slate-600">
-                  {test.tr_expected_result}
-                </TableCell>
-                <TableCell className="py-2 flex items-center justify-center px-2 gap-2">
-                  <Button
-                    onClick={() => handleEdit(test.tr_id_test_case)}
-                    className="bg-blue-100 text-blue-600 hover:text-blue-700 hover:bg-blue-200 h-8 w-8 p-0 border border-blue-200"
-                    title="Edit"
-                  >
-                    <FaEdit size={14} />
-                  </Button>
-                  <Button
-                    onClick={() => handleDelete(test.tr_id_test_case)}
-                    className="bg-red-100 text-red-600 hover:text-red-700 hover:bg-red-200 h-8 w-8 p-0 border border-red-200"
-                    title="Hapus"
-                  >
-                    <FaTrash size={14} />
-                  </Button>
+                      <FaEdit size={14} />
+                    </Button>
+                    <Button
+                      onClick={() => handleDelete(test.tr_id_test_case)}
+                      className="bg-red-100 text-red-600 hover:text-red-700 hover:bg-red-200 h-8 w-8 p-0 border border-red-200"
+                      title="Hapus"
+                    >
+                      <FaTrash size={14} />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell
+                  colSpan={parameters.length + 4}
+                  className="h-24 text-center text-gray-500"
+                >
+                  Belum ada test case yang ditambahkan.
                 </TableCell>
               </TableRow>
-            ))}
+            )}
           </TableBody>
           </Table>
         </div>

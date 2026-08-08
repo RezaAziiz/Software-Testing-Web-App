@@ -8,7 +8,9 @@ type HighlightedLines = { start: number; end: number } | null;
 
 interface CodeProgramCardProps {
   highlightedLines?: HighlightedLines;
+  onLineClick?: (lines: { start: number; end: number } | null) => void;
 }
+
 
 // Java keyword sets for syntax highlighting
 const JAVA_KEYWORDS = new Set([
@@ -67,7 +69,7 @@ const highlightJavaLine = (code: string): React.ReactNode[] => {
   });
 };
 
-const CodeProgramCard: React.FC<CodeProgramCardProps> = ({ highlightedLines = null }) => {
+const CodeProgramCard: React.FC<CodeProgramCardProps> = ({ highlightedLines = null, onLineClick }) => {
   const apiUrl = import.meta.env.VITE_API_URL;
   let apiKey = import.meta.env.VITE_API_KEY;
 
@@ -226,10 +228,14 @@ const CodeProgramCard: React.FC<CodeProgramCardProps> = ({ highlightedLines = nu
         <CardTitle className="text-base font-bold">Kode Program</CardTitle>
       </CardHeader>
       <CardContent className="flex-1 overflow-hidden p-0">
-        <div className="text-sm p-4">
+        <div className="text-sm p-4 h-full flex flex-col">
           <div
             style={{
               position: 'relative',
+              display: 'flex',
+              flexDirection: 'column',
+              flex: 1,
+              minHeight: 0,
               borderRadius: '8px',
               boxShadow: '0 4px 24px rgba(0,0,0,0.3)',
               overflow: 'hidden',
@@ -304,7 +310,8 @@ const CodeProgramCard: React.FC<CodeProgramCardProps> = ({ highlightedLines = nu
             <div
               ref={codeContainerRef}
               style={{
-                height: '450px',
+                flex: 1,
+                minHeight: 0,
                 overflowY: 'auto',
                 background: '#282a36',
                 fontFamily: "'Cascadia Code', 'Fira Code', 'JetBrains Mono', 'Consolas', monospace",
@@ -323,10 +330,12 @@ const CodeProgramCard: React.FC<CodeProgramCardProps> = ({ highlightedLines = nu
                   <div
                     key={lineNumber}
                     ref={isHighlighted && lineNumber === highlightedLines!.start ? highlightRef : undefined}
+                    onClick={() => onLineClick?.({ start: lineNumber, end: lineNumber })}
                     style={{
                       display: 'flex',
                       alignItems: 'stretch',
                       minHeight: '1.7em',
+                      cursor: onLineClick ? 'pointer' : 'default',
                       background: isHighlighted
                         ? 'rgba(59, 130, 246, 0.18)'
                         : 'transparent',
