@@ -58,16 +58,16 @@ const AddModuleForm: React.FC<AddModuleFormProps> = ({ onAddModule, onEditModule
   const [comboModuleType, setComboModuleType] = useState<ComboData[]>(defaultCombo);
   const [comboLevel, setComboLevel] = useState<ComboData[]>(defaultCombo);
   const [comboCondition, setComboCondition] = useState<ComboData[]>(defaultCombo);
-  const [defaultValueJenisModul, setDefaultValueJenisModul] = useState('');
+  const [_defaultValueJenisModul, setDefaultValueJenisModul] = useState('');
   const [defaultValueLevel, setDefaultValueLevel] = useState('');
   const [defaultValueReturnType, setDefaultValueReturnType] = useState('');
   const [editMode, setEditMode] = useState(false);
   const [selectedDataType, setSelectedDataType] = useState('');
   const [fileName, setFileName] = useState('');
 
-  const [parsedMetadata, setParsedMetadata] = useState<any>(null);
-  const [parsedMethods, setParsedMethods] = useState<any[]>([]);
-  const [selectedMethodName, setSelectedMethodName] = useState<string>('');
+  const [_parsedMetadata, setParsedMetadata] = useState<any>(null);
+  const [_parsedMethods, setParsedMethods] = useState<any[]>([]);
+  const [_selectedMethodName, setSelectedMethodName] = useState<string>('');
   const [isSourceCodeUploaded, setIsSourceCodeUploaded] = useState<boolean>(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [dragActive, setDragActive] = useState(false);
@@ -118,10 +118,7 @@ const AddModuleForm: React.FC<AddModuleFormProps> = ({ onAddModule, onEditModule
     form.setValue(`returnType`, e);
     setDefaultValueReturnType(e);
   }
-  const handlingModulTypeChange = (e: any) => {
-    form.setValue(`moduleType`, e);
-    setDefaultValueJenisModul(e);
-  }
+  // Unused helper removed for clean build
   const handleDataTypeChange = (e: any, index: number) => {
     form.setValue(`parameters.${index}.paramType`, e);
     setSelectedDataType(e);
@@ -350,23 +347,7 @@ const AddModuleForm: React.FC<AddModuleFormProps> = ({ onAddModule, onEditModule
     name: "parameters",
   });
 
-  const autoFillMetadata = (metadata: any, methodName: string) => {
-    if (!metadata) return;
-    form.setValue("className", metadata.class_name);
-    const method = metadata.methods.find((m: any) => m.method_name === methodName);
-    if (!method) return;
-    form.setValue("functionName", method.method_name);
-    form.setValue("returnType", method.return_type);
-    setDefaultValueReturnType(method.return_type);
-    const count = method.parameters.length;
-    form.setValue("paramCount", count);
-    setTimeout(() => {
-      method.parameters.forEach((p: any, idx: number) => {
-        form.setValue(`parameters.${idx}.paramName`, p.param_name);
-        form.setValue(`parameters.${idx}.paramType`, p.param_type);
-      });
-    }, 50);
-  };
+  // Unused _autoFillMetadata removed
 
   const parseFileMetadata = async (file: File) => {
     if (!file.name.toLowerCase().endsWith('.java')) {
@@ -400,7 +381,7 @@ const AddModuleForm: React.FC<AddModuleFormProps> = ({ onAddModule, onEditModule
           } else if (errMsg.includes("more than 1 method") || errMsg.includes("multiple methods")) {
             errMsg = "Berkas kode sumber memiliki lebih dari 1 fungsi (method). Aplikasi saat ini hanya mendukung 1 fungsi utama per modul program.";
           } else if (errMsg.includes("void") || errMsg.includes("return type")) {
-            errMsg = "Fungsi (method) pada kode sumber tidak memiliki nilai kembalian (bertipe 'void'). Aplikasi membutuhkan fungsi yang memiliki nilai kembalian (non-void) untuk kebutuhan pengujian unit test.";
+            errMsg = "Kode sumber tidak memiliki nilai kembalian (bertipe 'void'). Aplikasi hanya mendukung fungsi dengan nilai kembalian.";
           }
         }
         throw new Error(errMsg);
@@ -420,13 +401,22 @@ const AddModuleForm: React.FC<AddModuleFormProps> = ({ onAddModule, onEditModule
 
         // Edge Case 2: Source code program yang tidak memiliki nilai kembalian (void)
         if (!method.return_type || method.return_type === "void") {
-          throw new Error(`Fungsi '${method.method_name}' tidak memiliki nilai kembalian (bertipe 'void'). Aplikasi membutuhkan fungsi yang memiliki nilai kembalian (non-void) untuk kebutuhan pengujian unit test.`);
+          throw new Error(`Kode sumber tidak memiliki nilai kembalian (bertipe 'void'). Aplikasi hanya mendukung fungsi dengan nilai kembalian.`);
         }
 
         setSelectedMethodName(defaultMethod);
 
         // Auto fill form
         form.setValue("className", resData.class_name);
+
+        // Auto-fill moduleName from className (formatted with spaces)
+        if (resData.class_name) {
+          const formattedModuleName = resData.class_name
+            .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+            .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2');
+          form.setValue("moduleName", formattedModuleName);
+        }
+
         form.setValue("functionName", method.method_name);
         form.setValue("returnType", method.return_type);
         setDefaultValueReturnType(method.return_type);
@@ -583,37 +573,8 @@ const AddModuleForm: React.FC<AddModuleFormProps> = ({ onAddModule, onEditModule
                 </FormItem>
               )}
             />
-            <FormField
-              control={form.control}
-              name="moduleType"
-              rules={{ required: "Jenis modul harus dipilih!" }}
-              render={({ field, fieldState: { error } }) => (
-                <FormItem>
-                  <div className="flex items-center mt-4 w-full">
-                    <FormLabel className="w-1/3">Jenis Modul :</FormLabel>
-                    <FormControl className="flex-1">
-                      <Select onValueChange={(e) => handlingModulTypeChange(e)} defaultValue={field.value} value={defaultValueJenisModul}>
-                        <SelectTrigger className="w-full bg-white">
-                          <SelectValue placeholder="Pilih" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-white">
-                          <SelectGroup>
-                            {comboModuleType.map((dataCombo) => (
-                              <SelectItem key={dataCombo.value} value={dataCombo.value}>{dataCombo.label}</SelectItem>
-                            ))}
-                          </SelectGroup>
-                        </SelectContent>
-                      </Select>
-                    </FormControl>
-                  </div>
-                  {error && (
-                    <p className="text-red-600 text-sm pl-36 mt-1">
-                      {error.message}
-                    </p>
-                  )}
-                </FormItem>
-              )}
-            />
+            {/* Hidden field for moduleType (auto-set to Function in background) */}
+            <input type="hidden" {...form.register("moduleType")} value="Function" />
             <FormField
               control={form.control}
               name="paramCount"
@@ -1056,38 +1017,13 @@ const AddModuleForm: React.FC<AddModuleFormProps> = ({ onAddModule, onEditModule
                     </FormLabel>
                     <FormControl className="flex-1">
                       <div>
-                        {parsedMethods.length > 0 ? (
-                          <Select
-                            onValueChange={(val) => {
-                              field.onChange(val);
-                              setSelectedMethodName(val);
-                              autoFillMetadata(parsedMetadata, val);
-                            }}
-                            value={field.value || selectedMethodName}
-                          >
-                            <SelectTrigger className="w-full bg-white border border-blue-500">
-                              <SelectValue placeholder="Pilih Fungsi/Method" />
-                            </SelectTrigger>
-                            <SelectContent className="bg-white">
-                              <SelectGroup>
-                                {parsedMethods.map((m: any) => (
-                                  <SelectItem key={m.method_name} value={m.method_name}>{m.method_name}</SelectItem>
-                                ))}
-                              </SelectGroup>
-                            </SelectContent>
-                          </Select>
-                        ) : (
-                          <Input
-                            {...field}
-                            readOnly={isSourceCodeUploaded || editMode}
-                            className={`border rounded p-2 w-full ${(isSourceCodeUploaded || editMode) ? 'bg-gray-100 cursor-not-allowed' : 'bg-gray-50'}`}
-                          />
-                        )}
+                        <Input
+                          {...field}
+                          readOnly={isSourceCodeUploaded || editMode}
+                          className={`border rounded p-2 w-full ${(isSourceCodeUploaded || editMode) ? 'bg-gray-100 cursor-not-allowed' : 'bg-gray-50'}`}
+                        />
                         <FormDescription className="text-xs text-gray-500 mt-1">
-                          {parsedMethods.length > 0
-                            ? "*Pilih method dari source code yang akan dijadikan objek pengujian"
-                            : "*Nama Fungsi harus sama dengan yang ada pada source code & mengikuti standar coding convention"
-                          }
+                          *Nama Fungsi (method) pada kode sumber Java
                         </FormDescription>
                         {error && (
                           <p className="text-red-600 text-sm mt-1">

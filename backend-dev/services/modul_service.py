@@ -282,7 +282,7 @@ class ModulService:
             raise ValueError(f"Source code memiliki {len(methods)} method. Aplikasi saat ini hanya mendukung 1 method utama per modul.")
 
         if methods[0]["return_type"] == "void":
-            raise ValueError(f"Method '{methods[0]['method_name']}' bertipe 'void'. Aplikasi membutuhkan method yang mengembalikan nilai (non-void) untuk kebutuhan pengujian unit test.")
+            raise ValueError(f"Method '{methods[0]['method_name']}' bertipe 'void'. Aplikasi hanya mendukung fungsi dengan nilai kembalian.")
 
         existing = self.modul_repo.find_by_class_name(class_name)
         if existing and existing['ms_id_modul'] != id_modul:
