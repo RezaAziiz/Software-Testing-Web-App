@@ -275,6 +275,15 @@ class ModulService:
         if not class_name:
             raise ValueError("No class declaration found in the source code.")
 
+        if not methods:
+            raise ValueError("Tidak ada method publik yang ditemukan dalam source code.")
+
+        if len(methods) > 1:
+            raise ValueError(f"Source code memiliki {len(methods)} method. Aplikasi saat ini hanya mendukung 1 method utama per modul.")
+
+        if methods[0]["return_type"] == "void":
+            raise ValueError(f"Method '{methods[0]['method_name']}' bertipe 'void'. Aplikasi membutuhkan method yang mengembalikan nilai (non-void) untuk kebutuhan pengujian unit test.")
+
         existing = self.modul_repo.find_by_class_name(class_name)
         if existing and existing['ms_id_modul'] != id_modul:
             raise ValueError(f"Source code dengan class {class_name} sudah pernah diupload sebelumnya. Silakan gunakan source code lain.")

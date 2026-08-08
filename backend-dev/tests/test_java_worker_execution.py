@@ -231,7 +231,7 @@ class TestJavaWorkerExecution:
         test_execution_service.run_test("topik-1", "student-1")
 
         mock_test_case_repo = mock_dependencies['test_case_repo']
-        # Pastikan status = 'F' diset pada repository jika testName match dengan tr_object_pengujian
-        mock_test_case_repo.update_result.assert_called_with(
-            "topik-1", "student-1", "pengujian_1", "F"
+        # Pastikan bulk_update_results dipanggil dengan failed_tests set yang sesuai
+        mock_test_case_repo.bulk_update_results.assert_called_with(
+            "topik-1", "student-1", {"pengujian_1"}
         )
