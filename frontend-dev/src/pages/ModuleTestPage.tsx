@@ -134,8 +134,8 @@ const ModuleTestPage = () => {
             const rawMsg = errRes.message || errRes.detail;
             if (rawMsg && rawMsg.includes("No class declaration found")) {
               uploadErr = "Tidak ditemukan deklarasi kelas (class) dalam kode sumber Java. Pastikan berkas memiliki deklarasi class Java yang valid.";
-            } else if (rawMsg && (rawMsg.includes("syntax errors") || rawMsg.includes("syntax error"))) {
-              uploadErr = "Kode sumber Java memiliki kesalahan sintaksis (syntax error). Silakan periksa dan perbaiki kembali kode program Anda.";
+            } else if (rawMsg && (rawMsg.includes("void") || rawMsg.includes("return type"))) {
+              uploadErr = "Kode sumber tidak memiliki nilai kembalian (bertipe 'void'). Aplikasi hanya mendukung fungsi dengan nilai kembalian.";
             } else if (rawMsg) {
               uploadErr = rawMsg;
             }
@@ -230,8 +230,8 @@ const ModuleTestPage = () => {
               const rawMsg = errRes.message || errRes.detail;
               if (rawMsg && rawMsg.includes("No class declaration found")) {
                 uploadErr = "Tidak ditemukan deklarasi kelas (class) dalam kode sumber Java. Pastikan berkas memiliki deklarasi class Java yang valid.";
-              } else if (rawMsg && (rawMsg.includes("syntax errors") || rawMsg.includes("syntax error"))) {
-                uploadErr = "Kode sumber Java memiliki kesalahan sintaksis (syntax error). Silakan periksa dan perbaiki kembali kode program Anda.";
+              } else if (rawMsg && (rawMsg.includes("void") || rawMsg.includes("return type"))) {
+                uploadErr = "Kode sumber tidak memiliki nilai kembalian (bertipe 'void'). Aplikasi hanya mendukung fungsi dengan nilai kembalian.";
               } else if (rawMsg) {
                 uploadErr = rawMsg;
               }
