@@ -58,6 +58,46 @@ const AddModuleForm: React.FC<AddModuleFormProps> = ({ onAddModule, onEditModule
   const [comboModuleType, setComboModuleType] = useState<ComboData[]>(defaultCombo);
   const [comboLevel, setComboLevel] = useState<ComboData[]>(defaultCombo);
   const [comboCondition, setComboCondition] = useState<ComboData[]>(defaultCombo);
+  const [validationRulesMap, setValidationRulesMap] = useState<{ [key: string]: ComboData[] }>({});
+  const [conditionsMap, setConditionsMap] = useState<{ [key: string]: ComboData[] }>({});
+
+  const normalizeDataTypeKey = (type: string): string => {
+    if (!type) return "int";
+    const lower = type.trim().toLowerCase();
+    if (["int", "integer", "long", "short", "byte"].includes(lower)) return "int";
+    if (["float"].includes(lower)) return "float";
+    if (["double"].includes(lower)) return "double";
+    if (["boolean", "bool"].includes(lower)) return "boolean";
+    if (["char"].includes(lower)) return "char";
+    if (["string"].includes(lower)) return "String";
+    return type.trim();
+  };
+
+  const fetchCombosForType = async (rawDataType: string) => {
+    if (!rawDataType) return;
+    const dataType = normalizeDataTypeKey(rawDataType);
+    try {
+      const [valRes, condRes] = await Promise.all([
+        fetch(`${apiUrl}/combo/validasi_parameter?data_type=${dataType}`, {
+          headers: { Accept: "application/json", Authorization: `Bearer ${apiKey}` },
+        }),
+        fetch(`${apiUrl}/combo/condition?data_type=${dataType}`, {
+          headers: { Accept: "application/json", Authorization: `Bearer ${apiKey}` },
+        })
+      ]);
+      if (valRes.ok) {
+        const valData = await valRes.json();
+        setValidationRulesMap(prev => ({ ...prev, [dataType]: valData.data || [] }));
+      }
+      if (condRes.ok) {
+        const condData = await condRes.json();
+        setConditionsMap(prev => ({ ...prev, [dataType]: condData.data || [] }));
+      }
+    } catch (err) {
+      console.error("Error fetching combos for data type:", dataType, err);
+    }
+  };
+
   const [_defaultValueJenisModul, setDefaultValueJenisModul] = useState('');
   const [defaultValueLevel, setDefaultValueLevel] = useState('');
   const [defaultValueReturnType, setDefaultValueReturnType] = useState('');
@@ -122,29 +162,41 @@ const AddModuleForm: React.FC<AddModuleFormProps> = ({ onAddModule, onEditModule
   const handleDataTypeChange = (e: any, index: number) => {
     form.setValue(`parameters.${index}.paramType`, e);
     setSelectedDataType(e);
+    fetchCombosForType(e);
     fetchDataComboValidationType(e);
     fetchDataComboConditionType(e);
   };
   const handlingRuleChange = (e: any, index: number) => {
     form.setValue(`parameters.${index}.validationRule`, e);
-    let data = JSON.parse(e);
-    let newArr = [...paramRules]
-    newArr[index].jmlParam = parseInt(data.jml_param)
-    newArr[index].isCondition = data.nama_rule === "condition";
-    if (data.nama_rule == "range") {
-      newArr[index].nameParam1 = "Min"
-      newArr[index].nameParam2 = "Max"
-    } else if (data.nama_rule == "enumerasi") {
-      newArr[index].nameParam1 = "Enum"
-    } else if (data.nama_rule == "countOfLength") {
-      newArr[index].nameParam1 = "Min"
-      newArr[index].nameParam2 = "Max"
-    } else if (data.nama_rule == "condition") {
-      newArr[index].nameParam1 = "Condition"
-      newArr[index].nameParam2 = "Value"
+    if (!e) return;
+    try {
+      let data = typeof e === "string" ? JSON.parse(e) : e;
+      let newArr = [...paramRules];
+      while (newArr.length <= index) {
+        newArr.push({ jmlParam: 0, nameParam1: "", nameParam2: "", isCondition: false });
+      }
+      if (!newArr[index]) {
+        newArr[index] = { jmlParam: 0, nameParam1: "", nameParam2: "", isCondition: false };
+      }
+      newArr[index].jmlParam = parseInt(data.jml_param) || 0;
+      newArr[index].isCondition = data.nama_rule === "condition";
+      if (data.nama_rule === "range") {
+        newArr[index].nameParam1 = "Min";
+        newArr[index].nameParam2 = "Max";
+      } else if (data.nama_rule === "enumerasi") {
+        newArr[index].nameParam1 = "Enum";
+      } else if (data.nama_rule === "countOfLength") {
+        newArr[index].nameParam1 = "Min";
+        newArr[index].nameParam2 = "Max";
+      } else if (data.nama_rule === "condition") {
+        newArr[index].nameParam1 = "Condition";
+        newArr[index].nameParam2 = "Value";
+      }
+      setParamRules(newArr);
+    } catch (err) {
+      console.error("Error in handlingRuleChange:", err);
     }
-    setParamRules(newArr);
-  }
+  };
   const fetchDataModule = async () => {
     try {
       const response = await fetch(`${apiUrl}/modul/detail/${idModul}`, {
@@ -178,7 +230,7 @@ const AddModuleForm: React.FC<AddModuleFormProps> = ({ onAddModule, onEditModule
       let data_params = data.data.data_parameter_modul;
       let tempParamRules = []
       for (let i = 0; i < data_params.length; i++) {
-        tempParamRules.push({ jmlParam: 0, nameParam1: "", nameParam2: "" });
+        tempParamRules.push({ jmlParam: 0, nameParam1: "", nameParam2: "", isCondition: false });
         form.setValue(`parameters.${i}.paramName`, data_params[i].ms_nama_parameter);
         form.setValue(`parameters.${i}.paramType`, data_params[i].ms_tipe_data);
         let dataRule = JSON.parse(data_params[i].ms_rules)
@@ -205,6 +257,7 @@ const AddModuleForm: React.FC<AddModuleFormProps> = ({ onAddModule, onEditModule
         } else if (dataRule.nama_rule == "condition") {
           tempParamRules[i].nameParam1 = "Condition";
           tempParamRules[i].nameParam2 = "Value";
+          tempParamRules[i].isCondition = true;
           form.setValue(`parameters.${i}.ruleValue1`, dataRule.condition);
           form.setValue(`parameters.${i}.ruleValue2`, dataRule.value);
           dataRule.value = "";
@@ -435,10 +488,19 @@ const AddModuleForm: React.FC<AddModuleFormProps> = ({ onAddModule, onEditModule
           form.setValue("moduleDescription", resData.description);
         }
 
+        const initialParamRules = method.parameters.map(() => ({
+          jmlParam: 0,
+          nameParam1: "",
+          nameParam2: "",
+          isCondition: false,
+        }));
+        setParamRules(initialParamRules);
+
         setTimeout(() => {
           method.parameters.forEach((p: any, idx: number) => {
             form.setValue(`parameters.${idx}.paramName`, p.param_name);
             form.setValue(`parameters.${idx}.paramType`, p.param_type);
+            fetchCombosForType(p.param_type);
           });
         }, 50);
 
@@ -484,13 +546,18 @@ const AddModuleForm: React.FC<AddModuleFormProps> = ({ onAddModule, onEditModule
         temp.slice(0, -1);
       }
     }
-    setParamRules(temp)
     fetchDataComboDataType()
     fetchDataComboModuleType()
     fetchDataComboLevel()
     fetchDataComboValidationType(selectedDataType)
     fetchDataComboConditionType(selectedDataType)
   }, [paramCount, fields.length, append, remove]);
+
+  useEffect(() => {
+    ["int", "float", "double", "boolean", "char", "String"].forEach((t) => {
+      fetchCombosForType(t);
+    });
+  }, [apiKey]);
   useEffect(() => {
     if (idModul != "0") {
       setEditMode(true)
@@ -633,145 +700,173 @@ const AddModuleForm: React.FC<AddModuleFormProps> = ({ onAddModule, onEditModule
           </div>
         </div>
         <div>
-          {fields.map((field, index) => (
-            <div key={field.id} className="flex flex-col md:flex-row gap-4 bg-blue-50 rounded p-4">
-              <FormField
-                control={form.control}
-                name={`parameters.${index}.paramName`}
-                rules={{
-                  required: "Nama Parameter harus diisi!",
-                  pattern: {
-                    value: /^[a-zA-Z_][a-zA-Z0-9_]*$/,
-                    message: "Nama Parameter tidak sesuai!"
-                  }
-                }}
-                render={({ field, fieldState: { error } }) => (
-                  <FormItem className="w-full col-span-1">
-                    <FormLabel>
-                      Nama Parameter
-                      <span className="text-red-500">*</span>
-                    </FormLabel>
-                    <FormControl>
-                      <Input
-                        {...field}
-                        readOnly={isSourceCodeUploaded || editMode}
-                        className={`border rounded p-2 w-full ${(isSourceCodeUploaded || editMode) ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'}`}
-                      />
-                    </FormControl>
-                    {error && (
-                      <p className="text-red-600 text-sm mt-1">
-                        {error.message}
-                      </p>
-                    )}
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name={`parameters.${index}.paramType`}
-                rules={{ required: "Tipe data parameter harus dipilih!" }}
-                render={({ field, fieldState: { error } }) => (
-                  <FormItem className="w-full col-span-1">
-                    <FormLabel>
-                      Tipe Data
-                      <span className="text-red-500">*</span>
-                    </FormLabel>
-                    <FormControl>
-                      {isSourceCodeUploaded || editMode ? (
+          {fields.map((field, index) => {
+            const currentParamType = form.watch(`parameters.${index}.paramType`);
+            const normType = normalizeDataTypeKey(currentParamType);
+            const rowValidationCombo = (validationRulesMap[normType] && validationRulesMap[normType].length > 0)
+              ? validationRulesMap[normType]
+              : comboValidationType;
+            const rowConditionCombo = (conditionsMap[normType] && conditionsMap[normType].length > 0)
+              ? conditionsMap[normType]
+              : comboCondition;
+
+            return (
+              <div key={field.id} className="flex flex-col md:flex-row gap-4 bg-blue-50 rounded p-4 mb-4">
+                <FormField
+                  control={form.control}
+                  name={`parameters.${index}.paramName`}
+                  rules={{
+                    required: "Nama Parameter harus diisi!",
+                    pattern: {
+                      value: /^[a-zA-Z_][a-zA-Z0-9_]*$/,
+                      message: "Nama Parameter tidak sesuai!"
+                    }
+                  }}
+                  render={({ field, fieldState: { error } }) => (
+                    <FormItem className="w-full col-span-1">
+                      <FormLabel>
+                        Nama Parameter
+                        <span className="text-red-500">*</span>
+                      </FormLabel>
+                      <FormControl>
                         <Input
-                          readOnly
-                          value={field.value}
-                          className="border rounded p-2 w-full bg-gray-100 cursor-not-allowed"
+                          {...field}
+                          readOnly={isSourceCodeUploaded || editMode}
+                          className={`border rounded p-2 w-full ${(isSourceCodeUploaded || editMode) ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'}`}
                         />
-                      ) : (
-                        <Select onValueChange={(e) => handleDataTypeChange(e, index)} defaultValue={field.value}>
-                          <SelectTrigger className="w-full bg-white">
-                            <SelectValue placeholder="Pilih" />
-                          </SelectTrigger>
-                          <SelectContent className="bg-white">
-                            <SelectGroup>
-                              {comboDataType.map((dataCombo) => (
-                                <SelectItem key={dataCombo.value} value={dataCombo.value}>{dataCombo.label}</SelectItem>
-                              ))}
-                            </SelectGroup>
-                          </SelectContent>
-                        </Select>
+                      </FormControl>
+                      {error && (
+                        <p className="text-red-600 text-sm mt-1">
+                          {error.message}
+                        </p>
                       )}
-                    </FormControl>
-                    {error && (
-                      <p className="text-red-600 text-sm mt-1">
-                        {error.message}
-                      </p>
-                    )}
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name={`parameters.${index}.validationRule`}
-                rules={{ required: "Aturan validasi harus dipilih!" }}
-                render={({ field, fieldState: { error } }) => (
-                  <FormItem className="w-full col-span-1">
-                    <FormLabel>Aturan Validasi</FormLabel>
-                    <FormControl>
-                      <Select onValueChange={(e) => handlingRuleChange(e, index)} defaultValue={field.value}>
-                        <SelectTrigger className="w-full bg-white">
-                          <SelectValue placeholder="Pilih" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-white">
-                          <SelectGroup>
-                            {comboValidationType.map((dataCombo) => (
-                              <SelectItem key={dataCombo.value} value={dataCombo.value}>{dataCombo.label}</SelectItem>
-                            ))}
-                          </SelectGroup>
-                        </SelectContent>
-                      </Select>
-                    </FormControl>
-                    {error && (
-                      <p className="text-red-600 text-sm mt-1">
-                        {error.message}
-                      </p>
-                    )}
-                  </FormItem>
-                )}
-              />
-              {paramRules[index].jmlParam >= 1 && (
-                paramRules[index].isCondition ? (
-                  //FormField untuk condition validation
-                  <FormField
-                    control={form.control}
-                    name={`parameters.${index}.ruleValue1`}
-                    render={({ field }) => (
-                      <FormItem className="w-full col-span-1">
-                        <FormLabel>
-                          {paramRules[index].nameParam1}
-                          <span className="text-red-500">*</span>
-                        </FormLabel>
-                        <FormControl>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name={`parameters.${index}.paramType`}
+                  rules={{ required: "Tipe data parameter harus dipilih!" }}
+                  render={({ field, fieldState: { error } }) => (
+                    <FormItem className="w-full col-span-1">
+                      <FormLabel>
+                        Tipe Data
+                        <span className="text-red-500">*</span>
+                      </FormLabel>
+                      <FormControl>
+                        {isSourceCodeUploaded || editMode ? (
+                          <Input
+                            readOnly
+                            value={field.value}
+                            className="border rounded p-2 w-full bg-gray-100 cursor-not-allowed"
+                          />
+                        ) : (
+                          <Select onValueChange={(e) => handleDataTypeChange(e, index)} defaultValue={field.value}>
                             <SelectTrigger className="w-full bg-white">
                               <SelectValue placeholder="Pilih" />
                             </SelectTrigger>
                             <SelectContent className="bg-white">
                               <SelectGroup>
-                                {comboCondition.map((dataCombo) => (
-                                  <SelectItem value={dataCombo.value}>{dataCombo.label}</SelectItem>
+                                {comboDataType.map((dataCombo) => (
+                                  <SelectItem key={dataCombo.value} value={dataCombo.value}>{dataCombo.label}</SelectItem>
                                 ))}
                               </SelectGroup>
                             </SelectContent>
                           </Select>
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-                ) : (
+                        )}
+                      </FormControl>
+                      {error && (
+                        <p className="text-red-600 text-sm mt-1">
+                          {error.message}
+                        </p>
+                      )}
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name={`parameters.${index}.validationRule`}
+                  rules={{ required: "Aturan validasi harus dipilih!" }}
+                  render={({ field, fieldState: { error } }) => (
+                    <FormItem className="w-full col-span-1">
+                      <FormLabel>Aturan Validasi</FormLabel>
+                      <FormControl>
+                        <Select onValueChange={(e) => handlingRuleChange(e, index)} defaultValue={field.value}>
+                          <SelectTrigger className="w-full bg-white">
+                            <SelectValue placeholder="Pilih" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-white">
+                            <SelectGroup>
+                              {rowValidationCombo.map((dataCombo) => (
+                                <SelectItem key={dataCombo.value} value={dataCombo.value}>{dataCombo.label}</SelectItem>
+                              ))}
+                            </SelectGroup>
+                          </SelectContent>
+                        </Select>
+                      </FormControl>
+                      {error && (
+                        <p className="text-red-600 text-sm mt-1">
+                          {error.message}
+                        </p>
+                      )}
+                    </FormItem>
+                  )}
+                />
+                {paramRules[index]?.jmlParam >= 1 && (
+                  paramRules[index]?.isCondition ? (
+                    //FormField untuk condition validation
+                    <FormField
+                      control={form.control}
+                      name={`parameters.${index}.ruleValue1`}
+                      render={({ field }) => (
+                        <FormItem className="w-full col-span-1">
+                          <FormLabel>
+                            {paramRules[index]?.nameParam1}
+                            <span className="text-red-500">*</span>
+                          </FormLabel>
+                          <FormControl>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                              <SelectTrigger className="w-full bg-white">
+                                <SelectValue placeholder="Pilih" />
+                              </SelectTrigger>
+                              <SelectContent className="bg-white">
+                                <SelectGroup>
+                                  {rowConditionCombo.map((dataCombo) => (
+                                    <SelectItem key={dataCombo.value} value={dataCombo.value}>{dataCombo.label}</SelectItem>
+                                  ))}
+                                </SelectGroup>
+                              </SelectContent>
+                            </Select>
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                  ) : (
+                    <FormField
+                      control={form.control}
+                      name={`parameters.${index}.ruleValue1`}
+                      render={({ field }) => (
+                        <FormItem className="w-full col-span-1">
+                          <FormLabel>
+                            {paramRules[index]?.nameParam1}
+                            <span className="text-red-500">*</span>
+                          </FormLabel>
+                          <FormControl>
+                            <Input {...field} className="border rounded p-2 w-full bg-white" />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                  )
+                )}
+                {paramRules[index]?.jmlParam === 2 && (
                   <FormField
                     control={form.control}
-                    name={`parameters.${index}.ruleValue1`}
+                    name={`parameters.${index}.ruleValue2`}
                     render={({ field }) => (
                       <FormItem className="w-full col-span-1">
                         <FormLabel>
-                          {paramRules[index].nameParam1}
+                          {paramRules[index]?.nameParam2}
                           <span className="text-red-500">*</span>
                         </FormLabel>
                         <FormControl>
@@ -780,27 +875,10 @@ const AddModuleForm: React.FC<AddModuleFormProps> = ({ onAddModule, onEditModule
                       </FormItem>
                     )}
                   />
-                )
-              )}
-              {paramRules[index].jmlParam === 2 && (
-                <FormField
-                  control={form.control}
-                  name={`parameters.${index}.ruleValue2`}
-                  render={({ field }) => (
-                    <FormItem className="w-full col-span-1">
-                      <FormLabel>
-                        {paramRules[index].nameParam2}
-                        <span className="text-red-500">*</span>
-                      </FormLabel>
-                      <FormControl>
-                        <Input {...field} className="border rounded p-2 w-full bg-white" />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-              )}
-            </div>
-          ))}
+                )}
+              </div>
+            );
+          })}
           <FormDescription className="text-xs text-gray-500 mt-2 pl-5">*Urutan parameter dan tipe data harus sama dengan source code</FormDescription>
         </div>
 
