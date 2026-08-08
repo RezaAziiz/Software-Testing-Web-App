@@ -136,6 +136,8 @@ const ModuleTestPage = () => {
               uploadErr = "Tidak ditemukan deklarasi kelas (class) dalam kode sumber Java. Pastikan berkas memiliki deklarasi class Java yang valid.";
             } else if (rawMsg && (rawMsg.includes("syntax errors") || rawMsg.includes("syntax error"))) {
               uploadErr = "Kode sumber Java memiliki kesalahan sintaksis (syntax error). Silakan periksa dan perbaiki kembali kode program Anda.";
+            } else if (rawMsg) {
+              uploadErr = rawMsg;
             }
           } catch (e) { }
           setErrorMessage(uploadErr);
@@ -228,6 +230,8 @@ const ModuleTestPage = () => {
               const rawMsg = errRes.message || errRes.detail;
               if (rawMsg && rawMsg.includes("No class declaration found")) {
                 uploadErr = "Tidak ditemukan deklarasi kelas (class) dalam kode sumber Java. Pastikan berkas memiliki deklarasi class Java yang valid.";
+              } else if (rawMsg && (rawMsg.includes("syntax errors") || rawMsg.includes("syntax error"))) {
+                uploadErr = "Kode sumber Java memiliki kesalahan sintaksis (syntax error). Silakan periksa dan perbaiki kembali kode program Anda.";
               } else if (rawMsg) {
                 uploadErr = rawMsg;
               }

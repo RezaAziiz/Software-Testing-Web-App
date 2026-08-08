@@ -397,6 +397,10 @@ const AddModuleForm: React.FC<AddModuleFormProps> = ({ onAddModule, onEditModule
             errMsg = "Tidak ditemukan deklarasi kelas (class) dalam kode sumber Java. Pastikan berkas memiliki deklarasi class Java yang valid.";
           } else if (errMsg.includes("syntax errors") || errMsg.includes("syntax error")) {
             errMsg = "Kode sumber Java memiliki kesalahan sintaksis (syntax error). Silakan periksa dan perbaiki kembali kode program Anda.";
+          } else if (errMsg.includes("more than 1 method") || errMsg.includes("multiple methods")) {
+            errMsg = "Berkas kode sumber memiliki lebih dari 1 fungsi (method). Aplikasi saat ini hanya mendukung 1 fungsi utama per modul program.";
+          } else if (errMsg.includes("void") || errMsg.includes("return type")) {
+            errMsg = "Fungsi (method) pada kode sumber tidak memiliki nilai kembalian (bertipe 'void'). Aplikasi membutuhkan fungsi yang memiliki nilai kembalian (non-void) untuk kebutuhan pengujian unit test.";
           }
         }
         throw new Error(errMsg);
@@ -404,17 +408,25 @@ const AddModuleForm: React.FC<AddModuleFormProps> = ({ onAddModule, onEditModule
       const resData = await response.json();
       setParsedMetadata(resData);
       setParsedMethods(resData.methods || []);
-      setIsSourceCodeUploaded(true);
-      setFileSourceCode(file as any);
-      setFileName(file.name);
 
       if (resData.methods && resData.methods.length > 0) {
+        // Edge Case 1: Terdapat lebih dari 1 method
+        if (resData.methods.length > 1) {
+          throw new Error(`Berkas kode sumber memiliki ${resData.methods.length} fungsi (method). Aplikasi saat ini hanya mendukung 1 fungsi utama per modul program.`);
+        }
+
         const defaultMethod = resData.methods[0].method_name;
+        const method = resData.methods[0];
+
+        // Edge Case 2: Source code program yang tidak memiliki nilai kembalian (void)
+        if (!method.return_type || method.return_type === "void") {
+          throw new Error(`Fungsi '${method.method_name}' tidak memiliki nilai kembalian (bertipe 'void'). Aplikasi membutuhkan fungsi yang memiliki nilai kembalian (non-void) untuk kebutuhan pengujian unit test.`);
+        }
+
         setSelectedMethodName(defaultMethod);
 
         // Auto fill form
         form.setValue("className", resData.class_name);
-        const method = resData.methods.find((m: any) => m.method_name === defaultMethod) || resData.methods[0];
         form.setValue("functionName", method.method_name);
         form.setValue("returnType", method.return_type);
         setDefaultValueReturnType(method.return_type);
@@ -427,7 +439,6 @@ const AddModuleForm: React.FC<AddModuleFormProps> = ({ onAddModule, onEditModule
           form.setValue("moduleType", functionOption.value);
           setDefaultValueJenisModul(functionOption.value);
         }
-
 
         // Auto-fill extracted description!
         if (resData.description) {
@@ -443,6 +454,10 @@ const AddModuleForm: React.FC<AddModuleFormProps> = ({ onAddModule, onEditModule
 
         // Set form value for react-hook-form validation
         form.setValue("sourceCode", file.name, { shouldValidate: true });
+
+        setIsSourceCodeUploaded(true);
+        setFileSourceCode(file as any);
+        setFileName(file.name);
 
         // Close modal on success!
         setIsUploadModalOpen(false);
@@ -898,7 +913,7 @@ const AddModuleForm: React.FC<AddModuleFormProps> = ({ onAddModule, onEditModule
                               <p className="text-sm font-semibold text-gray-800 truncate">{fileName}</p>
                               <p className="text-xs text-green-600 flex items-center gap-1 mt-0.5">
                                 <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                                Teranalisis & Siap
+                                Valid
                               </p>
                             </div>
                             <Button

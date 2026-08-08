@@ -42,22 +42,21 @@ except locale.Error:
 
 app = FastAPI(docs_url="/doc")
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_origin_regex=r"https?://.*",
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+    expose_headers=["X-Already-Logged-In"],
+)
+
 @app.on_event("startup")
 def configure_thread_pool():
     import anyio
     limiter = anyio.to_thread.current_default_thread_limiter()
     limiter.total_tokens = 500
-def cors_headers(app):
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=[config('API_FR', default='http://localhost:5173')],
-        allow_methods=["*"],
-        allow_headers=["*"],
-        allow_credentials=True,
-        expose_headers=["X-Already-Logged-In"],
-    )
-    return app
-
 
 app.include_router(auth)
 app.include_router(student)
@@ -70,8 +69,6 @@ app.include_router(combo)
 app.include_router(grade)
 app.include_router(progress)
 # app.include_router(cfg)
-
-app = cors_headers(app)
 
 if not os.path.exists("static"):
         os.makedirs("static")
