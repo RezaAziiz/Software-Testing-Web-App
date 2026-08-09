@@ -3,6 +3,8 @@ import CytoscapeComponent from "react-cytoscapejs";
 import cytoscape from "cytoscape";
 import dagre from "cytoscape-dagre";
 
+import { ZoomIn, ZoomOut, Maximize } from "lucide-react";
+
 // Register dagre layout extension
 cytoscape.use(dagre);
 
@@ -12,7 +14,9 @@ type CfgCytoscapeViewportProps = {
   setCyInstance?: (cy: cytoscape.Core | null) => void;
   style?: React.CSSProperties;
   zoomControlSuffix?: string;
+  highlightedLines?: { start: number; end: number } | null;
 };
+
 
 export const CfgCytoscapeViewport: React.FC<CfgCytoscapeViewportProps> = ({
   elements,
@@ -20,6 +24,7 @@ export const CfgCytoscapeViewport: React.FC<CfgCytoscapeViewportProps> = ({
   setCyInstance,
   style = { width: "100%", height: "100%" },
   zoomControlSuffix = "inline",
+  highlightedLines = null,
 }) => {
   const dagreLayout = useMemo(() => ({
     name: "dagre",
@@ -107,6 +112,44 @@ export const CfgCytoscapeViewport: React.FC<CfgCytoscapeViewportProps> = ({
     },
   ], []);
 
+  React.useEffect(() => {
+    if (!cyRef.current) return;
+    const cy = cyRef.current;
+    
+    // Clear selection
+    cy.nodes().unselect();
+    
+    if (highlightedLines) {
+      let nodesToSelect = cy.collection();
+      cy.nodes().forEach(node => {
+        const nodeType = (node.data('nodeType') ?? '').toUpperCase();
+        if (nodeType === 'MERGE') return;
+
+        const lineStart = node.data('lineStart');
+        const lineEnd = node.data('lineEnd');
+        if (lineStart !== undefined && lineStart !== null) {
+          const end = lineEnd !== undefined && lineEnd !== null ? lineEnd : lineStart;
+          if (highlightedLines.start >= lineStart && highlightedLines.start <= end) {
+            nodesToSelect = nodesToSelect.union(node);
+          } else if (lineStart >= highlightedLines.start && end <= (highlightedLines.end ?? highlightedLines.start)) {
+            nodesToSelect = nodesToSelect.union(node);
+          }
+        }
+      });
+      
+      if (nodesToSelect.length > 0) {
+        nodesToSelect.select();
+        // Hanya center jika nodesToSelect berjumlah kecil atau spesifik agar tidak terlalu zoom-out
+        cy.animate({
+          center: {
+            eles: nodesToSelect
+          },
+          duration: 300
+        });
+      }
+    }
+  }, [highlightedLines, cyRef, elements]);
+
   return (
     <div style={{ position: "relative", width: "100%", height: "100%", ...style }}>
       <CytoscapeComponent
@@ -131,70 +174,64 @@ export const CfgCytoscapeViewport: React.FC<CfgCytoscapeViewportProps> = ({
 
       {/* Zoom Controls */}
       <div
+        className="group"
         style={{
           position: "absolute",
           bottom: 12,
-          right: 12,
+          left: 12,
           display: "flex",
-          gap: 4,
-          background: "rgba(255,255,255,0.9)",
-          backdropFilter: "blur(8px)",
-          borderRadius: 8,
-          padding: 4,
-          border: "1px solid #e5e7eb",
-          boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+          flexDirection: "column",
+          background: "#4b5563",
+          borderRadius: 4,
+          overflow: "hidden",
+          border: "1px solid #374151",
+          boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
           zIndex: 10,
         }}
       >
         {[
           {
-            label: "+",
-            title: "Zoom In",
+            icon: <ZoomIn size={14} />,
+            label: "Zoom In",
             action: () => {
               const cy = cyRef.current;
               if (cy) cy.zoom(cy.zoom() * 1.3);
             },
           },
           {
-            label: "−",
-            title: "Zoom Out",
+            icon: <ZoomOut size={14} />,
+            label: "Zoom Out",
             action: () => {
               const cy = cyRef.current;
               if (cy) cy.zoom(cy.zoom() * 0.75);
             },
           },
           {
-            label: "⊞",
-            title: "Fit",
+            icon: <Maximize size={14} />,
+            label: "Fit",
             action: () => {
               const cy = cyRef.current;
               if (cy) cy.fit(undefined, 20);
             },
           },
-        ].map(({ label, title, action }) => (
+        ].map(({ icon, label, action }, index) => (
           <button
             key={`${zoomControlSuffix}-${label}`}
-            title={title}
             onClick={action}
+            className="flex items-center hover:bg-[#374151] transition-colors"
             style={{
-              width: 30,
-              height: 30,
+              padding: "6px 10px",
               background: "transparent",
               border: "none",
-              borderRadius: 6,
-              fontSize: 15,
-              fontWeight: 600,
+              borderBottom: index !== 2 ? "1px solid #374151" : "none",
               cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "#374151",
-              transition: "background 0.15s ease",
+              color: "#f9fafb",
             }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = "#f3f4f6")}
-            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
           >
-            {label}
+            {icon}
+            <span className="text-[11px] whitespace-nowrap overflow-hidden max-w-0 opacity-0 group-hover:max-w-[80px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out">
+              {label}
+            </span>
           </button>
         ))}
       </div>

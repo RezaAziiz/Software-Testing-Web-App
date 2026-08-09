@@ -44,7 +44,7 @@ const CreateTestCasePage: React.FC = () => {
         </div>
 
         {/* Section 2: Kode Program (Kiri) dan Struktur Program (Kanan) */}
-        <div className="w-full hidden md:flex relative" style={{ height: "600px" }}>
+        <div className="w-full hidden md:flex relative" style={{ height: "700px" }}>
           <ResizablePanelGroup direction="horizontal" className="w-full h-full">
             <ResizablePanel 
               ref={codePanelRef}
@@ -57,7 +57,7 @@ const CreateTestCasePage: React.FC = () => {
               onExpand={() => setIsCodeCollapsed(false)}
             >
               <div className="w-full h-full pr-3 overflow-hidden">
-                <CodeProgramCard highlightedLines={highlightedLines} />
+                <CodeProgramCard highlightedLines={highlightedLines} onLineClick={setHighlightedLines} />
               </div>
             </ResizablePanel>
             
@@ -127,10 +127,10 @@ const CreateTestCasePage: React.FC = () => {
 
         {/* Mobile View */}
         <div className="flex flex-col md:hidden gap-6 w-full">
-          <div className="w-full flex flex-col" style={{ height: "600px" }}>
-            <CodeProgramCard highlightedLines={highlightedLines} />
+          <div className="w-full flex flex-col" style={{ height: "700px" }}>
+            <CodeProgramCard highlightedLines={highlightedLines} onLineClick={setHighlightedLines} />
           </div>
-          <div className="w-full flex flex-col" style={{ height: "600px" }}>
+          <div className="w-full flex flex-col" style={{ height: "700px" }}>
             <CFGCard
               showCyclomaticComplexity={showCyclomaticComplexity}
               showCodeCoverage={showCodeCoverage}

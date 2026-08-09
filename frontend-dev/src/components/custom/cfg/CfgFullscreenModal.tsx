@@ -18,8 +18,12 @@ type CfgFullscreenModalProps = {
     visible: boolean;
     x: number;
     y: number;
-    content: string;
+    nodeLabel: string;
+    nodeType: string;
+    lineStart: number | null;
+    lineEnd: number | null;
     codeContent: string;
+    statusText?: string;
   };
   initialSplitPercent?: number;
   /** If provided, renders this URL in an iframe on the left panel instead of plain source code */
@@ -362,6 +366,7 @@ export const CfgFullscreenModal: React.FC<CfgFullscreenModalProps> = ({
                 cyRef={modalCyRef}
                 setCyInstance={setModalCyInstance}
                 zoomControlSuffix="modal"
+                highlightedLines={highlightedLines}
               />
             )}
 
@@ -372,22 +377,22 @@ export const CfgFullscreenModal: React.FC<CfgFullscreenModalProps> = ({
                   position: "absolute",
                   left: modalTooltip.x,
                   top: modalTooltip.y,
-                  background: "#1e293b",
-                  color: "#f8fafc",
-                  padding: "8px 12px",
-                  borderRadius: 8,
-                  fontSize: 11,
-                  maxWidth: 420,
-                  maxHeight: 350,
-                  overflowY: "auto",
+                  background: "transparent",
+                  padding: 0,
                   pointerEvents: "none",
                   zIndex: 100,
-                  boxShadow: "0 4px 16px rgba(0,0,0,0.35)",
-                  lineHeight: 1.5,
-                  border: "1px solid #334155",
+                  boxShadow: "0 10px 25px -5px rgba(0,0,0,0.3)",
+                  borderRadius: 8,
                 }}
               >
-                <CfgTooltipContent text={modalTooltip.content} code={modalTooltip.codeContent || undefined} />
+                <CfgTooltipContent 
+                  nodeLabel={modalTooltip.nodeLabel}
+                  nodeType={modalTooltip.nodeType}
+                  lineStart={modalTooltip.lineStart}
+                  lineEnd={modalTooltip.lineEnd}
+                  code={modalTooltip.codeContent || undefined} 
+                  statusText={modalTooltip.statusText}
+                />
               </div>
             )}
           </div>

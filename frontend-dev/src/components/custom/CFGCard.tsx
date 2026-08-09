@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import UnexecutedPathsViewer from "./UnexecutedPathsViewer";
-import { Maximize } from "lucide-react";
+import { Maximize, MousePointer2, MousePointerClick, ChevronDown, ChevronUp } from "lucide-react";
 import "../../index.css";
 
 import { CfgCytoscapeViewport } from "./cfg/CfgCytoscapeViewport";
@@ -145,9 +145,13 @@ const CFGCard: React.FC<CFGCardProps> = ({
     visible: boolean;
     x: number;
     y: number;
-    content: string;
+    nodeLabel: string;
+    nodeType: string;
+    lineStart: number | null;
+    lineEnd: number | null;
     codeContent: string;
-  }>({ visible: false, x: 0, y: 0, content: "", codeContent: "" });
+    statusText?: string;
+  }>({ visible: false, x: 0, y: 0, nodeLabel: "", nodeType: "", lineStart: null, lineEnd: null, codeContent: "" });
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const modalCyRef = useRef<cytoscape.Core | null>(null);
@@ -156,12 +160,17 @@ const CFGCard: React.FC<CFGCardProps> = ({
     visible: boolean;
     x: number;
     y: number;
-    content: string;
+    nodeLabel: string;
+    nodeType: string;
+    lineStart: number | null;
+    lineEnd: number | null;
     codeContent: string;
-  }>({ visible: false, x: 0, y: 0, content: "", codeContent: "" });
+    statusText?: string;
+  }>({ visible: false, x: 0, y: 0, nodeLabel: "", nodeType: "", lineStart: null, lineEnd: null, codeContent: "" });
 
   const [sourceCode, setSourceCode] = useState<string | null>(null);
   const [isAnalysisOpen, setIsAnalysisOpen] = useState<boolean>(true);
+  const [isCcAccordionOpen, setIsCcAccordionOpen] = useState<boolean>(true);
 
   // Fetch source code text for left panel when modal is open
   useEffect(() => {
@@ -241,7 +250,7 @@ const CFGCard: React.FC<CFGCardProps> = ({
               lineInfo = `Baris Kode: ${lineStart} - ${lineEnd}`;
             }
           }
-          tooltipText = `${lineInfo}\n\n${tooltipText}`;
+          tooltipText = `${lineInfo}\n\n${tooltipText}\n\nKlik untuk menyorot kode sumber`;
         }
 
         const codeContent = (!["MERGE", "START", "END"].includes(upperNodeType))
@@ -257,6 +266,7 @@ const CFGCard: React.FC<CFGCardProps> = ({
             tooltip: tooltipText,
             codeContent,
             bgColor: bgColor,
+            statusText: statusText,
             lineStart: (lineStart !== undefined && lineStart !== null) ? Number(lineStart) : null,
             lineEnd: (lineEnd !== undefined && lineEnd !== null) ? Number(lineEnd) : null,
             executionOrder: executionOrder !== null && !isNaN(executionOrder)
@@ -393,7 +403,7 @@ const CFGCard: React.FC<CFGCardProps> = ({
               lineInfo = `Baris Kode: ${lineStart} - ${lineEnd}`;
             }
           }
-          tooltipText = `${lineInfo}\n\n${tooltipText}`;
+          tooltipText = `${lineInfo}\n\n${tooltipText}\n\nKlik untuk menyorot kode sumber`;
         }
 
         const codeContent = (!["MERGE", "START", "END"].includes(upperNodeType))
@@ -544,8 +554,12 @@ const CFGCard: React.FC<CFGCardProps> = ({
         visible: true,
         x: renderedPos.x + 30,
         y: renderedPos.y - 10,
-        content: node.data("tooltip") ?? "",
+        nodeLabel: node.data("label") || (node.data("nodeType") === "START" ? "Start" : node.data("nodeType") === "END" ? "End" : "Node"),
+        nodeType: node.data("nodeType") || "",
+        lineStart: node.data("lineStart"),
+        lineEnd: node.data("lineEnd"),
         codeContent: node.data("codeContent") ?? "",
+        statusText: node.data("statusText"),
       });
     });
     cy.on("mousemove", "node", (evt) => {
@@ -631,8 +645,12 @@ const CFGCard: React.FC<CFGCardProps> = ({
         visible: true,
         x: renderedPos.x + 30,
         y: renderedPos.y - 10,
-        content: node.data("tooltip") ?? "",
+        nodeLabel: node.data("label") || (node.data("nodeType") === "START" ? "Start" : node.data("nodeType") === "END" ? "End" : "Node"),
+        nodeType: node.data("nodeType") || "",
+        lineStart: node.data("lineStart"),
+        lineEnd: node.data("lineEnd"),
         codeContent: node.data("codeContent") ?? "",
+        statusText: node.data("statusText"),
       });
     });
     cy.on("mousemove", "node", (evt) => {
@@ -707,7 +725,7 @@ const CFGCard: React.FC<CFGCardProps> = ({
 
         <CardContent className="flex flex-col flex-1 relative min-h-0">
           <div className="w-full flex flex-row gap-3 h-full">
-            <div className={`transition-all duration-300 ${isAnalysisOpen ? 'w-1/2' : 'w-full pr-6'} flex flex-col h-full min-h-0`}>
+            <div className={`transition-all duration-300 ${(isAnalysisOpen && showCodeCoverage) ? 'w-1/2' : 'w-full'} flex flex-col h-full min-h-0`}>
               <div className="flex items-center justify-between mb-2 shrink-0">
                 <p className="text-sm font-medium">Control Flow Graph</p>
                 {elements.length > 0 && (
@@ -737,26 +755,34 @@ const CFGCard: React.FC<CFGCardProps> = ({
                   </button>
                 )}
               </div>
-              <div className="text-[11px] text-blue-600 bg-blue-50 px-2 py-1 rounded border border-blue-100 flex items-center gap-1 mb-2">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg>
-                <span>Node dapat digeser dan di-hover untuk melihat detail.</span>
+              <div className="text-xs text-white bg-[#0b48b3] p-3 rounded-md mb-2 flex flex-col gap-1.5 shadow-sm">
+                <div className="flex items-center gap-2">
+                  <MousePointer2 size={14} /> <span>Arahkan kursor ke node: Pratinjau informasi node</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <MousePointerClick size={14} /> <span>Klik Node: Sorot kode sumber yang terkait</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <MousePointerClick size={14} /> <span>Klik baris kode sumber: Sorot node CFG terkait</span>
+                </div>
               </div>
 
               {error ? (
-                <div className="flex-1 min-h-[24rem] flex items-center justify-center text-sm text-gray-400 bg-gray-50 rounded-lg border border-dashed border-gray-300">
+                <div className="flex-1 min-h-0 flex items-center justify-center text-sm text-gray-400 bg-gray-50 rounded-lg border border-dashed border-gray-300">
                   <span>Belum ada data CFG untuk modul ini.</span>
                 </div>
               ) : elements.length === 0 ? (
-                <div className="flex-1 min-h-[24rem] flex items-center justify-center text-sm text-gray-400 bg-gray-50 rounded-lg border border-dashed border-gray-300">
+                <div className="flex-1 min-h-0 flex items-center justify-center text-sm text-gray-400 bg-gray-50 rounded-lg border border-dashed border-gray-300">
                   <span>Data CFG tidak tersedia.</span>
                 </div>
               ) : (
-                <div className="relative flex-1 min-h-[24rem]" style={{ overflow: "visible" }}>
+                <div className="relative flex-1 min-h-0" style={{ overflow: "visible" }}>
                   <CfgCytoscapeViewport
                     elements={elements}
                     cyRef={cyRef}
                     zoomControlSuffix="inline"
                     style={{ position: "absolute", inset: 0 }}
+                    highlightedLines={highlightedLines}
                   />
 
                   {tooltip.visible && (
@@ -767,27 +793,52 @@ const CFGCard: React.FC<CFGCardProps> = ({
                         top: tooltip.y,
                         background: "#1e293b",
                         color: "#f8fafc",
-                        padding: "8px 12px",
+                        padding: 0,
                         borderRadius: 8,
-                        fontSize: 11,
-                        maxWidth: 420,
-                        maxHeight: 350,
-                        overflowY: "auto",
                         pointerEvents: "none",
                         zIndex: 100,
-                        boxShadow: "0 4px 16px rgba(0,0,0,0.35)",
-                        lineHeight: 1.5,
-                        border: "1px solid #334155",
+                        boxShadow: "0 10px 25px -5px rgba(0,0,0,0.15)",
                       }}
                     >
-                      <CfgTooltipContent text={tooltip.content} code={tooltip.codeContent || undefined} />
+                      <CfgTooltipContent 
+                        nodeLabel={tooltip.nodeLabel}
+                        nodeType={tooltip.nodeType}
+                        lineStart={tooltip.lineStart}
+                        lineEnd={tooltip.lineEnd}
+                        code={tooltip.codeContent || undefined}
+                        statusText={tooltip.statusText}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {showCyclomaticComplexity && (
+                <div className="mt-4 border rounded-md shadow-sm bg-white overflow-hidden shrink-0">
+                  <button 
+                    className="w-full flex justify-between items-center p-3 bg-gray-50 hover:bg-gray-100 transition-colors"
+                    onClick={() => setIsCcAccordionOpen(!isCcAccordionOpen)}
+                  >
+                    <span className="font-semibold text-sm">Cyclomatic Complexity (V(G)) = {cyclomaticComplexity ?? (rawEdges.length - rawNodes.length + 2)}</span>
+                    {isCcAccordionOpen ? <ChevronDown size={18} /> : <ChevronUp size={18} />}
+                  </button>
+                  {isCcAccordionOpen && (
+                    <div className="p-4 border-t flex flex-row gap-4 items-center">
+                      <div className="flex-1 text-sm text-gray-600">
+                        Minimal {cyclomaticComplexity ?? (rawEdges.length - rawNodes.length + 2)} jalur independen harus dianalisis.
+                      </div>
+                      <div className="bg-gray-100 p-3 rounded font-mono text-sm flex flex-col gap-1 text-black whitespace-pre">
+                        <div>V(G) = Edge - Node + 2</div>
+                        <div>     = {rawEdges.length} - {rawNodes.length} + 2</div>
+                        <div>     = {cyclomaticComplexity ?? (rawEdges.length - rawNodes.length + 2)}</div>
+                      </div>
                     </div>
                   )}
                 </div>
               )}
             </div>
 
-            {isAnalysisOpen && (
+            {isAnalysisOpen && showCodeCoverage && (
               <div className="w-1/2 flex flex-col border-l border-gray-200 relative overflow-y-auto">
                 <div className="flex justify-end w-full mb-2">
                   <button
@@ -806,27 +857,6 @@ const CFGCard: React.FC<CFGCardProps> = ({
                       <UnexecutedPathsViewer paths={unexecutedPaths} />
                     </>
                   )}
-
-                  {showCyclomaticComplexity && cyclomaticComplexity !== null ? (
-                    <>
-                      <p className="text-sm font-medium mb-2">Nilai Cyclomatic Complexity</p>
-                      <div className="text-sm flex items-start">
-                        <div className="mr-4">
-                          <div>V(G)</div>
-                        </div>
-                        <div className="flex flex-col">
-                          <span>= E − N + 2</span>
-                          <span>= {rawEdges.length} − {rawNodes.length} + 2</span>
-                          <span className="font-bold">= {cyclomaticComplexity}</span>
-                        </div>
-                      </div>
-                    </>
-                  ) : showCyclomaticComplexity ? (
-                    <>
-                      <p className="text-sm font-medium mb-2">Nilai Cyclomatic Complexity</p>
-                      <p className="text-sm text-gray-400">CC tidak tersedia</p>
-                    </>
-                  ) : null}
                 </div>
               </div>
             )}
@@ -834,14 +864,14 @@ const CFGCard: React.FC<CFGCardProps> = ({
         </CardContent>
         <CardFooter className="card-footer shrink-0" />
 
-        {!isAnalysisOpen && (showCyclomaticComplexity || showCodeCoverage) && (
+        {!isAnalysisOpen && showCodeCoverage && (
           <button
             onClick={() => setIsAnalysisOpen(true)}
             className="absolute right-0 top-[56px] bg-blue-50 hover:bg-blue-100 border border-blue-200 border-r-0 rounded-l-md px-1.5 py-4 shadow-sm transition-colors z-10 flex flex-col items-center justify-center"
-            title={showCyclomaticComplexity ? "Tampilkan Nilai CC" : "Tampilkan Coverage"}
+            title="Tampilkan Coverage"
           >
             <div style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }} className="text-xs font-semibold text-blue-700 tracking-wider">
-              {showCyclomaticComplexity ? "Nilai CC" : "Coverage"}
+              Coverage
             </div>
           </button>
         )}
