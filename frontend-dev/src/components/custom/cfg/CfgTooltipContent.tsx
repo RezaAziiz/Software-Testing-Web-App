@@ -1,6 +1,6 @@
 import React from "react";
 import { MousePointerClick } from "lucide-react";
-import { highlightJavaCode } from "../../../utils/javaHighlighter";
+
 
 type CfgTooltipContentProps = {
   nodeLabel?: string;

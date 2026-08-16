@@ -1,17 +1,11 @@
 import Layout from "./Layout";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Menu } from "@/components/custom/Menu";
-import ModuleCoverage from "@/components/custom/ModuleCoverage";
 import CFGCard from "@/components/custom/CFGCard";
-import {
-  ResizablePanel,
-  ResizablePanelGroup,
-} from "@/components/ui/resizable";
-import { ImperativePanelHandle, PanelResizeHandle } from "react-resizable-panels";
 import TestResultCard from "@/components/custom/TestResultCard";
-import { Button } from "@/components/ui/button";
-//import PercentageCodeCoverage from "@/components/custom/PresentaseCodeCoverage";
+import UnexecutedPathsViewer from "@/components/custom/UnexecutedPathsViewer";
 import { useNavigate } from "react-router-dom";
+import { CheckCircle2, AlertTriangle, XCircle } from "lucide-react";
 
 interface DataResultTest {
   coverageScore: number;
@@ -23,6 +17,7 @@ interface DataResultTest {
   linkReportTesting: string;
   linkReportCoverage: string;
   linkSourceCoverage: string;
+  minimum_coverage_score?: number;
   data_cfg: {
     nodes: any[];
     edges: any[];
@@ -34,7 +29,6 @@ const TestResultPage = () => {
   const navigate = useNavigate();
   const apiUrl = import.meta.env.VITE_API_URL;
   let apiKey = import.meta.env.VITE_API_KEY;
-  // const modulId = import.meta.env.VITE_MODULE_ID;
   const sessionData = localStorage.getItem("session");
   let session = null;
   if (sessionData != null) {
@@ -54,36 +48,38 @@ const TestResultPage = () => {
     linkReportTesting: "",
     linkReportCoverage: "",
     linkSourceCoverage: "",
+    minimum_coverage_score: 80,
     data_cfg: {
       nodes: [],
       edges: [],
       unexecutedPaths: [],
     },
   };
-  const [showCyclomaticComplexity] = useState(false);
-  const [showCodeCoverage] = useState(true);
+
   const [dataTestResult, setDataTestResult] =
     useState<DataResultTest>(defaultData);
   const [error, setError] = useState<string | null>(null);
-  const [highlightedLines, setHighlightedLines] = useState<{ start: number; end: number } | null>(null);
+  const [highlightedLines, setHighlightedLines] = useState<{
+    start: number;
+    end: number;
+  } | null>(null);
+  const [className, setClassName] = useState<string>("");
 
-  const [isCodeCollapsed, setIsCodeCollapsed] = useState(false);
-  const [isCfgCollapsed, setIsCfgCollapsed] = useState(false);
-  const codePanelRef = useRef<ImperativePanelHandle>(null);
-  const cfgPanelRef = useRef<ImperativePanelHandle>(null);
   const fetchDataTestResult = async () => {
     try {
-      const response = await fetch(`${apiUrl}/modul/getResultTest/${modulId}`, {
-        method: "GET",
-        headers: {
-          Accept: "application/json",
-          Authorization: `Bearer ${apiKey}`,
-        },
-      });
+      const response = await fetch(
+        `${apiUrl}/modul/getResultTest/${modulId}`,
+        {
+          method: "GET",
+          headers: {
+            Accept: "application/json",
+            Authorization: `Bearer ${apiKey}`,
+          },
+        }
+      );
 
       if (!response.ok) {
         if (response.status === 403) {
-          // throw new Error('Forbidden: Access is denied');
           navigate("/error");
         } else if (response.status !== 404) {
           throw new Error(`HTTP error! status: ${response.status}`);
@@ -97,26 +93,71 @@ const TestResultPage = () => {
       setError((error as Error).message);
     }
   };
-  const handleCoverageTestReport = async () => {
-    const url = apiUrl + "/" + dataTestResult?.linkReportCoverage;
-    const win = window.open(url, "_blank");
-    win?.focus();
-  };
-  const handleTestReport = async () => {
-    const url = apiUrl + "/" + dataTestResult?.linkReportTesting;
-    const win = window.open(url, "_blank");
-    win?.focus();
+
+  // Fetch class name for Source Code Coverage header
+  const fetchClassName = async () => {
+    try {
+      const response = await fetch(
+        `${apiUrl}/modul/detailByIdTopikModul/${modulId}`,
+        {
+          method: "GET",
+          headers: {
+            Accept: "application/json",
+            Authorization: `Bearer ${apiKey}`,
+          },
+        }
+      );
+      if (response.ok) {
+        const data = await response.json();
+        const name = data?.data?.data_modul?.ms_class_name;
+        if (name) setClassName(name + ".java");
+      }
+    } catch (e) {
+      console.error("Error fetching class name:", e);
+    }
   };
 
   useEffect(() => {
+    window.scrollTo(0, 0);
     if (session === null) {
       navigate("/login");
     } else if (session.login_type != "student") {
       navigate("/dashboard-teacher");
     } else {
       fetchDataTestResult();
+      fetchClassName();
     }
   }, []);
+
+  // --- Derived values ---
+  const unexecutedPaths = dataTestResult.data_cfg?.unexecutedPaths ?? [];
+  const nodes = dataTestResult.data_cfg?.nodes ?? [];
+  const edges = dataTestResult.data_cfg?.edges ?? [];
+
+  // Calculate total paths from cyclomatic complexity: V(G) = E - N + 2
+  const totalPaths = Math.max(edges.length - nodes.length + 2, 0);
+  const coveredPaths = Math.max(totalPaths - unexecutedPaths.length, 0);
+
+  const allTestCasePass =
+    dataTestResult.totalTestCase > 0 &&
+    dataTestResult.totalFailedTestCase === 0;
+  const allPathsCovered = unexecutedPaths.length === 0;
+  const minimumCoverage = dataTestResult.minimum_coverage_score ?? 80;
+  const coverageMet = dataTestResult.coverageScore >= minimumCoverage;
+
+  const hasFailedTests = dataTestResult.totalFailedTestCase > 0;
+  const allTargetsMet = allTestCasePass && allPathsCovered && coverageMet;
+
+  // Badge status helpers
+  const testCaseBadgeOk = allTestCasePass;
+  const pathCoverageBadgeOk = allPathsCovered;
+  const codeCoverageBadgeOk = coverageMet;
+
+  // JaCoCo iframe URL
+  const timestamp = new Date().getTime();
+  const jacocoIframeUrl = dataTestResult.linkSourceCoverage
+    ? `${apiUrl}/${dataTestResult.linkSourceCoverage}?t=${timestamp}`
+    : null;
 
   if (error) {
     return (
@@ -126,61 +167,187 @@ const TestResultPage = () => {
     );
   }
 
+// Remove unused variables
+
   return (
     <Layout>
       <Menu />
-      <div className="flex flex-col w-screen min-h-[calc(100vh-100px)] p-4 bg-slate-50 relative">
-        <ResizablePanelGroup direction="horizontal" className="min-h-full rounded-lg border border-slate-200">
-          <ResizablePanel 
-            ref={codePanelRef}
-            collapsible={true}
-            collapsedSize={0}
-            defaultSize={50} 
-            minSize={15} 
-            className="flex flex-col bg-white"
-            onCollapse={() => setIsCodeCollapsed(true)}
-            onExpand={() => setIsCodeCollapsed(false)}
-          >
-            <div className="overflow-y-auto p-4 workspace-scrollbar w-full h-full">
-              <ModuleCoverage dataResultTest={dataTestResult} />
-            </div>
-          </ResizablePanel>
+      <div className="flex flex-col w-screen min-h-screen p-4 gap-6 bg-slate-50 overflow-x-hidden">
+        {/* ===== SECTION 1: Ringkasan Hasil Pengujian ===== */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+          <h2 className="text-lg font-bold text-slate-800 mb-5">
+            Ringkasan Hasil Pengujian
+          </h2>
 
-          <PanelResizeHandle 
-            className="bg-transparent w-4 relative flex items-center justify-center cursor-col-resize group" 
-            style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}
-          >
-              <div 
-                className="bg-slate-300 group-hover:bg-[#0b6af0] group-active:bg-blue-700 transition-colors"
-                style={{ position: "absolute", top: 0, bottom: 0, width: 2, zIndex: 0 }} 
-              />
-              <div 
-                className="bg-slate-300 group-hover:bg-[#0b6af0] group-active:bg-blue-700 transition-all group-hover:scale-105"
-                style={{ position: "absolute", zIndex: 10, display: "flex", height: 56, width: 24, alignItems: "center", justifyContent: "center", borderRadius: 12, border: "1px solid rgba(255,255,255,0.15)", boxShadow: "0 4px 10px -4px rgba(0,0,0,0.4)", flexDirection: "column", gap: 4 }} 
-              >
-                <div style={{ width: 2, height: 16, backgroundColor: "rgba(255,255,255,0.5)", borderRadius: 1 }} />
-                <div style={{ width: 2, height: 16, backgroundColor: "rgba(255,255,255,0.5)", borderRadius: 1 }} />
+          {/* Stat Badges */}
+          <div className="flex flex-col md:flex-row gap-4 mb-5">
+            {/* Test Case Result */}
+            <div className="flex-1 flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-xl px-5 py-3">
+              {testCaseBadgeOk ? (
+                <CheckCircle2 className="w-7 h-7 text-green-500 shrink-0" />
+              ) : (
+                <AlertTriangle className="w-7 h-7 text-orange-500 shrink-0" />
+              )}
+              <div>
+                <p className="text-xs text-slate-500">Test Case Result</p>
+                <p className="text-base font-bold text-slate-800">
+                  {dataTestResult.totalPassTestCase}/
+                  {dataTestResult.totalTestCase} Pass
+                </p>
               </div>
-          </PanelResizeHandle>
+            </div>
 
-          <ResizablePanel 
-            ref={cfgPanelRef}
-            collapsible={true}
-            collapsedSize={0}
-            defaultSize={50} 
-            minSize={15} 
-            className="flex flex-col bg-white"
-            onCollapse={() => setIsCfgCollapsed(true)}
-            onExpand={() => setIsCfgCollapsed(false)}
-          >
-            <div className="overflow-y-auto p-4 workspace-scrollbar w-full h-full flex flex-col gap-6">
+            {/* Path Coverage */}
+            <div className="flex-1 flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-xl px-5 py-3">
+              {pathCoverageBadgeOk ? (
+                <CheckCircle2 className="w-7 h-7 text-green-500 shrink-0" />
+              ) : (
+                <AlertTriangle className="w-7 h-7 text-orange-500 shrink-0" />
+              )}
+              <div>
+                <p className="text-xs text-slate-500">Path Coverage</p>
+                <p className="text-base font-bold text-slate-800">
+                  {coveredPaths}/{totalPaths} Jalur Tercakup
+                </p>
+              </div>
+            </div>
+
+            {/* Code Coverage */}
+            <div className="flex-1 flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-xl px-5 py-3">
+              {codeCoverageBadgeOk ? (
+                <CheckCircle2 className="w-7 h-7 text-green-500 shrink-0" />
+              ) : (
+                <AlertTriangle className="w-7 h-7 text-orange-500 shrink-0" />
+              )}
+              <div>
+                <p className="text-xs text-slate-500">Code Coverage</p>
+                <p className="text-base font-bold text-slate-800">
+                  {dataTestResult.coverageScore}%
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Alert Box */}
+          {dataTestResult.executionDate !== "" && (
+            <>
+              {allTargetsMet ? (
+                <div className="flex items-start gap-3 bg-green-50 border border-green-200 rounded-xl p-4">
+                  <CheckCircle2 className="w-6 h-6 text-green-600 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-bold text-green-800 text-sm">
+                      Semua target pengujian tercapai
+                    </p>
+                    <p className="text-green-700 text-sm mt-1">
+                      Seluruh test case Pass, semua jalur pada CFG telah
+                      tercakup, dan code coverage mencapai {minimumCoverage}%.
+                    </p>
+                  </div>
+                </div>
+              ) : hasFailedTests ? (
+                <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl p-4">
+                  <XCircle className="w-6 h-6 text-red-600 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-bold text-red-800 text-sm">
+                      Terdapat test case yang gagal
+                    </p>
+                    <p className="text-red-700 text-sm mt-1">
+                      {dataTestResult.totalFailedTestCase} dari{" "}
+                      {dataTestResult.totalTestCase} test case gagal. Perbaiki
+                      test case yang gagal terlebih dahulu.
+                    </p>
+                  </div>
+                </div>
+              ) : !coverageMet ? (
+                <div className="flex items-start gap-3 bg-orange-50 border border-orange-200 rounded-xl p-4">
+                  <AlertTriangle className="w-6 h-6 text-orange-600 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-bold text-orange-800 text-sm">
+                      Code Coverage masih rendah
+                    </p>
+                    <p className="text-orange-700 text-sm mt-1">
+                      Semua test case berhasil dijalankan, tetapi code coverage ({dataTestResult.coverageScore}%) masih di bawah target minimal ({minimumCoverage}%). Tambahkan test case untuk meningkatkan coverage.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-start gap-3 bg-orange-50 border border-orange-200 rounded-xl p-4">
+                  <AlertTriangle className="w-6 h-6 text-orange-600 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-bold text-orange-800 text-sm">
+                      Jalur eksekusi (Path) belum lengkap
+                    </p>
+                    <p className="text-orange-700 text-sm mt-1">
+                      Target minimum Code Coverage tercapai ({dataTestResult.coverageScore}%), namun masih ada {unexecutedPaths.length} jalur program (Path) yang belum dilalui oleh test case Anda.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* ===== SECTION 2: Source Code Coverage (Kiri) + CFG & Jalur Belum Tereksekusi (Kanan) ===== */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full items-stretch">
+          {/* Kolom Kiri: Source Code Coverage (JaCoCo) */}
+          <div className="flex flex-col min-w-0 bg-white rounded-2xl shadow-sm border border-slate-200 p-5 h-full">
+            <div className="flex items-center justify-between mb-3 border border-slate-200 rounded-t-xl px-4 py-3 bg-slate-50">
+              <span className="text-sm font-bold text-slate-800">
+                Source code coverage {className ? `(${className})` : ""}
+              </span>
+              <div className="flex items-center gap-3 text-xs">
+                <span className="flex items-center gap-1.5 font-medium text-slate-600">
+                  <span className="inline-block w-2.5 h-2.5 rounded-full bg-green-500" />
+                  Fully executed
+                </span>
+                <span className="flex items-center gap-1.5 font-medium text-slate-600">
+                  <span className="inline-block w-2.5 h-2.5 rounded-full bg-yellow-500" />
+                  Partial
+                </span>
+                <span className="flex items-center gap-1.5 font-medium text-slate-600">
+                  <span className="inline-block w-2.5 h-2.5 rounded-full bg-red-500" />
+                  Not executed
+                </span>
+              </div>
+            </div>
+
+            {dataTestResult.totalTestCase > 0 &&
+            dataTestResult.totalFailedTestCase === 0 &&
+            jacocoIframeUrl ? (
+              <div className="border border-t-0 border-slate-200 rounded-b-xl overflow-hidden min-h-[580px] flex-1 relative">
+                <iframe
+                  src={jacocoIframeUrl}
+                  className="w-full border-0 absolute"
+                  style={{ height: "calc(100% + 80px)", top: "-80px", left: 0 }}
+                  title="JaCoCo Source Code Coverage"
+                />
+              </div>
+            ) : dataTestResult.totalFailedTestCase > 0 ? (
+              <div className="p-8 text-center bg-red-50 rounded-xl border border-red-200 flex-1 flex items-center justify-center">
+                <p className="text-sm font-semibold text-red-700">
+                  Code Coverage gagal terbentuk karena terdapat test case dengan status Fail.
+                </p>
+              </div>
+            ) : (
+              <div className="p-8 text-center bg-slate-50 rounded-xl border border-slate-200 flex-1 flex items-center justify-center">
+                <p className="text-sm text-slate-500">
+                  Code Coverage tidak terbentuk karena belum ada test case.
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Kolom Kanan: CFG Graph (Atas) + Jalur Belum Tereksekusi (Bawah) */}
+          <div className="flex flex-col gap-6 min-w-0 h-full">
+            {/* Control Flow Graph */}
+            <div className="w-full">
               <CFGCard
-                showCyclomaticComplexity={showCyclomaticComplexity}
-                showCodeCoverage={showCodeCoverage}
+                showCyclomaticComplexity={false}
+                showCodeCoverage={false}
                 codeCoveragePercentage={dataTestResult.coverageScore}
                 nodesWithStatus={dataTestResult.data_cfg?.nodes}
                 edgesWithStatus={dataTestResult.data_cfg?.edges}
-                unexecutedPaths={dataTestResult.data_cfg?.unexecutedPaths}
+                unexecutedPaths={unexecutedPaths}
                 onNodeClick={setHighlightedLines}
                 highlightedLines={highlightedLines}
                 jacocoUrl={
@@ -189,54 +356,26 @@ const TestResultPage = () => {
                     : null
                 }
               />
-              <TestResultCard dataResultTest={dataTestResult} />
-              <div className="flex justify-end space-x-2 items-center p-4">
-                {dataTestResult.totalFailedTestCase == 0 &&
-                  dataTestResult.executionDate !== "" && (
-                    <Button
-                      variant="outline"
-                      className="bg-white text-sm text-blue-800 border-2 border-blue-800 rounded-[10px] hover:bg-blue-800 hover:text-white"
-                      onClick={handleCoverageTestReport}
-                    >
-                      Coverage Test
-                    </Button>
-                  )}
-                {dataTestResult.executionDate !== "" && (
-                  <Button
-                    className="bg-blue-800 text-sm text-white border-2 border-blue-800 rounded-[10px] pt-0 pb-0"
-                    onClick={handleTestReport}
-                  >
-                    Test Report
-                  </Button>
-                )}
-              </div>
             </div>
-          </ResizablePanel>
-        </ResizablePanelGroup>
 
-        {isCodeCollapsed && (
-          <button
-            onClick={() => codePanelRef.current?.expand()}
-            className="absolute left-4 top-1/2 -translate-y-1/2 bg-blue-50 hover:bg-blue-100 border border-blue-200 border-l-0 rounded-r-md px-1.5 py-4 shadow-sm transition-colors z-20 flex flex-col items-center justify-center cursor-pointer group"
-            title="Tampilkan Code Coverage"
-          >
-            <div style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }} className="text-xs font-semibold text-blue-700 tracking-wider group-hover:scale-105 transition-transform">
-              Code Coverage
+            {/* Jalur Belum Tereksekusi (Collapsible & Scrollable) */}
+            <div className="w-full">
+              <UnexecutedPathsViewer
+                paths={unexecutedPaths}
+                nodesWithStatus={dataTestResult.data_cfg?.nodes}
+                defaultCollapsed={false}
+              />
             </div>
-          </button>
-        )}
+          </div>
+        </div>
 
-        {isCfgCollapsed && (
-          <button
-            onClick={() => cfgPanelRef.current?.expand()}
-            className="absolute right-4 top-1/2 -translate-y-1/2 bg-blue-50 hover:bg-blue-100 border border-blue-200 border-r-0 rounded-l-md px-1.5 py-4 shadow-sm transition-colors z-20 flex flex-col items-center justify-center cursor-pointer group"
-            title="Tampilkan Struktur Program & Hasil"
-          >
-            <div style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }} className="text-xs font-semibold text-blue-700 tracking-wider group-hover:scale-105 transition-transform">
-              Struktur & Hasil
-            </div>
-          </button>
-        )}
+        {/* ===== SECTION 3: Tabel Hasil Test Case ===== */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+          <h3 className="text-base font-bold text-slate-800 mb-4">
+            Tabel Test Case
+          </h3>
+          <TestResultCard dataResultTest={dataTestResult} />
+        </div>
       </div>
     </Layout>
   );

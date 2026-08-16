@@ -1,4 +1,12 @@
-public class KelayakanBeasiswa {
+/* 
+* Deskripsi:
+* Modul Kelayakan Beasiswa 
+* Program ini digunakan untuk menentukan kelayakan mahasiswa dalam menerima 
+* beasiswa berdasarkan umur, IPK, status mahasiswa, dan kode mahasiswa. 
+* Setiap data akan diperiksa terlebih dahulu sesuai dengan ketentuan yang 
+* telah ditetapkan sebelum menghasilkan status kelayakan beasiswa.
+*/
+public class KelayakanBeasiswa2 {
 
     public String cekKelayakan(
             int umur,

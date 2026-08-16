@@ -1,12 +1,5 @@
 import React, { useState, useEffect } from "react";
 import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
   Table,
   TableBody,
   TableCell,
@@ -14,6 +7,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+
 
 import "../../index.css";
 
@@ -63,9 +57,7 @@ type TestResultCardProps = {
   dataResultTest: DataResultTest;
 };
 
-const TestResultCard: React.FC<TestResultCardProps> = ({
-  dataResultTest
-}) => {
+const TestResultCard: React.FC<TestResultCardProps> = () => {
   const apiUrl = import.meta.env.VITE_API_URL;
   let apiKey = import.meta.env.VITE_API_KEY;
   // const modulId = import.meta.env.VITE_MODULE_ID;
@@ -137,38 +129,25 @@ const TestResultCard: React.FC<TestResultCardProps> = ({
   }, []);
 
   return (
-    <Card className="w-full flex flex-col">
-      <CardHeader className="flex justify-between">
-        {(dataResultTest.totalTestCase > 0) && (
-          <CardTitle className="text-base module-title m-0">Hasil Pengujian {(dataResultTest.totalPassTestCase / dataResultTest.totalTestCase) * 100}% Pass</CardTitle>
-        )}
-      </CardHeader>
-      <CardContent>
-        <div className="mb-6 text-sm text-gray-600">
-          <p>
-            <span className="text-sm">Jumlah Test Case :</span> {dataResultTest.totalTestCase}
-          </p>
-          <p>
-            <span className="text-sm">Jumlah Test Case Pass :</span> {dataResultTest.totalPassTestCase}
-          </p>
-          <p>
-            <span className="text-sm">Jumlah Test Case Not Pass :</span> {dataResultTest.totalFailedTestCase}
-          </p>
-        </div>
+    <div className="w-full flex flex-col">
+      <p className="text-sm text-slate-500 mb-4">
+        Test case pass menunjukkan output sesuai expected, tetapi belum tentu semua jalur kode telah diuji.
+      </p>
 
-        <div className="rounded-lg overflow-hidden border border-slate-200 mt-4">
-          <Table className="text-sm w-full">
+      <div className="rounded-xl overflow-hidden border border-slate-200">
+        <Table className="text-sm w-full">
           <TableHeader>
-            <TableRow className="bg-blue-800 text-sm text-white py-2 hover:bg-blue-700">
-              <TableHead className="font-semibold text-center w-12 text-white">No</TableHead>
-              <TableHead className="font-semibold w-52 text-white">Objective Testing</TableHead>
+            <TableRow className="bg-blue-800 text-sm py-2 hover:bg-blue-700">
+              <TableHead className="font-semibold text-center w-[5%] text-white">No</TableHead>
+              <TableHead className="font-semibold w-[25%] text-white">Objective Testing</TableHead>
               {parameters.map((param) => (
                 <TableHead key={`param_${param.ms_id_parameter}`} className="font-semibold text-white">
-                  {param.ms_nama_parameter}
+                  Input {param.ms_nama_parameter}
                 </TableHead>
               ))}
-              <TableHead className="font-semibold w-64 text-white">Expected</TableHead>
-              <TableHead className="font-semibold text-center text-white">Hasil</TableHead>
+              <TableHead className="font-semibold w-[15%] text-white">Expected</TableHead>
+              <TableHead className="font-semibold w-[15%] text-center text-white">Hasil</TableHead>
+              <TableHead className="font-semibold w-[10%] text-center text-white">Status</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -178,7 +157,7 @@ const TestResultCard: React.FC<TestResultCardProps> = ({
                 className="text-sm leading-tight border-b border-slate-200 hover:bg-slate-50 transition-colors"
               >
                 <TableCell className="py-2 text-center">{index + 1}</TableCell>
-                <TableCell className="py-2 w-64 whitespace-nowrap font-medium text-slate-800">
+                <TableCell className="py-2 whitespace-nowrap font-medium text-slate-800">
                   {test.tr_object_pengujian}
                 </TableCell>
                 {JSON.parse(test.tr_data_test_input).map(
@@ -190,26 +169,25 @@ const TestResultCard: React.FC<TestResultCardProps> = ({
                     </TableCell>
                   )
                 )}
-                <TableCell className="py-2 w-52 whitespace-nowrap text-slate-600">
+                <TableCell className="py-2 whitespace-nowrap text-slate-600">
                   {test.tr_expected_result}
                 </TableCell>
-                <TableCell className="py-2 w-52 whitespace-nowrap text-center font-medium">
+                <TableCell className="py-2 whitespace-nowrap text-center text-slate-600">
+                  {test.tr_test_result === 'P' ? test.tr_expected_result : '—'}
+                </TableCell>
+                <TableCell className="py-2 whitespace-nowrap text-center font-medium">
                   {test.tr_test_result === 'P' ? (
-                    <span className="text-green-600 bg-green-100 px-2 py-1 rounded-md">Pass</span>
+                    <span className="text-green-600 bg-green-100 px-2 py-1 rounded-md text-xs font-semibold">Pass</span>
                   ) : (
-                    <span className="text-red-600 bg-red-100 px-2 py-1 rounded-md">Failed</span>
+                    <span className="text-red-600 bg-red-100 px-2 py-1 rounded-md text-xs font-semibold">Failed</span>
                   )}
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
-          </Table>
-        </div>
-      </CardContent>
-      <CardFooter className="flex justify-between">
-        {/* Konten footer card di sini */}
-      </CardFooter>
-    </Card>
+        </Table>
+      </div>
+    </div>
   );
 };
 

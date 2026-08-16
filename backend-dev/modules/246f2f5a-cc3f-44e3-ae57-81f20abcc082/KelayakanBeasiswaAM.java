@@ -6,7 +6,7 @@
 * Setiap data akan diperiksa terlebih dahulu sesuai dengan ketentuan yang 
 * telah ditetapkan sebelum menghasilkan status kelayakan beasiswa.
 */
-public class KelayakanBeasiswa {
+public class KelayakanBeasiswaAM{
 
     public String cekKelayakan(
             int umur,
