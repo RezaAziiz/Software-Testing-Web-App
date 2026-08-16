@@ -167,7 +167,7 @@ const CFGCard: React.FC<CFGCardProps> = ({
   }>({ visible: false, x: 0, y: 0, nodeLabel: "", nodeType: "", lineStart: null, lineEnd: null, codeContent: "" });
 
   const [sourceCode, setSourceCode] = useState<string | null>(null);
-  const [showInstruction, setShowInstruction] = useState<boolean>(false);
+  const [showInstruction, setShowInstruction] = useState<boolean>(true);
   const [isCcAccordionOpen, setIsCcAccordionOpen] = useState<boolean>(true);
 
   // Fetch source code text for left panel when modal is open
@@ -715,8 +715,8 @@ const CFGCard: React.FC<CFGCardProps> = ({
   }
 
   return (
-    <div className="h-full w-full">
-      <Card className="relative overflow-hidden w-full rounded-2xl shadow-sm border border-slate-200 bg-white">
+    <div className="h-full w-full flex flex-col min-h-0">
+      <Card className="flex flex-col h-full relative overflow-hidden w-full rounded-2xl shadow-sm border border-slate-200 bg-white min-h-0">
         <CardHeader className="pt-4 pb-3 px-5 shrink-0 border-b border-slate-100 flex flex-row items-center justify-between">
           <CardTitle className="text-base font-bold text-slate-800">Control Flow Graph</CardTitle>
           <div className="flex items-center gap-2">
@@ -744,9 +744,9 @@ const CFGCard: React.FC<CFGCardProps> = ({
           </div>
         </CardHeader>
 
-        <CardContent className="flex flex-col p-5">
+        <CardContent className="flex-1 flex flex-col p-5 overflow-hidden min-h-0">
           {showInstruction && (
-            <div className="text-xs text-white bg-[#0b48b3] p-3.5 rounded-xl mb-3 flex flex-col gap-1.5 shadow-xs relative">
+            <div className="text-xs text-white bg-[#0b48b3] p-3.5 rounded-xl mb-3 flex flex-col gap-1.5 shadow-xs relative shrink-0">
               <button
                 type="button"
                 onClick={() => setShowInstruction(false)}
@@ -769,15 +769,15 @@ const CFGCard: React.FC<CFGCardProps> = ({
           )}
 
           {error ? (
-            <div className="h-[380px] flex items-center justify-center text-sm text-gray-400 bg-gray-50 rounded-xl border border-dashed border-gray-300">
+            <div className="flex-1 min-h-[150px] flex items-center justify-center text-sm text-gray-400 bg-gray-50 rounded-xl border border-dashed border-gray-300">
               <span>Belum ada data CFG untuk modul ini.</span>
             </div>
           ) : elements.length === 0 ? (
-            <div className="h-[380px] flex items-center justify-center text-sm text-gray-400 bg-gray-50 rounded-xl border border-dashed border-gray-300">
+            <div className="flex-1 min-h-[150px] flex items-center justify-center text-sm text-gray-400 bg-gray-50 rounded-xl border border-dashed border-gray-300">
               <span>Data CFG tidak tersedia.</span>
             </div>
           ) : (
-            <div className="relative w-full h-[380px] rounded-xl overflow-hidden border border-slate-200 bg-[#fafbfc]">
+            <div className="relative w-full flex-1 min-h-[150px] rounded-xl overflow-hidden border border-slate-200 bg-[#fafbfc]">
               <CfgCytoscapeViewport
                 elements={elements}
                 cyRef={cyRef}

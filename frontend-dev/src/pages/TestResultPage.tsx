@@ -288,10 +288,10 @@ const TestResultPage = () => {
         </div>
 
         {/* ===== SECTION 2: Source Code Coverage (Kiri) + CFG & Jalur Belum Tereksekusi (Kanan) ===== */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full items-stretch">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full items-stretch lg:h-[720px]">
           {/* Kolom Kiri: Source Code Coverage (JaCoCo) */}
           <div className="flex flex-col min-w-0 bg-white rounded-2xl shadow-sm border border-slate-200 p-5 h-full">
-            <div className="flex items-center justify-between mb-3 border border-slate-200 rounded-t-xl px-4 py-3 bg-slate-50">
+            <div className="flex items-center justify-between mb-3 border border-slate-200 rounded-t-xl px-4 py-3 bg-slate-50 shrink-0">
               <span className="text-sm font-bold text-slate-800">
                 Source code coverage {className ? `(${className})` : ""}
               </span>
@@ -314,10 +314,10 @@ const TestResultPage = () => {
             {dataTestResult.totalTestCase > 0 &&
             dataTestResult.totalFailedTestCase === 0 &&
             jacocoIframeUrl ? (
-              <div className="border border-t-0 border-slate-200 rounded-b-xl overflow-hidden min-h-[580px] flex-1 relative">
+              <div className="border border-t-0 border-slate-200 rounded-b-xl overflow-hidden min-h-[400px] flex-1 relative">
                 <iframe
                   src={jacocoIframeUrl}
-                  className="w-full border-0 absolute"
+                  className="w-full h-full border-0 absolute"
                   style={{ height: "calc(100% + 80px)", top: "-80px", left: 0 }}
                   title="JaCoCo Source Code Coverage"
                 />
@@ -338,9 +338,9 @@ const TestResultPage = () => {
           </div>
 
           {/* Kolom Kanan: CFG Graph (Atas) + Jalur Belum Tereksekusi (Bawah) */}
-          <div className="flex flex-col gap-6 min-w-0 h-full">
+          <div className="flex flex-col gap-6 min-w-0 min-h-0 h-full">
             {/* Control Flow Graph */}
-            <div className="w-full">
+            <div className="w-full flex-1 min-h-0">
               <CFGCard
                 showCyclomaticComplexity={false}
                 showCodeCoverage={false}
