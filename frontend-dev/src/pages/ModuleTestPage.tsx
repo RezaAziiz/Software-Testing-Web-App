@@ -36,8 +36,8 @@ const ModuleTestPage = () => {
   const [isLoading, setIsLoading] = useState(false); // Add loading state
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [screenName, setScreenName] = useState("Tambah Modul Program")
-  const [idModul, setIdModul] = useState("0")
+  const [screenName, setScreenName] = useState(modulId ? "Edit Modul Program" : "Tambah Modul Program");
+  const [idModul, setIdModul] = useState(modulId || "0");
   const handleAddModule = (module: any, mode: string, fileSourceCode: any) => {
     addDataModul(module, fileSourceCode)
     console.log("New module added:", module);

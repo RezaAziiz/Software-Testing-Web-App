@@ -27,7 +27,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { UploadCloud, FileCode, AlertTriangle, Loader2 } from "lucide-react";
+import { UploadCloud, FileCode, AlertTriangle, Loader2, Lock, Pencil } from "lucide-react";
 
 interface AddModuleFormProps {
   onAddModule: (module: any, mode: string, fileSourceCode: any) => void;
@@ -427,8 +427,8 @@ const AddModuleForm: React.FC<AddModuleFormProps> = ({ onAddModule, onEditModule
         const errData = await response.json();
         let errMsg = errData.message || errData.detail || "Gagal memproses file source code";
         if (typeof errMsg === 'string') {
-          if (errMsg.includes("No class declaration found") || errMsg.includes("class declaration")) {
-            errMsg = "Tidak ditemukan deklarasi kelas (class) dalam kode sumber Java. Pastikan berkas memiliki deklarasi class Java yang valid.";
+          if (errMsg.includes("hanya berisi komentar") || errMsg.includes("No class declaration found") || errMsg.includes("class declaration")) {
+            errMsg = "Berkas kode sumber hanya berisi komentar/deskripsi saja. Tidak ditemukan deklarasi class atau fungsi Java yang valid.";
           } else if (errMsg.includes("syntax errors") || errMsg.includes("syntax error")) {
             errMsg = "Kode sumber Java memiliki kesalahan sintaksis (syntax error). Silakan periksa dan perbaiki kembali kode program Anda.";
           } else if (errMsg.includes("more than 1 method") || errMsg.includes("multiple methods")) {
@@ -565,12 +565,15 @@ const AddModuleForm: React.FC<AddModuleFormProps> = ({ onAddModule, onEditModule
     }
   }, [idModul]);
 
-  // Auto open upload modal in Create Mode if no source code is uploaded yet
+  // Auto open upload modal ONLY in Create Mode (when idModul === "0")
   useEffect(() => {
-    if (!editMode && !isSourceCodeUploaded) {
+    const isCreateMode = !idModul || idModul === "0";
+    if (isCreateMode && !isSourceCodeUploaded) {
       setIsUploadModalOpen(true);
+    } else {
+      setIsUploadModalOpen(false);
     }
-  }, [editMode, isSourceCodeUploaded]);
+  }, [idModul, isSourceCodeUploaded]);
   const onSubmit = (data: any) => {
     let mode = "add";
     if (idModul != "0") {
@@ -629,7 +632,10 @@ const AddModuleForm: React.FC<AddModuleFormProps> = ({ onAddModule, onEditModule
                     <span className="text-red-500">*</span>
                   </FormLabel>
                   <FormControl>
-                    <Input {...field} className="border rounded p-2 w-full bg-gray-50" />
+                    <div className="flex items-center gap-2">
+                      <Input {...field} className="border-2 border-blue-500 bg-blue-50/40 focus:border-blue-600 focus:ring-2 focus:ring-blue-200 rounded p-2.5 w-full text-slate-900 font-medium" />
+                      <Pencil className="h-4 w-4 text-green-600 shrink-0" />
+                    </div>
                   </FormControl>
                   <FormDescription className="text-xs text-gray-500 mt-1">*Nama modul harus unik, belum pernah dibuat sebelumnya</FormDescription>
                   {error && (
@@ -657,14 +663,17 @@ const AddModuleForm: React.FC<AddModuleFormProps> = ({ onAddModule, onEditModule
                     :
                   </FormLabel>
                   <FormControl className="flex-1">
-                    <div>
+                    <div className="flex items-center gap-2">
                       <Input
                         type="number"
                         {...field}
                         readOnly={isSourceCodeUploaded || editMode}
-                        className={`border rounded p-2 w-32 ${(isSourceCodeUploaded || editMode) ? 'bg-gray-100 cursor-not-allowed' : 'bg-gray-50'}`}
+                        className={`border rounded p-2 w-28 ${(isSourceCodeUploaded || editMode) ? 'bg-slate-100/90 text-slate-700 font-semibold border-slate-300 cursor-not-allowed select-none' : 'bg-gray-50'}`}
                       />
-                      <FormDescription className="text-xs text-gray-500 mt-1">*Jumlah parameter minimal 1</FormDescription>
+                      {(isSourceCodeUploaded || editMode) && (
+                        <Lock className="h-4 w-4 text-red-500 shrink-0" />
+                      )}
+                      <FormDescription className="text-xs text-gray-500 ml-2">*Minimal 1</FormDescription>
                       {error && (
                         <p className="text-red-600 text-sm mt-1">
                           {error.message}
@@ -687,7 +696,10 @@ const AddModuleForm: React.FC<AddModuleFormProps> = ({ onAddModule, onEditModule
                 <FormItem className="flex-grow">
                   <FormLabel>Deskripsi Modul</FormLabel>
                   <FormControl className="h-full">
-                    <textarea {...field} className="border rounded p-2 w-full h-full bg-gray-50 border-black" />
+                    <div className="flex items-start gap-2 h-full">
+                      <textarea {...field} className="border-2 border-blue-500 bg-blue-50/40 focus:border-blue-600 focus:ring-2 focus:ring-blue-200 rounded p-2.5 w-full h-full min-h-[110px] text-slate-900 font-medium" />
+                      <Pencil className="h-4 w-4 text-green-600 shrink-0 mt-3" />
+                    </div>
                   </FormControl>
                   {error && (
                     <p className="text-red-600 text-sm mt-1">
@@ -729,11 +741,16 @@ const AddModuleForm: React.FC<AddModuleFormProps> = ({ onAddModule, onEditModule
                         <span className="text-red-500">*</span>
                       </FormLabel>
                       <FormControl>
-                        <Input
-                          {...field}
-                          readOnly={isSourceCodeUploaded || editMode}
-                          className={`border rounded p-2 w-full ${(isSourceCodeUploaded || editMode) ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'}`}
-                        />
+                        <div className="flex items-center gap-2">
+                          <Input
+                            {...field}
+                            readOnly={isSourceCodeUploaded || editMode}
+                            className={`border rounded p-2 w-full ${(isSourceCodeUploaded || editMode) ? 'bg-slate-100/90 text-slate-700 font-semibold border-slate-300 cursor-not-allowed select-none' : 'bg-white'}`}
+                          />
+                          {(isSourceCodeUploaded || editMode) && (
+                            <Lock className="h-4 w-4 text-red-500 shrink-0" />
+                          )}
+                        </div>
                       </FormControl>
                       {error && (
                         <p className="text-red-600 text-sm mt-1">
@@ -755,14 +772,17 @@ const AddModuleForm: React.FC<AddModuleFormProps> = ({ onAddModule, onEditModule
                       </FormLabel>
                       <FormControl>
                         {isSourceCodeUploaded || editMode ? (
-                          <Input
-                            readOnly
-                            value={field.value}
-                            className="border rounded p-2 w-full bg-gray-100 cursor-not-allowed"
-                          />
+                          <div className="flex items-center gap-2">
+                            <Input
+                              readOnly
+                              value={field.value}
+                              className="border rounded p-2 w-full bg-slate-100/90 text-slate-700 font-semibold border-slate-300 cursor-not-allowed select-none"
+                            />
+                            <Lock className="h-4 w-4 text-red-500 shrink-0" />
+                          </div>
                         ) : (
                           <Select onValueChange={(e) => handleDataTypeChange(e, index)} defaultValue={field.value}>
-                            <SelectTrigger className="w-full bg-white">
+                            <SelectTrigger className="w-full bg-white border-blue-400">
                               <SelectValue placeholder="Pilih" />
                             </SelectTrigger>
                             <SelectContent className="bg-white">
@@ -789,20 +809,23 @@ const AddModuleForm: React.FC<AddModuleFormProps> = ({ onAddModule, onEditModule
                   rules={{ required: "Aturan validasi harus dipilih!" }}
                   render={({ field, fieldState: { error } }) => (
                     <FormItem className="w-full col-span-1">
-                      <FormLabel>Aturan Validasi</FormLabel>
+                      <FormLabel>Aturan Validasi<span className="text-red-500">*</span></FormLabel>
                       <FormControl>
-                        <Select onValueChange={(e) => handlingRuleChange(e, index)} defaultValue={field.value}>
-                          <SelectTrigger className="w-full bg-white">
-                            <SelectValue placeholder="Pilih" />
-                          </SelectTrigger>
-                          <SelectContent className="bg-white">
-                            <SelectGroup>
-                              {rowValidationCombo.map((dataCombo) => (
-                                <SelectItem key={dataCombo.value} value={dataCombo.value}>{dataCombo.label}</SelectItem>
-                              ))}
-                            </SelectGroup>
-                          </SelectContent>
-                        </Select>
+                        <div className="flex items-center gap-2">
+                          <Select onValueChange={(e) => handlingRuleChange(e, index)} defaultValue={field.value}>
+                            <SelectTrigger className="w-full border-2 border-blue-500 bg-blue-50/40 focus:border-blue-600 focus:ring-2 focus:ring-blue-200 font-medium text-slate-900">
+                              <SelectValue placeholder="Pilih" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-white">
+                              <SelectGroup>
+                                {rowValidationCombo.map((dataCombo) => (
+                                  <SelectItem key={dataCombo.value} value={dataCombo.value}>{dataCombo.label}</SelectItem>
+                                ))}
+                              </SelectGroup>
+                            </SelectContent>
+                          </Select>
+                          <Pencil className="h-4 w-4 text-green-600 shrink-0" />
+                        </div>
                       </FormControl>
                       {error && (
                         <p className="text-red-600 text-sm mt-1">
@@ -825,18 +848,21 @@ const AddModuleForm: React.FC<AddModuleFormProps> = ({ onAddModule, onEditModule
                             <span className="text-red-500">*</span>
                           </FormLabel>
                           <FormControl>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
-                              <SelectTrigger className="w-full bg-white">
-                                <SelectValue placeholder="Pilih" />
-                              </SelectTrigger>
-                              <SelectContent className="bg-white">
-                                <SelectGroup>
-                                  {rowConditionCombo.map((dataCombo) => (
-                                    <SelectItem key={dataCombo.value} value={dataCombo.value}>{dataCombo.label}</SelectItem>
-                                  ))}
-                                </SelectGroup>
-                              </SelectContent>
-                            </Select>
+                            <div className="flex items-center gap-2">
+                              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <SelectTrigger className="w-full border-2 border-blue-500 bg-blue-50/40 focus:border-blue-600 focus:ring-2 focus:ring-blue-200 font-medium text-slate-900">
+                                  <SelectValue placeholder="Pilih" />
+                                </SelectTrigger>
+                                <SelectContent className="bg-white">
+                                  <SelectGroup>
+                                    {rowConditionCombo.map((dataCombo) => (
+                                      <SelectItem key={dataCombo.value} value={dataCombo.value}>{dataCombo.label}</SelectItem>
+                                    ))}
+                                  </SelectGroup>
+                                </SelectContent>
+                              </Select>
+                              <Pencil className="h-4 w-4 text-green-600 shrink-0" />
+                            </div>
                           </FormControl>
                         </FormItem>
                       )}
@@ -852,7 +878,10 @@ const AddModuleForm: React.FC<AddModuleFormProps> = ({ onAddModule, onEditModule
                             <span className="text-red-500">*</span>
                           </FormLabel>
                           <FormControl>
-                            <Input {...field} className="border rounded p-2 w-full bg-white" />
+                            <div className="flex items-center gap-2">
+                              <Input {...field} className="border-2 border-blue-500 bg-blue-50/40 focus:border-blue-600 focus:ring-2 focus:ring-blue-200 rounded p-2 w-full text-slate-900 font-medium" />
+                              <Pencil className="h-4 w-4 text-green-600 shrink-0" />
+                            </div>
                           </FormControl>
                         </FormItem>
                       )}
@@ -870,7 +899,10 @@ const AddModuleForm: React.FC<AddModuleFormProps> = ({ onAddModule, onEditModule
                           <span className="text-red-500">*</span>
                         </FormLabel>
                         <FormControl>
-                          <Input {...field} className="border rounded p-2 w-full bg-white" />
+                          <div className="flex items-center gap-2">
+                            <Input {...field} className="border-2 border-blue-500 bg-blue-50/40 focus:border-blue-600 focus:ring-2 focus:ring-blue-200 rounded p-2 w-full text-slate-900 font-medium" />
+                            <Pencil className="h-4 w-4 text-green-600 shrink-0" />
+                          </div>
                         </FormControl>
                       </FormItem>
                     )}
@@ -891,32 +923,35 @@ const AddModuleForm: React.FC<AddModuleFormProps> = ({ onAddModule, onEditModule
               render={({ field, fieldState: { error } }) => (
                 <FormItem>
                   <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
-                    <FormLabel className="w-full sm:w-1/3">
-                      Tipe Data Kembalian
-                      <span className="text-red-500">*</span>
-                      :
+                    <FormLabel className="w-full sm:w-1/3 flex items-center justify-between pr-2">
+                      <span>Tipe Data Kembalian<span className="text-red-500">*</span> :</span>
                     </FormLabel>
                     <FormControl className="w-auto flex-1">
-                      {isSourceCodeUploaded || editMode ? (
-                        <Input
-                          readOnly
-                          value={field.value || defaultValueReturnType}
-                          className="border rounded p-2 w-32 bg-gray-100 cursor-not-allowed"
-                        />
-                      ) : (
-                        <Select onValueChange={(e) => handlingReturnTypeChange(e)} defaultValue={field.value} value={defaultValueReturnType}>
-                          <SelectTrigger className="w-32 bg-gray-50">
-                            <SelectValue placeholder="Pilih" />
-                          </SelectTrigger>
-                          <SelectContent className="bg-white">
-                            <SelectGroup>
-                              {comboDataType.map((dataCombo) => (
-                                <SelectItem key={dataCombo.value} value={dataCombo.value}>{dataCombo.label}</SelectItem>
-                              ))}
-                            </SelectGroup>
-                          </SelectContent>
-                        </Select>
-                      )}
+                      <div className="flex items-center gap-2">
+                        {isSourceCodeUploaded || editMode ? (
+                          <>
+                            <Input
+                              readOnly
+                              value={field.value || defaultValueReturnType}
+                              className="border rounded p-2 w-32 bg-slate-100/90 text-slate-700 font-semibold border-slate-300 cursor-not-allowed select-none"
+                            />
+                            <Lock className="h-4 w-4 text-red-500 shrink-0" />
+                          </>
+                        ) : (
+                          <Select onValueChange={(e) => handlingReturnTypeChange(e)} defaultValue={field.value} value={defaultValueReturnType}>
+                            <SelectTrigger className="w-32 border-2 border-blue-500 bg-blue-50/40 font-medium text-slate-900">
+                              <SelectValue placeholder="Pilih" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-white">
+                              <SelectGroup>
+                                {comboDataType.map((dataCombo) => (
+                                  <SelectItem key={dataCombo.value} value={dataCombo.value}>{dataCombo.label}</SelectItem>
+                                ))}
+                              </SelectGroup>
+                            </SelectContent>
+                          </Select>
+                        )}
+                      </div>
                     </FormControl>
                   </div>
                   {error && (
@@ -1008,24 +1043,25 @@ const AddModuleForm: React.FC<AddModuleFormProps> = ({ onAddModule, onEditModule
               render={({ field, fieldState: { error } }) => (
                 <FormItem>
                   <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
-                    <FormLabel className="w-full sm:w-1/3">
-                      Tingkat Kesulitan
-                      <span className="text-red-500">*</span>
-                      :
+                    <FormLabel className="w-full sm:w-1/3 flex items-center justify-between pr-2">
+                      <span>Tingkat Kesulitan<span className="text-red-500">*</span> :</span>
                     </FormLabel>
                     <FormControl className="flex-1">
-                      <Select onValueChange={(e) => handlingLevelChange(e)} defaultValue={field.value} value={defaultValueLevel}>
-                        <SelectTrigger className="w-32 bg-gray-50">
-                          <SelectValue placeholder="Pilih" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-white">
-                          <SelectGroup>
-                            {comboLevel.map((dataCombo) => (
-                              <SelectItem key={dataCombo.value} value={dataCombo.value}>{dataCombo.label}</SelectItem>
-                            ))}
-                          </SelectGroup>
-                        </SelectContent>
-                      </Select>
+                      <div className="flex items-center gap-2">
+                        <Select onValueChange={(e) => handlingLevelChange(e)} defaultValue={field.value} value={defaultValueLevel}>
+                          <SelectTrigger className="w-32 border-2 border-blue-500 bg-blue-50/40 focus:ring-2 focus:ring-blue-200 font-medium text-slate-900">
+                            <SelectValue placeholder="Pilih" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-white">
+                            <SelectGroup>
+                              {comboLevel.map((dataCombo) => (
+                                <SelectItem key={dataCombo.value} value={dataCombo.value}>{dataCombo.label}</SelectItem>
+                              ))}
+                            </SelectGroup>
+                          </SelectContent>
+                        </Select>
+                        <Pencil className="h-4 w-4 text-green-600 shrink-0" />
+                      </div>
                     </FormControl>
                   </div>
                   {error && (
@@ -1051,27 +1087,28 @@ const AddModuleForm: React.FC<AddModuleFormProps> = ({ onAddModule, onEditModule
               render={({ field, fieldState: { error } }) => (
                 <FormItem>
                   <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
-                    <FormLabel className="w-full sm:w-1/3">
-                      Nama Class
-                      <span className="text-red-500">*</span>
-                      :
+                    <FormLabel className="w-full sm:w-1/3 flex items-center justify-between pr-2">
+                      <span>Nama Class<span className="text-red-500">*</span> :</span>
                     </FormLabel>
                     <FormControl className="flex-1">
-                      <div>
+                      <div className="flex items-center gap-2">
                         <Input
                           {...field}
                           readOnly={isSourceCodeUploaded || editMode}
-                          className={`border rounded p-2 w-full ${(isSourceCodeUploaded || editMode) ? 'bg-gray-100 cursor-not-allowed' : 'bg-gray-50'}`}
+                          className={`border rounded p-2 w-full ${(isSourceCodeUploaded || editMode) ? 'bg-slate-100/90 text-slate-700 font-semibold border-slate-300 cursor-not-allowed select-none' : 'bg-gray-50'}`}
                         />
-                        <FormDescription className="text-xs text-gray-500 mt-1">*Nama Class harus sama dengan yang ada pada source code & mengikuti standar coding convention</FormDescription>
-                        {error && (
-                          <p className="text-red-600 text-sm mt-1">
-                            {error.message}
-                          </p>
+                        {(isSourceCodeUploaded || editMode) && (
+                          <Lock className="h-4 w-4 text-red-500 shrink-0" />
                         )}
                       </div>
                     </FormControl>
                   </div>
+                  <FormDescription className="text-xs text-gray-500 mt-1 pl-48">*Nama Class harus sama dengan yang ada pada source code & mengikuti standar coding convention</FormDescription>
+                  {error && (
+                    <p className="text-red-600 text-sm pl-48 mt-1">
+                      {error.message}
+                    </p>
+                  )}
                 </FormItem>
               )}
             />
@@ -1088,29 +1125,30 @@ const AddModuleForm: React.FC<AddModuleFormProps> = ({ onAddModule, onEditModule
               render={({ field, fieldState: { error } }) => (
                 <FormItem>
                   <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
-                    <FormLabel className="w-full sm:w-1/3">
-                      Nama Fungsi
-                      <span className="text-red-500">*</span>
-                      :
+                    <FormLabel className="w-full sm:w-1/3 flex items-center justify-between pr-2">
+                      <span>Nama Fungsi<span className="text-red-500">*</span> :</span>
                     </FormLabel>
                     <FormControl className="flex-1">
-                      <div>
+                      <div className="flex items-center gap-2">
                         <Input
                           {...field}
                           readOnly={isSourceCodeUploaded || editMode}
-                          className={`border rounded p-2 w-full ${(isSourceCodeUploaded || editMode) ? 'bg-gray-100 cursor-not-allowed' : 'bg-gray-50'}`}
+                          className={`border rounded p-2 w-full ${(isSourceCodeUploaded || editMode) ? 'bg-slate-100/90 text-slate-700 font-semibold border-slate-300 cursor-not-allowed select-none' : 'bg-gray-50'}`}
                         />
-                        <FormDescription className="text-xs text-gray-500 mt-1">
-                          *Nama Fungsi (method) pada kode sumber Java
-                        </FormDescription>
-                        {error && (
-                          <p className="text-red-600 text-sm mt-1">
-                            {error.message}
-                          </p>
+                        {(isSourceCodeUploaded || editMode) && (
+                          <Lock className="h-4 w-4 text-red-500 shrink-0" />
                         )}
                       </div>
                     </FormControl>
                   </div>
+                  <FormDescription className="text-xs text-gray-500 mt-1 pl-48">
+                    *Nama Fungsi (method) pada kode sumber Java
+                  </FormDescription>
+                  {error && (
+                    <p className="text-red-600 text-sm pl-48 mt-1">
+                      {error.message}
+                    </p>
+                  )}
                 </FormItem>
               )}
             />

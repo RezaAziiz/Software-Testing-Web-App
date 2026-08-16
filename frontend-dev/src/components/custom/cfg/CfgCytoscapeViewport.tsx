@@ -30,12 +30,12 @@ export const CfgCytoscapeViewport: React.FC<CfgCytoscapeViewportProps> = ({
     name: "dagre",
     rankDir: "TB",               // Aliran dari atas ke bawah
     ranker: "network-simplex",   // Algoritma terbaik untuk meminimalkan edge crossing
-    nodeSep: 70,                 // Pemisahan horizontal antar node di tingkat yang sama
-    rankSep: 90,                 // Pemisahan vertikal antar tingkatan
-    edgeSep: 30,                 // Pemisahan antar edge paralel
+    nodeSep: 140,                // Pemisahan horizontal antar node di tingkat yang sama
+    rankSep: 180,                // Pemisahan vertikal antar tingkatan
+    edgeSep: 60,                 // Pemisahan antar edge paralel
     animate: false,
     fit: true,
-    padding: 40,
+    padding: 50,
   }), []);
 
   const stylesheet: cytoscape.StylesheetCSS[] = useMemo(() => [
@@ -43,15 +43,15 @@ export const CfgCytoscapeViewport: React.FC<CfgCytoscapeViewportProps> = ({
       selector: "node",
       css: {
         shape: "ellipse",
-        width: 52,
-        height: 52,
+        width: 100,
+        height: 100,
         "background-color": "data(bgColor)",
-        "border-width": 2.5,
+        "border-width": 3,
         "border-color": "#111827",
         label: "data(label)",
         "text-valign": "center",
         "text-halign": "center",
-        "font-size": "20px",
+        "font-size": "36px",
         "font-weight": "bold",
         color: "#111827",
         "text-wrap": "none",
@@ -64,13 +64,13 @@ export const CfgCytoscapeViewport: React.FC<CfgCytoscapeViewportProps> = ({
     {
       selector: "node[nodeType = 'START'], node[nodeType = 'END']",
       css: {
-        "font-size": "14px",
+        "font-size": "24px",
         "text-valign": "center",
         "text-halign": "center",
         "background-color": "#ffffff",
         shape: "round-rectangle",
-        width: 60,
-        height: 40,
+        width: 130,
+        height: 65,
       } as any,
     },
     {
@@ -85,17 +85,17 @@ export const CfgCytoscapeViewport: React.FC<CfgCytoscapeViewportProps> = ({
     {
       selector: "edge",
       css: {
-        width: 2,
+        width: 4,
         "line-color": "data(lineColor)",
         "target-arrow-color": "data(lineColor)",
         "target-arrow-shape": "triangle",
         "curve-style": "bezier",
         label: "data(label)",
-        "font-size": "14px",
+        "font-size": "24px",
         "font-weight": "bold",
         "text-background-color": "#fafbfc",
         "text-background-opacity": 1,
-        "text-background-padding": "3px",
+        "text-background-padding": "6px",
         "edge-text-rotation": "autorotate",
         color: "data(lineColor)",
       } as any,

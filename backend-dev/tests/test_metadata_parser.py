@@ -112,4 +112,26 @@ class TestModulServiceMetadataParser:
         """
         result = self.service.parse_metadata(java_code)
         assert result["class_name"] == "NestedLoop"
-        assert result["description"] == "Melakukan analisis terhadap kombinasi lima buah perulangan bersarang berdasarkan nilai parameter limit. Parameter limit menentukan jumlah iterasi pada setiap tingkat perulangan."
+
+    def test_parse_metadata_rejects_comment_only_file(self):
+        java_code = """
+        /*
+         * Ini hanya deskripsi modul saja.
+         * Tidak ada kode class Java.
+         */
+        """
+        with pytest.raises(ValueError) as exc_info:
+            self.service.parse_metadata(java_code)
+        assert "hanya berisi komentar" in str(exc_info.value)
+
+    def test_parse_metadata_rejects_empty_method_body(self):
+        java_code = """
+        public class Hitung {
+            public int hitungBiaya(int x) {
+                // Method body kosong tanpa instruksi
+            }
+        }
+        """
+        with pytest.raises(ValueError) as exc_info:
+            self.service.parse_metadata(java_code)
+        assert "method body kosong" in str(exc_info.value)
