@@ -1,28 +1,21 @@
 import React from "react";
-import {
-  Card,
-  // CardContent,
-  // CardFooter,
-  // CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardTitle } from "@/components/ui/card";
 import "../../index.css";
-// import passIcon from "../../assets/logo/pass.png";
-// import { Button } from "@/components/ui/button";
 
-const PassCard: React.FC = () => {
+interface MinimalCardProps {
+  minimumCoverage?: number;
+}
+
+const MinimalCard: React.FC<MinimalCardProps> = ({ minimumCoverage = 80 }) => {
   return (
-    <div className=" h-full w-full">
+    <div className="h-full w-full">
       <Card className="pass-card bg-blue-800 text-white">
-      <CardTitle className="module-title-white">Hasil Pengujian</CardTitle>
+        <CardTitle className="module-title-white">Hasil Pengujian</CardTitle>
         <div>
-          <p
-            className="text-base font-semibold"
-            style={{ fontSize: "14px" }}
-          >
-            Minimal Coverage Test Bernilai: {" "}
+          <p className="text-base font-semibold" style={{ fontSize: "14px" }}>
+            Minimal Coverage Test Bernilai:{" "}
             <span className="font-bold" style={{ fontSize: "18px" }}>
-              80%
+              {minimumCoverage}%
             </span>
           </p>
         </div>
@@ -31,4 +24,4 @@ const PassCard: React.FC = () => {
   );
 };
 
-export default PassCard;
+export default MinimalCard;
