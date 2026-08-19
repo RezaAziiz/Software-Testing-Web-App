@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { FaUpload, FaCloudUploadAlt, FaTrashAlt } from 'react-icons/fa';
 import { Button } from '@/components/ui/button';
 import { ClipLoader } from "react-spinners";
+import apiClient from "@/lib/apiClient";
 
 interface UploadStudentDataProps {
   isDialogOpen: boolean;
@@ -20,13 +21,9 @@ const UploadStudentDataForm = ({
   afterUpload
 }: UploadStudentDataProps) => {
   const apiUrl = import.meta.env.VITE_API_URL;
-  let apiKey = import.meta.env.VITE_API_KEY;
-  const sessionData = localStorage.getItem('session');
-  if (sessionData != null){
-      const session = JSON.parse(sessionData);
-      apiKey = session.token;
-  }
-
+  const [file, setFile] = useState<File | null>(null);
+  const [fileErrorMessage, setFileErrorMessage] = useState<string>("");
+  const [isLoading, setIsLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const LoadingOverlay: React.FC = () => (
@@ -38,24 +35,32 @@ const UploadStudentDataForm = ({
     </div>
   );
 
-  const [file, setFile] = useState<File | null>(null);
-  const [uploadProgress, setUploadProgress] = useState<number>(0);
-  const [uploadComplete, setUploadComplete] = useState<boolean>(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [fileErrorMessage, setFileErrorMessage] = useState<string>("");
-
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = event.target.files?.[0];
+    const selectedFile = event.target.files ? event.target.files[0] : null;
     if (selectedFile) {
-      validateAndSetFile(selectedFile);
+      if (selectedFile.name.endsWith('.xlsx')) {
+        setFile(selectedFile);
+        setFileErrorMessage("");
+      } else {
+        setFile(null);
+        setFileErrorMessage("File Harus Format .xlsx");
+        setTimeout(() => setFileErrorMessage(""), 3000);
+      }
     }
   };
 
   const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
-    const selectedFile = event.dataTransfer.files?.[0];
-    if (selectedFile) {
-      validateAndSetFile(selectedFile);
+    const droppedFile = event.dataTransfer.files ? event.dataTransfer.files[0] : null;
+    if (droppedFile) {
+      if (droppedFile.name.endsWith('.xlsx')) {
+        setFile(droppedFile);
+        setFileErrorMessage("");
+      } else {
+        setFile(null);
+        setFileErrorMessage("File Harus Format .xlsx");
+        setTimeout(() => setFileErrorMessage(""), 3000);
+      }
     }
   };
 
@@ -63,48 +68,21 @@ const UploadStudentDataForm = ({
     event.preventDefault();
   };
 
-  const validateAndSetFile = (selectedFile: File) => {
-    const fileExtension = selectedFile.name.split('.').pop();
-    if (fileExtension !== 'xlsx') {
-      setFileErrorMessage("File yang diunggah harus berformat .xlsx!");
-      setTimeout(() => setFileErrorMessage(""), 3000);
-      return;
-    }
-    if (selectedFile.size > 2 * 1024 * 1024) {
-      setFileErrorMessage("Ukuran file maksimal 2 MB!");
-      setTimeout(() => setFileErrorMessage(""), 3000);
-      return;
-    }
-    setFile(selectedFile);
-    setUploadProgress(0);
-    setUploadComplete(false);
-    simulateUploadProgress();
-  };
-
-  const handleDeleteFile = () => {
+  const handleRemoveFile = () => {
     setFile(null);
-    setUploadProgress(0);
-    setUploadComplete(false);
-  };
-
-  const simulateUploadProgress = () => {
-    const interval = setInterval(() => {
-      setUploadProgress((prevProgress) => {
-        if (prevProgress >= 100) {
-          clearInterval(interval);
-          setUploadComplete(true);
-          return 100;
-        }
-        return prevProgress + 10;
-      });
-    }, 200);
+    setFileErrorMessage("");
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   };
 
   const handleClose = () => {
     setFile(null);
-    setUploadProgress(0);
-    setUploadComplete(false);
+    setFileErrorMessage("");
     setIsDialogOpen(false);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   };
 
   const handleUpload = () => {
@@ -121,11 +99,8 @@ const UploadStudentDataForm = ({
       setIsLoading(true);
       let dataUpload = new FormData();
       dataUpload.append('file', file);
-      const responseUpload = await fetch(`${apiUrl}/student/upload`, {
+      const responseUpload = await apiClient(`${apiUrl}/student/upload`, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-        },
         body: dataUpload,
       });
       if (responseUpload.ok) {
@@ -181,25 +156,11 @@ const UploadStudentDataForm = ({
                 <FaUpload size={50} />
                 <div className="text-left">
                   <p>{file.name}</p>
-                  {uploadComplete ? (
-                    <p>{(file.size / 1024).toFixed(2)} KB</p>
-                  ) : (
-                    <div className="w-full mt-2">
-                      <div className="w-full bg-gray-200 rounded-full h-4">
-                        <div
-                          className="bg-blue-600 h-4 rounded-full"
-                          style={{ width: `${uploadProgress}%` }}
-                        ></div>
-                      </div>
-                      <p className="text-sm mt-2">{uploadProgress}%</p>
-                    </div>
-                  )}
+                  <p>{(file.size / 1024).toFixed(2)} KB</p>
                 </div>
-                {uploadComplete && (
-                  <button onClick={handleDeleteFile} className="text-red-500 hover:text-red-700">
-                    <FaTrashAlt size={20} />
-                  </button>
-                )}
+                <button onClick={handleRemoveFile} className="text-red-500 hover:text-red-700" type="button">
+                  <FaTrashAlt size={20} />
+                </button>
               </div>
             </div>
           )}

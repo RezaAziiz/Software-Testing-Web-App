@@ -7,6 +7,8 @@ import Sidebar from "@/components/custom/Sidebar";
 import AddStudentDataForm from "@/components/custom/AddStudentDataForm";
 import UploadStudentDataForm from "@/components/custom/UploadStudentDataForm";
 import { useNavigate } from "react-router-dom";
+import apiClient from "@/lib/apiClient";
+
 
 interface Student {
   id: string;
@@ -161,13 +163,11 @@ const initialStudents: Student[] = [
 
 const StudentPage: React.FC = () => {
   const apiUrl = import.meta.env.VITE_API_URL;
-  let apiKey = import.meta.env.VITE_API_KEY;
   // const modulId = import.meta.env.VITE_MODULE_ID;
   const sessionData = localStorage.getItem('session')
   let session = null
   if (sessionData != null){
       session = JSON.parse(sessionData);
-      apiKey = session.token
   }
   const navigate = useNavigate();
 
@@ -236,20 +236,15 @@ const StudentPage: React.FC = () => {
   // );
   const deleteDataStudent = async (id:string) => {
     try {
-      const response = await fetch(`${apiUrl}/student/${id}`, {
+      const response = await apiClient(`${apiUrl}/student/${id}`, {
         method: 'DELETE',
         headers: {
-          'Accept': 'application/json',
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
         }
       });
 
       if (!response.ok) {
-        if (response.status === 403) {
-          // throw new Error('Forbidden: Access is denied');
-          navigate('/error');
-        } else if (response.status === 500) {
+        if (response.status === 500) {
           const data = await response.json();
           setErrorMessage(`${data.message}`);
           setTimeout(() => setErrorMessage(""), 2000);
@@ -276,21 +271,10 @@ const StudentPage: React.FC = () => {
     let url = `${apiUrl}/student/search?keyword=${keyword}&page=${page}&limit=${itemsPerPage}`
    
     try {
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
-        }
-      });
+      const response = await apiClient(url);
 
       if (!response.ok) {
-        if (response.status === 403) {
-          // throw new Error('Forbidden: Access is denied');
-          navigate('/error');
-        } else {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
       
       const data = await response.json();

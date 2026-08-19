@@ -15,6 +15,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
+import apiClient from "@/lib/apiClient";
+
 
 interface Module {
   id: string;
@@ -26,12 +28,10 @@ interface Module {
 const AddTopicPage: React.FC = () => {
   const navigate = useNavigate();
   const apiUrl = import.meta.env.VITE_API_URL;
-  let apiKey = import.meta.env.VITE_API_KEY;
   const sessionData = localStorage.getItem('session')
   let session = null
   if (sessionData != null){
       session = JSON.parse(sessionData);
-      apiKey = session.token
   }
   const queryParameters = new URLSearchParams(window.location.search)
   const topikId = queryParameters.get("id_topik");
@@ -92,24 +92,17 @@ const AddTopicPage: React.FC = () => {
   };
   const addDataTopik = async (topik: any, listModul:Module[]) => {
     try {
-        // prepare param
-        // setIsLoading(true)
-        const response = await fetch(`${apiUrl}/topik/addTopik`, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify(topik),
+        const response = await apiClient(`${apiUrl}/topik/addTopik`, {
+          method: "POST",
+          headers: {
+              "Content-Type": "application/json",
+          },
+          body: JSON.stringify(topik),
         });
         
       if (!response.ok) {
-        if (response.status === 403) {
-          throw new Error("Forbidden: Access is denied");
-        } else {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-      }else{
+        throw new Error(`HTTP error! status: ${response.status}`);
+      } else {
         const data = await response.json();
         console.log(data.id_topik);
         let listIdModul = []
@@ -122,24 +115,17 @@ const AddTopicPage: React.FC = () => {
           id_topik : data.id_topik,
           list_modul:listIdModul
         }
-        const responseAddModul = await fetch(`${apiUrl}/topik/mappingModul`, {
+        const responseAddModul = await apiClient(`${apiUrl}/topik/mappingModul`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
-                Authorization: `Bearer ${apiKey}`,
             },
             body: JSON.stringify(paramMapping),
         });
         if (responseAddModul.ok) {
-            // navigate('/list-topics')
-            // setIsLoading(false) 
-            // navigate('/list-modules?message=addSuccess');
             setInfoMessage("Data Topik Saved Success");
             setTimeout(() => setInfoMessage(null), 2000);
             setTimeout(() => navigate('/list-topics'), 2100);
-        // }else{
-            // setErrorMessage("Gagal Upload Source Code Data");
-            // setTimeout(() => setErrorMessage(null), 2000);
         }
       }
       
@@ -151,29 +137,22 @@ const AddTopicPage: React.FC = () => {
   };
   const editDataTopik = async (idTopik:string, topik: any, listModul:Module[]) => {
     try {
-        // prepare param
-        // setIsLoading(true)
         const param = {
           id_topik : idTopik,
           nama_topik : topik.nama_topik,
           deskripsi_topik : topik.deskripsi_topik
         }
-        const response = await fetch(`${apiUrl}/topik/editTopik`, {
-        method: "PUT",
-        headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify(param),
+        const response = await apiClient(`${apiUrl}/topik/editTopik`, {
+          method: "PUT",
+          headers: {
+              "Content-Type": "application/json",
+          },
+          body: JSON.stringify(param),
         });
         
       if (!response.ok) {
-        if (response.status === 403) {
-          throw new Error("Forbidden: Access is denied");
-        } else {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-      }else{
+        throw new Error(`HTTP error! status: ${response.status}`);
+      } else {
         let listIdModul = []
         for (let i=0; i<listModul.length; i++){
           listIdModul.push({
@@ -184,20 +163,15 @@ const AddTopicPage: React.FC = () => {
           id_topik : idTopik,
           list_modul:listIdModul
         }
-        // navigate('/list-topics')
-        const responseAddModul = await fetch(`${apiUrl}/topik/editMappingModul`, {
+        const responseAddModul = await apiClient(`${apiUrl}/topik/editMappingModul`, {
             method: "PUT",
             headers: {
                 "Content-Type": "application/json",
-                Authorization: `Bearer ${apiKey}`,
             },
             body: JSON.stringify(paramMapping),
         });
         const data = await responseAddModul.json();
         if (responseAddModul.ok) {
-            // navigate('/list-topics')
-            // setIsLoading(false) 
-            // navigate('/list-modules?message=addSuccess');
             setInfoMessage("Data Topik Saved Success");
             setTimeout(() => setInfoMessage(null), 2000);
             setTimeout(() => navigate('/list-topics'), 2100);
@@ -215,20 +189,10 @@ const AddTopicPage: React.FC = () => {
   };
   const fetchDataTopik = async (idTopik:string) => {
     try {
-      const response = await fetch(`${apiUrl}/topik/getDetailData?id_topik=${idTopik}`, {
-        method: "GET",
-        headers: {
-          Accept: "application/json",
-          Authorization: `Bearer ${apiKey}`,
-        },
-      });
+      const response = await apiClient(`${apiUrl}/topik/getDetailData?id_topik=${idTopik}`);
 
       if (!response.ok) {
-        if (response.status === 403) {
-          throw new Error("Forbidden: Access is denied");
-        } else {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
       const data = await response.json();
       console.log(data.data.ms_nama_topik)

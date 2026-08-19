@@ -27,7 +27,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { UploadCloud, FileCode, AlertTriangle, Loader2, Lock, Pencil } from "lucide-react";
+import { UploadCloud, FileCode, AlertTriangle, Loader2, Lock } from "lucide-react";
 
 interface AddModuleFormProps {
   onAddModule: (module: any, mode: string, fileSourceCode: any) => void;

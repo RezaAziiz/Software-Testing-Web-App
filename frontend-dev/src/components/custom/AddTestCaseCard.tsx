@@ -22,6 +22,7 @@ import {
 import { FaTrash } from "react-icons/fa";
 import { Button } from "@/components/ui/button";
 import { FaEdit } from "react-icons/fa";
+import apiClient from "@/lib/apiClient";
 
 import "../../index.css";
 
@@ -119,7 +120,6 @@ const AddTestCaseCard: React.FC = () => {
   );
 
   const apiUrl = import.meta.env.VITE_API_URL;
-  let apiKey = import.meta.env.VITE_API_KEY;
   // const modulId = import.meta.env.VITE_MODULE_ID;
   const sessionData = localStorage.getItem("session");
   let session = null;
@@ -127,30 +127,18 @@ const AddTestCaseCard: React.FC = () => {
     navigate("/login");
   } else {
     session = JSON.parse(sessionData);
-    apiKey = session.token;
   }
   const queryParameters = new URLSearchParams(window.location.search);
   const modulId = queryParameters.get("topikModulId");
 
   const fetchParameters = async () => {
     try {
-      const response = await fetch(
-        `${apiUrl}/modul/detailByIdTopikModul/${modulId}`,
-        {
-          method: "GET",
-          headers: {
-            Accept: "application/json",
-            Authorization: `Bearer ${apiKey}`,
-          },
-        },
+      const response = await apiClient(
+        `${apiUrl}/modul/detailByIdTopikModul/${modulId}`
       );
 
       if (!response.ok) {
-        if (response.status === 403) {
-          throw new Error("Forbidden: Access is denied");
-        } else {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       const responseData: {
@@ -181,20 +169,10 @@ const AddTestCaseCard: React.FC = () => {
 
   const fetchTestCases = async () => {
     try {
-      const response = await fetch(`${apiUrl}/modul/TestCase/${modulId}`, {
-        method: "GET",
-        headers: {
-          Accept: "application/json",
-          Authorization: `Bearer ${apiKey}`,
-        },
-      });
+      const response = await apiClient(`${apiUrl}/modul/TestCase/${modulId}`);
 
       if (!response.ok) {
-        if (response.status === 403) {
-          throw new Error("Forbidden: Access is denied");
-        } else {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       const responseData: { data: TestCase[] } = await response.json();
@@ -206,20 +184,10 @@ const AddTestCaseCard: React.FC = () => {
 
   const fetchResultTest = async () => {
     try {
-      const response = await fetch(`${apiUrl}/modul/getResultTest/${modulId}`, {
-        method: "GET",
-        headers: {
-          Accept: "application/json",
-          Authorization: `Bearer ${apiKey}`,
-        },
-      });
+      const response = await apiClient(`${apiUrl}/modul/getResultTest/${modulId}`);
 
       if (!response.ok) {
-        if (response.status === 403) {
-          throw new Error("Forbidden: Access is denied");
-        } else {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
+        throw new Error(`HTTP error! status: ${response.status}`);
       } else {
         const result = await response.json();
         const dataToPass: NavigationData = {
@@ -267,12 +235,10 @@ const AddTestCaseCard: React.FC = () => {
     try {
       console.log("Deleting test case with ID:", deletingTestId);
 
-      const response = await fetch(`${apiUrl}/modul/deleteTestCase`, {
+      const response = await apiClient(`${apiUrl}/modul/deleteTestCase`, {
         method: "DELETE",
         headers: {
-          Accept: "application/json",
           "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify({ id_test_case: deletingTestId }),
       });
@@ -281,9 +247,7 @@ const AddTestCaseCard: React.FC = () => {
       console.log("Response data:", responseData);
 
       if (!response.ok) {
-        if (response.status === 403) {
-          throw new Error("Forbidden: Access is denied");
-        } else if (response.status === 422) {
+        if (response.status === 422) {
           throw new Error(`Unprocessable Entity: ${responseData.detail}`);
         } else {
           throw new Error(`HTTP error! status: ${response.status}`);
@@ -326,23 +290,15 @@ const AddTestCaseCard: React.FC = () => {
 
     //REQUEST KE BACKEND MEMANGGIL MODUL RUNNNING TESTING APP
     try {
-      const response = await fetch(`${apiUrl}/modul/run/${modulId}`, {
+      const response = await apiClient(`${apiUrl}/modul/run/${modulId}`, {
         method: "POST",
-        headers: {
-          Accept: "application/json",
-          Authorization: `Bearer ${apiKey}`,
-        },
       });
 
       if (!response.ok) {
-        if (response.status === 403) {
-          throw new Error("Forbidden: Access is denied");
-        } else {
-          setPreviouslyExecuted(true);
-          localStorage.setItem("previouslyExecuted", "true");
+        setPreviouslyExecuted(true);
+        localStorage.setItem("previouslyExecuted", "true");
 
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       const result = await response.json();

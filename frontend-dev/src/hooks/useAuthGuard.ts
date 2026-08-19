@@ -1,10 +1,12 @@
 import { useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { decodeJwtPayload } from "@/lib/apiClient";
 
 interface UseAuthGuardOptions {
   requiredRole?: "student" | "teacher";
   redirectToLogin?: string;
   redirectToUnauthorized?: string;
+  redirectToError?: string;
 }
 
 export interface UserSession {
@@ -18,6 +20,7 @@ export const useAuthGuard = (options: UseAuthGuardOptions = {}) => {
     requiredRole,
     redirectToLogin = "/login",
     redirectToUnauthorized = "/dashboard-teacher",
+    redirectToError = "/error",
   } = options;
 
   const navigate = useNavigate();
@@ -40,10 +43,42 @@ export const useAuthGuard = (options: UseAuthGuardOptions = {}) => {
       return;
     }
 
+    // 1. Validasi proaktif kedaluwarsa token JWT
+    if (session.token) {
+      const payload = decodeJwtPayload(session.token);
+      if (payload && typeof payload.exp === "number") {
+        const nowInMs = Date.now();
+        const expInMs = payload.exp * 1000;
+
+        if (expInMs <= nowInMs) {
+          // Token sudah expired
+          localStorage.removeItem("session");
+          navigate(redirectToError);
+          return;
+        }
+
+        // Pasang timer aktif untuk redirect tepat saat token habis di latar belakang
+        const timeRemaining = expInMs - nowInMs;
+        const timer = setTimeout(() => {
+          localStorage.removeItem("session");
+          navigate(redirectToError);
+        }, timeRemaining);
+
+        return () => clearTimeout(timer);
+      }
+    }
+
     if (requiredRole && session.login_type !== requiredRole) {
       navigate(redirectToUnauthorized);
     }
-  }, [session, requiredRole, navigate, redirectToLogin, redirectToUnauthorized]);
+  }, [
+    session,
+    requiredRole,
+    navigate,
+    redirectToLogin,
+    redirectToUnauthorized,
+    redirectToError,
+  ]);
 
   return {
     session,
@@ -54,3 +89,4 @@ export const useAuthGuard = (options: UseAuthGuardOptions = {}) => {
 };
 
 export default useAuthGuard;
+

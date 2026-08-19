@@ -104,4 +104,47 @@ describe('useAuthGuard - Unit Test', () => {
     );
     expect(mockNavigate).toHaveBeenCalledWith('/custom-unauthorized-page');
   });
+
+  // TC-FE-AUTH-06: Validasi Token JWT Kedaluwarsa (Proaktif)
+  it('TC-FE-AUTH-06: redirects to /error when JWT token is already expired', () => {
+    const expiredPayload = { exp: Math.floor(Date.now() / 1000) - 10, login_type: 'student' };
+    const expiredToken = `header.${btoa(JSON.stringify(expiredPayload))}.signature`;
+
+    localStorage.setItem(
+      'session',
+      JSON.stringify({ login_type: 'student', token: expiredToken })
+    );
+
+    renderHook(() => useAuthGuard());
+
+    expect(mockNavigate).toHaveBeenCalledWith('/error');
+    expect(localStorage.getItem('session')).toBeNull();
+  });
+
+  // TC-FE-AUTH-07: Timer Kedaluwarsa Token di Background
+  it('TC-FE-AUTH-07: sets timer and redirects to /error when token expires while active', () => {
+    vi.useFakeTimers();
+
+    // Expire in 5 seconds
+    const expInSec = Math.floor(Date.now() / 1000) + 5;
+    const token = `header.${btoa(JSON.stringify({ exp: expInSec, login_type: 'student' }))}.signature`;
+
+    localStorage.setItem(
+      'session',
+      JSON.stringify({ login_type: 'student', token })
+    );
+
+    renderHook(() => useAuthGuard());
+
+    expect(mockNavigate).not.toHaveBeenCalled();
+
+    // Advance timer by 5.1 seconds
+    vi.advanceTimersByTime(5100);
+
+    expect(mockNavigate).toHaveBeenCalledWith('/error');
+    expect(localStorage.getItem('session')).toBeNull();
+
+    vi.useRealTimers();
+  });
 });
+

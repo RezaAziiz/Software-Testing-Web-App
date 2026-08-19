@@ -5,6 +5,8 @@ import OngoingTopics from "../components/custom/OngoingTopics";
 import LearningTopics from "../components/custom/LearningTopics";
 import CompletedTopics from "../components/custom/CompletedTopics";
 import { useNavigate } from "react-router-dom";
+import apiClient from "@/lib/apiClient";
+
 
 // const ongoingTopics = [
 //   { id: 1, title: "Pemula", progress: 40, remaining: 8, xp: 600 },
@@ -93,13 +95,11 @@ interface DataLearning {
 const TopicPage: React.FC = () => {
   const navigate = useNavigate();
   const apiUrl = import.meta.env.VITE_API_URL;
-  let apiKey = import.meta.env.VITE_API_KEY;
   // const modulId = import.meta.env.VITE_MODULE_ID;
   const sessionData = localStorage.getItem('session')
   let session = null
   if (sessionData != null){
       session = JSON.parse(sessionData);
-      apiKey = session.token
   }
   useEffect(() => {
     if (session != null){
@@ -135,21 +135,10 @@ const TopicPage: React.FC = () => {
 
   const fetchDataOngoingChallenge = async () => {
     try {
-      const response = await fetch(`${apiUrl}/topik/challenge?status=ongoing`, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
-        }
-      });
+      const response = await apiClient(`${apiUrl}/topik/challenge?status=ongoing`);
 
       if (!response.ok) {
-        if (response.status === 403) {
-          // throw new Error('Forbidden: Access is denied');
-          navigate('/error');
-        } else {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       const data = await response.json();
@@ -170,21 +159,10 @@ const TopicPage: React.FC = () => {
   };
   const fetchDataLearningChallenge = async () => {
     try {
-      const response = await fetch(`${apiUrl}/topik/challenge?status=learning`, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
-        }
-      });
+      const response = await apiClient(`${apiUrl}/topik/challenge?status=learning`);
 
       if (!response.ok) {
-        if (response.status === 403) {
-          // throw new Error('Forbidden: Access is denied');
-          navigate('/error');
-        } else {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       const data = await response.json();
@@ -206,21 +184,10 @@ const TopicPage: React.FC = () => {
 
   const fetchDataCompletedChallenge = async () => {
     try {
-      const response = await fetch(`${apiUrl}/topik/challenge?status=completed`, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
-        }
-      });
+      const response = await apiClient(`${apiUrl}/topik/challenge?status=completed`);
 
       if (!response.ok) {
-        if (response.status === 403) {
-          // throw new Error('Forbidden: Access is denied');
-          navigate('/error');
-        } else {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       const data = await response.json();

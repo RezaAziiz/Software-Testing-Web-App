@@ -5,6 +5,8 @@ import Pagination from '../components/custom/Pagination';
 import GradeStudentTable from '../components/custom/GradeStudentTable';
 // import * as XLSX from 'xlsx';
 import { useNavigate } from "react-router-dom";
+import apiClient from "@/lib/apiClient";
+
 
 interface grade {
   no: number;
@@ -99,13 +101,11 @@ interface combo {
 const GradeStudentPage: React.FC = () => {
   const navigate = useNavigate();
   const apiUrl = import.meta.env.VITE_API_URL;
-  let apiKey = import.meta.env.VITE_API_KEY;
   // const modulId = import.meta.env.VITE_MODULE_ID;
   const sessionData = localStorage.getItem('session')
   let session = null
   if (sessionData != null){
       session = JSON.parse(sessionData);
-      apiKey = session.token
   }
 
   const [topics, setTopics] = useState<combo[]>([]);
@@ -190,21 +190,10 @@ const GradeStudentPage: React.FC = () => {
     setCurrentPage(page);
     setSearchQuery(keyword);
     try {
-      const response = await fetch(`${apiUrl}/grade/download?keyword=${keyword}&id_topik=${id_topik}&page=${page}&limit=${itemsPerPage}`, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
-        }
-      });
+      const response = await apiClient(`${apiUrl}/grade/download?keyword=${keyword}&id_topik=${id_topik}&page=${page}&limit=${itemsPerPage}`);
 
       if (!response.ok) {
-        if (response.status === 403) {
-          // throw new Error('Forbidden: Access is denied');
-          navigate('/error');
-        } else {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
       
       const blob = await response.blob();
@@ -233,21 +222,10 @@ const GradeStudentPage: React.FC = () => {
     setCurrentPage(page);
     setSearchQuery(keyword);
     try {
-      const response = await fetch(`${apiUrl}/grade/search?keyword=${keyword}&id_topik=${id_topik}&page=${page}&limit=${itemsPerPage}`, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
-        }
-      });
+      const response = await apiClient(`${apiUrl}/grade/search?keyword=${keyword}&id_topik=${id_topik}&page=${page}&limit=${itemsPerPage}`);
 
       if (!response.ok) {
-        if (response.status === 403) {
-          // throw new Error('Forbidden: Access is denied');
-          navigate('/error');
-        } else {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
       
       const data = await response.json();
@@ -272,20 +250,10 @@ const GradeStudentPage: React.FC = () => {
 
   const fetchDataComboTopics = async () => {
     try {
-      const response = await fetch(`${apiUrl}/combo/topik`, {
-        method: "GET",
-        headers: {
-          Accept: "application/json",
-          Authorization: `Bearer ${apiKey}`,
-        },
-      });
+      const response = await apiClient(`${apiUrl}/combo/topik`);
 
       if (!response.ok) {
-        if (response.status === 403) {
-          throw new Error("Forbidden: Access is denied");
-        } else {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
       const data = await response.json();
       setTopics(data.data);

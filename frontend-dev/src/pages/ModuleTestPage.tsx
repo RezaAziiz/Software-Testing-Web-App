@@ -10,16 +10,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { CheckCircle2, AlertCircle } from "lucide-react";
+import apiClient from "@/lib/apiClient";
+
 const ModuleTestPage = () => {
   const navigate = useNavigate();
   const apiUrl = import.meta.env.VITE_API_URL;
-  let apiKey = import.meta.env.VITE_API_KEY;
   // const modulId = import.meta.env.VITE_MODULE_ID;
   const sessionData = localStorage.getItem('session')
   let session = null
   if (sessionData != null) {
     session = JSON.parse(sessionData);
-    apiKey = session.token
   }
 
   const queryParameters = new URLSearchParams(window.location.search)
@@ -88,19 +88,16 @@ const ModuleTestPage = () => {
       };
 
 
-      const response = await fetch(`${apiUrl}/modul/addModul`, {
+      const response = await apiClient(`${apiUrl}/modul/addModul`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify(paramData),
       });
 
       if (!response.ok) {
-        if (response.status === 403) {
-          throw new Error("Forbidden: Access is denied");
-        } else if (response.status === 422) {
+        if (response.status === 422) {
           const data = await response.json();
           console.log(data.message);
           setErrorMessage(data.message);
@@ -114,11 +111,8 @@ const ModuleTestPage = () => {
         console.log(data.id_modul);
         let dataUpload = new FormData()
         dataUpload.append('source_code', fileSourceCode)
-        const responseUpload = await fetch(`${apiUrl}/modul/uploadSourceCode/${data.id_modul}`, {
+        const responseUpload = await apiClient(`${apiUrl}/modul/uploadSourceCode/${data.id_modul}`, {
           method: "POST",
-          headers: {
-            Authorization: `Bearer ${apiKey}`,
-          },
           body: dataUpload,
         });
         if (responseUpload.ok) {
@@ -190,31 +184,23 @@ const ModuleTestPage = () => {
       };
 
 
-      const response = await fetch(`${apiUrl}/modul/editModul`, {
+      const response = await apiClient(`${apiUrl}/modul/editModul`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify(paramData),
       });
 
       if (!response.ok) {
-        if (response.status === 403) {
-          throw new Error("Forbidden: Access is denied");
-        } else {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
+        throw new Error(`HTTP error! status: ${response.status}`);
       } else {
         await response.json();
         if (fileSourceCode != null) {
           let dataUpload = new FormData()
           dataUpload.append('source_code', fileSourceCode)
-          const responseUpload = await fetch(`${apiUrl}/modul/uploadSourceCode/${idModul}`, {
+          const responseUpload = await apiClient(`${apiUrl}/modul/uploadSourceCode/${idModul}`, {
             method: "POST",
-            headers: {
-              Authorization: `Bearer ${apiKey}`,
-            },
             body: dataUpload,
           });
           if (responseUpload.ok) {

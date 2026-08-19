@@ -16,6 +16,8 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Plus, Trash2 } from "lucide-react";
+import apiClient from "@/lib/apiClient";
+
 
 
 interface EditFormDialogProps {
@@ -164,13 +166,7 @@ const EditTestCaseFormDialog = ({
   triggerRefresh
 }: EditFormDialogProps) => {
   const apiUrl = import.meta.env.VITE_API_URL as string;
-  let apiKey = import.meta.env.VITE_API_KEY;
   // const modulId = import.meta.env.VITE_MODULE_ID;
-  const sessionData = localStorage.getItem('session')
-  if (sessionData != null) {
-    const session = JSON.parse(sessionData);
-    apiKey = session.token
-  }
   const queryParameters = new URLSearchParams(window.location.search)
   const modulId = queryParameters.get("topikModulId")
   const [parameters, setParameters] = useState<ParameterModul[]>([]);
@@ -185,20 +181,12 @@ const EditTestCaseFormDialog = ({
 
   const fetchParameters = async () => {
     try {
-      const response = await fetch(`${apiUrl}/modul/detailByIdTopikModul/${modulId}`, {
-        method: "GET",
-        headers: {
-          Accept: "application/json",
-          Authorization: `Bearer ${apiKey}`,
-        },
-      });
+      const response = await apiClient(
+        `${apiUrl}/modul/detailByIdTopikModul/${modulId}`
+      );
 
       if (!response.ok) {
-        if (response.status === 403) {
-          throw new Error("Forbidden: Access is denied");
-        } else {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       const responseData: DataResponse = await response.json();
@@ -211,15 +199,8 @@ const EditTestCaseFormDialog = ({
   };
 
   const fetchTestCaseData = async (id: string) => {
-
     try {
-      const response = await fetch(`${apiUrl}/modul/DetailTestCase/${id}`, {
-        method: "GET",
-        headers: {
-          Accept: "application/json",
-          Authorization: `Bearer ${apiKey}`,
-        },
-      });
+      const response = await apiClient(`${apiUrl}/modul/DetailTestCase/${id}`);
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -397,19 +378,16 @@ const EditTestCaseFormDialog = ({
 
     try {
       //form.reset(); // Reset form
-      const response = await fetch(`${apiUrl}/modul/editTestCase`, {
+      const response = await apiClient(`${apiUrl}/modul/editTestCase`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify(formattedData),
       });
 
       if (!response.ok) {
-        if (response.status === 403) {
-          throw new Error("Forbidden: Access is denied");
-        } else if (response.status === 422) {
+        if (response.status === 422) {
           const responseData = await response.json();
           setErrorMessage(responseData.message || "Validasi gagal");
           throw new Error("422");
