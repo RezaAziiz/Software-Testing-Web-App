@@ -634,7 +634,6 @@ const AddModuleForm: React.FC<AddModuleFormProps> = ({ onAddModule, onEditModule
                   <FormControl>
                     <div className="flex items-center gap-2">
                       <Input {...field} className="border-2 border-blue-500 bg-blue-50/40 focus:border-blue-600 focus:ring-2 focus:ring-blue-200 rounded p-2.5 w-full text-slate-900 font-medium" />
-                      <Pencil className="h-4 w-4 text-green-600 shrink-0" />
                     </div>
                   </FormControl>
                   <FormDescription className="text-xs text-gray-500 mt-1">*Nama modul harus unik, belum pernah dibuat sebelumnya</FormDescription>
@@ -698,7 +697,6 @@ const AddModuleForm: React.FC<AddModuleFormProps> = ({ onAddModule, onEditModule
                   <FormControl className="h-full">
                     <div className="flex items-start gap-2 h-full">
                       <textarea {...field} className="border-2 border-blue-500 bg-blue-50/40 focus:border-blue-600 focus:ring-2 focus:ring-blue-200 rounded p-2.5 w-full h-full min-h-[110px] text-slate-900 font-medium" />
-                      <Pencil className="h-4 w-4 text-green-600 shrink-0 mt-3" />
                     </div>
                   </FormControl>
                   {error && (
@@ -824,7 +822,6 @@ const AddModuleForm: React.FC<AddModuleFormProps> = ({ onAddModule, onEditModule
                               </SelectGroup>
                             </SelectContent>
                           </Select>
-                          <Pencil className="h-4 w-4 text-green-600 shrink-0" />
                         </div>
                       </FormControl>
                       {error && (
@@ -861,7 +858,6 @@ const AddModuleForm: React.FC<AddModuleFormProps> = ({ onAddModule, onEditModule
                                   </SelectGroup>
                                 </SelectContent>
                               </Select>
-                              <Pencil className="h-4 w-4 text-green-600 shrink-0" />
                             </div>
                           </FormControl>
                         </FormItem>
@@ -880,7 +876,6 @@ const AddModuleForm: React.FC<AddModuleFormProps> = ({ onAddModule, onEditModule
                           <FormControl>
                             <div className="flex items-center gap-2">
                               <Input {...field} className="border-2 border-blue-500 bg-blue-50/40 focus:border-blue-600 focus:ring-2 focus:ring-blue-200 rounded p-2 w-full text-slate-900 font-medium" />
-                              <Pencil className="h-4 w-4 text-green-600 shrink-0" />
                             </div>
                           </FormControl>
                         </FormItem>
@@ -901,7 +896,6 @@ const AddModuleForm: React.FC<AddModuleFormProps> = ({ onAddModule, onEditModule
                         <FormControl>
                           <div className="flex items-center gap-2">
                             <Input {...field} className="border-2 border-blue-500 bg-blue-50/40 focus:border-blue-600 focus:ring-2 focus:ring-blue-200 rounded p-2 w-full text-slate-900 font-medium" />
-                            <Pencil className="h-4 w-4 text-green-600 shrink-0" />
                           </div>
                         </FormControl>
                       </FormItem>
@@ -1060,7 +1054,6 @@ const AddModuleForm: React.FC<AddModuleFormProps> = ({ onAddModule, onEditModule
                             </SelectGroup>
                           </SelectContent>
                         </Select>
-                        <Pencil className="h-4 w-4 text-green-600 shrink-0" />
                       </div>
                     </FormControl>
                   </div>
