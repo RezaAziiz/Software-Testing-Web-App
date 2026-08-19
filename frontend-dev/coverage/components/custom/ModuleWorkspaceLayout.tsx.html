@@ -3,7 +3,7 @@
 <html lang="en">
 
 <head>
-    <title>Code coverage report for components/ui/button.tsx</title>
+    <title>Code coverage report for components/custom/ModuleWorkspaceLayout.tsx</title>
     <meta charset="utf-8" />
     <link rel="stylesheet" href="../../prettify.css" />
     <link rel="stylesheet" href="../../base.css" />
@@ -19,20 +19,20 @@
 <body>
 <div class='wrapper'>
     <div class='pad1'>
-        <h1><a href="../../index.html">All files</a> / <a href="index.html">components/ui</a> button.tsx</h1>
+        <h1><a href="../../index.html">All files</a> / <a href="index.html">components/custom</a> ModuleWorkspaceLayout.tsx</h1>
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">100% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>5/5</span>
+                <span class='fraction'>3/3</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">66.66% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>2/3</span>
+                <span class='fraction'>3/3</span>
             </div>
         
             
@@ -46,7 +46,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">100% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>5/5</span>
+                <span class='fraction'>3/3</span>
             </div>
         
             
@@ -110,22 +110,7 @@
 <a name='L45'></a><a href='#L45'>45</a>
 <a name='L46'></a><a href='#L46'>46</a>
 <a name='L47'></a><a href='#L47'>47</a>
-<a name='L48'></a><a href='#L48'>48</a>
-<a name='L49'></a><a href='#L49'>49</a>
-<a name='L50'></a><a href='#L50'>50</a>
-<a name='L51'></a><a href='#L51'>51</a>
-<a name='L52'></a><a href='#L52'>52</a>
-<a name='L53'></a><a href='#L53'>53</a>
-<a name='L54'></a><a href='#L54'>54</a>
-<a name='L55'></a><a href='#L55'>55</a>
-<a name='L56'></a><a href='#L56'>56</a>
-<a name='L57'></a><a href='#L57'>57</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">2x</span>
+<a name='L48'></a><a href='#L48'>48</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -136,6 +121,17 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">41x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">41x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -160,77 +156,54 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">3x</span>
-<span class="cline-any cline-yes">3x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import * as React from "react"
-import { Slot } from "@radix-ui/react-slot"
-import { cva, type VariantProps } from "class-variance-authority"
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import React, { useState } from "react";
+import Layout from "@/pages/Layout";
+import { Menu } from "@/components/custom/Menu";
+import ModuleSpecificationCard from "@/components/custom/ModuleSpecificationCard";
+import { CodeAndCfgPanels } from "@/components/custom/CodeAndCfgPanels";
 &nbsp;
-import { cn } from "@/lib/utils"
-&nbsp;
-const buttonVariants = cva(
-  "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
-  {
-    variants: {
-      variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/90",
-        destructive:
-          "bg-destructive text-destructive-foreground hover:bg-destructive/90",
-        outline:
-          "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
-        secondary:
-          "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-        ghost: "hover:bg-accent hover:text-accent-foreground",
-        link: "text-primary underline-offset-4 hover:underline",
-      },
-      size: {
-        default: "h-10 px-4 py-2",
-        sm: "h-9 rounded-md px-3",
-        lg: "h-11 rounded-md px-8",
-        icon: "h-10 w-10",
-      },
-    },
-    defaultVariants: {
-      variant: "default",
-      size: "default",
-    },
-  }
-)
-&nbsp;
-export interface ButtonProps
-  extends React.ButtonHTMLAttributes&lt;HTMLButtonElement&gt;,
-    VariantProps&lt;typeof buttonVariants&gt; {
-  asChild?: boolean
+interface ModuleWorkspaceLayoutProps {
+  children?: React.ReactNode;
+  showCyclomaticComplexity?: boolean;
+  showCodeCoverage?: boolean;
+  codeCoveragePercentage?: number;
 }
 &nbsp;
-const Button = React.forwardRef&lt;HTMLButtonElement, ButtonProps&gt;(
-  ({ className, variant, size, asChild = false, ...props }, ref) =&gt; {
-    const Comp = asChild ? <span class="branch-0 cbranch-no" title="branch not covered" >Slot : "</span>button"
-    return (
-      &lt;Comp
-        className={cn(buttonVariants({ variant, size, className }))}
-        ref={ref}
-        {...props}
-      /&gt;
-    )
-  }
-)
-Button.displayName = "Button"
+export const ModuleWorkspaceLayout: React.FC&lt;ModuleWorkspaceLayoutProps&gt; = ({
+  children,
+  showCyclomaticComplexity = true,
+  showCodeCoverage = false,
+  codeCoveragePercentage = 0,
+}) =&gt; {
+  const [highlightedLines, setHighlightedLines] = useState&lt;{ start: number; end: number } | null&gt;(null);
 &nbsp;
-export { Button, buttonVariants }
+  return (
+    &lt;Layout&gt;
+      &lt;Menu /&gt;
+      &lt;div className="flex flex-col w-screen min-h-screen p-4 gap-6"&gt;
+        {/* Section 1: Spesifikasi Modul dan Daftar Parameter (Full Width) */}
+        &lt;div className="w-full"&gt;
+          &lt;ModuleSpecificationCard /&gt;
+        &lt;/div&gt;
+&nbsp;
+        {/* Section 2: Kode Program (Kiri) dan Struktur Program (Kanan) */}
+        &lt;CodeAndCfgPanels
+          showCyclomaticComplexity={showCyclomaticComplexity}
+          showCodeCoverage={showCodeCoverage}
+          codeCoveragePercentage={codeCoveragePercentage}
+          highlightedLines={highlightedLines}
+          setHighlightedLines={setHighlightedLines}
+        /&gt;
+&nbsp;
+        {/* Section 3: Test Case, Hasil Pengujian, dan Aksi (Full Width) */}
+        {children}
+      &lt;/div&gt;
+    &lt;/Layout&gt;
+  );
+};
+&nbsp;
+export default ModuleWorkspaceLayout;
 &nbsp;</pre></td></tr></table></pre>
 
                 <div class='push'></div><!-- for sticky footer -->
@@ -238,7 +211,7 @@ export { Button, buttonVariants }
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-08-16T16:09:47.242Z
+                at 2026-08-17T17:05:37.199Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

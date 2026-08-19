@@ -14,5 +14,18 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./src/setupTests.ts"],
     globals: true,
+    coverage: {
+      provider: "v8",
+      include: [
+        "src/pages/CreateTestCasePage.tsx",
+        "src/pages/ExecutionTestCaseFailPage.tsx",
+        "src/pages/ExecutionTestCasePassPage.tsx",
+        "src/hooks/useAuthGuard.ts",
+        "src/components/custom/ModuleWorkspaceLayout.tsx",
+        "src/components/custom/FailCard.tsx",
+        "src/components/custom/PassCard.tsx",
+        "src/components/custom/MinimalCard.tsx",
+      ],
+    },
   },
 })
