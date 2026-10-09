@@ -89,6 +89,7 @@ export const CfgCytoscapeViewport: React.FC<CfgCytoscapeViewportProps> = ({
         "line-color": "data(lineColor)",
         "target-arrow-color": "data(lineColor)",
         "target-arrow-shape": "triangle",
+        "arrow-scale": 2,
         "curve-style": "bezier",
         label: "data(label)",
         "font-size": "24px",
@@ -115,10 +116,10 @@ export const CfgCytoscapeViewport: React.FC<CfgCytoscapeViewportProps> = ({
   React.useEffect(() => {
     if (!cyRef.current) return;
     const cy = cyRef.current;
-    
+
     // Clear selection
     cy.nodes().unselect();
-    
+
     if (highlightedLines) {
       let nodesToSelect = cy.collection();
       cy.nodes().forEach(node => {
@@ -136,7 +137,7 @@ export const CfgCytoscapeViewport: React.FC<CfgCytoscapeViewportProps> = ({
           }
         }
       });
-      
+
       if (nodesToSelect.length > 0) {
         nodesToSelect.select();
         // Hanya center jika nodesToSelect berjumlah kecil atau spesifik agar tidak terlalu zoom-out

@@ -355,7 +355,7 @@ const ProgressStudentPage: React.FC = () => {
 
   
   return (
-    <div className="flex flex-col lg:flex-row w-screen lg:w-screen">
+    <div className="flex flex-col lg:flex-row w-screen lg:w-screen overflow-x-hidden">
       <Sidebar isOpen={isSidebarOpen} toggleSidebar={toggleSidebar} />
       <div className={`flex-1 ${isSidebarOpen ? "ml-64" : "ml-20"} transition-all duration-300 `}>
         <div className="w-full bg-white p-4 shadow">

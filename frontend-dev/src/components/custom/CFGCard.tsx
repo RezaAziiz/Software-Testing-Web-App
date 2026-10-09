@@ -39,9 +39,9 @@ const computeCurveDistance = (
   const diff = Math.abs(sourceOrder - targetOrder);
   const isBackward = targetOrder <= sourceOrder;
 
-  // ── 1. Back Edge (kembali ke atas) → Melengkung ke kanan pada canvas (nilai positif untuk upward edge) ──
+  // ── 1. Back Edge (kembali ke atas) → Melengkung ke kiri pada canvas (nilai negatif untuk upward edge) ──
   if (isBackward && diff > 0) {
-    return 40 + Math.min(diff * 12, 100);
+    return -(40 + Math.min(diff * 12, 100));
   }
 
   // ── 2. Forward edges (ke bawah) → Melengkung ke kiri pada canvas (nilai positif untuk downward edge) ──
